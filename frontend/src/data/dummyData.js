@@ -1,5 +1,5 @@
 // 더미 사용자 데이터 구조
-export const dummyUser = {
+const dummyUser = {
   _id: 'user123',
   name: '김연기',
   username: 'actor_kim',
@@ -24,7 +24,7 @@ export const dummyUser = {
 };
 
 // 더미 대본 데이터 - 확장된 필터링을 위한 메타데이터 포함
-export const dummyScripts = [
+const dummyScripts = [
   {
     _id: '1',
     title: '첫사랑의 추억',
@@ -261,7 +261,7 @@ AI: ... 그럴 수도 있겠네요.`
 ];
 
 // 더미 감정 데이터
-export const dummyEmotions = [
+const dummyEmotions = [
   { _id: '1', name: '그리움', description: '그리워하는 마음' },
   { _id: '2', name: '사랑', description: '사랑하는 마음' },
   { _id: '3', name: '설렘', description: '설레는 마음' },

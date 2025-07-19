@@ -26,31 +26,11 @@ connectDB();
 // 미들웨어 설정
 app.use(helmet()); // 보안 헤더 설정
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
-// CORS 설정
+// CORS 설정을 가장 먼저 적용
 app.use(cors({
-  origin: function(origin, callback) {
-    // origin이 undefined인 경우는 같은 origin에서의 요청
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = Array.isArray(config.CORS_ORIGIN) 
-      ? config.CORS_ORIGIN 
-      : [config.CORS_ORIGIN];
-
-    console.log('Request Origin:', origin);
-    console.log('Allowed Origins:', allowedOrigins);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || config.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      console.error('CORS Error - Origin not allowed:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
+  origin: '*', // 모든 origin 허용
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  exposedHeaders: ['Content-Length', 'Content-Type'],
-  maxAge: 86400 // 24시간
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱

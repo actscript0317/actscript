@@ -35,16 +35,22 @@ app.use(cors({
     const allowedOrigins = Array.isArray(config.CORS_ORIGIN) 
       ? config.CORS_ORIGIN 
       : [config.CORS_ORIGIN];
+
+    console.log('Request Origin:', origin);
+    console.log('Allowed Origins:', allowedOrigins);
     
     if (allowedOrigins.indexOf(origin) !== -1 || config.NODE_ENV === 'development') {
       callback(null, true);
     } else {
+      console.error('CORS Error - Origin not allowed:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  maxAge: 86400 // 24시간
 }));
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱

@@ -4,6 +4,9 @@ const Emotion = require('../models/Emotion');
 
 const connectDB = async () => {
   try {
+    console.log('🔍 환경 변수 확인 중...');
+    console.log('MONGODB_URI 설정 여부:', config.MONGODB_URI ? '설정됨' : '설정되지 않음');
+    
     if (!config.MONGODB_URI) {
       console.warn('⚠️  MONGODB_URI 환경 변수가 설정되지 않았습니다.');
       console.warn('⚠️  데이터베이스 기능이 비활성화됩니다.');
@@ -11,7 +14,15 @@ const connectDB = async () => {
       return;
     }
     
-    const conn = await mongoose.connect(config.MONGODB_URI);
+    console.log('🔗 MongoDB 연결 시도 중...');
+    console.log('연결 URI (비밀번호 마스킹):', config.MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'));
+    
+    const conn = await mongoose.connect(config.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
     
     console.log(`✅ MongoDB 연결됨: ${conn.connection.host}`);
     

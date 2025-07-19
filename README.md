@@ -64,12 +64,17 @@ cd acting-scripts
 cd backend
 npm install
 
-# .env 파일 생성 (config.example.js 참고)
+# .env 파일 생성
 echo "PORT=5000
 MONGODB_URI=mongodb://localhost:27017/acting_scripts
 NODE_ENV=development
-CORS_ORIGIN=http://localhost:3000" > .env
+CORS_ORIGIN=http://localhost:3000
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_EXPIRE=7d
+OPENAI_API_KEY=your-actual-openai-api-key-here" > .env
 ```
+
+**⚠️ 중요**: `.env` 파일에는 실제 API 키와 비밀키를 입력해야 합니다. 이 파일은 Git에 커밋되지 않습니다.
 
 3. 프론트엔드 설정:
 ```bash

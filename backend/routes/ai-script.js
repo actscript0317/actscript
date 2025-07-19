@@ -6,7 +6,7 @@ const router = express.Router();
 
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
-  apiKey: config.OPENAI_API_KEY || process.env.OPENAI_API_KEY
+  apiKey: config.OPENAI_API_KEY
 });
 
   // 대본 생성 API

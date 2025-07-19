@@ -76,6 +76,24 @@ OPENAI_API_KEY=your-actual-openai-api-key-here" > .env
 
 **⚠️ 중요**: `.env` 파일에는 실제 API 키와 비밀키를 입력해야 합니다. 이 파일은 Git에 커밋되지 않습니다.
 
+### 환경 변수 설정 상세 가이드:
+
+1. **OpenAI API 키 설정**:
+   - [OpenAI API 키 발급](https://platform.openai.com/api-keys)에서 키를 발급받으세요
+   - `.env` 파일의 `OPENAI_API_KEY`에 실제 키를 입력하세요
+
+2. **JWT 시크릿 설정**:
+   - `JWT_SECRET`에는 강력한 랜덤 문자열을 사용하세요
+   - 예: `JWT_SECRET=my-super-secret-jwt-key-2024-production`
+
+3. **데이터베이스 설정**:
+   - 로컬 MongoDB: `MONGODB_URI=mongodb://localhost:27017/acting_scripts`
+   - MongoDB Atlas: `MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/acting_scripts`
+
+4. **프로덕션 환경**:
+   - `NODE_ENV=production`
+   - `CORS_ORIGIN`을 실제 도메인으로 설정
+
 3. 프론트엔드 설정:
 ```bash
 cd frontend
@@ -193,6 +211,51 @@ npm cache clean --force
 rm -rf node_modules package-lock.json
 npm install
 ```
+
+## 🚀 Render 배포 가이드
+
+### 백엔드 배포 (Render):
+
+1. **새 Web Service 생성**:
+   - Render 대시보드에서 "New Web Service" 선택
+   - GitHub 저장소 연결
+
+2. **환경 변수 설정**:
+   ```
+   NODE_ENV=production
+   PORT=10000
+   MONGODB_URI=your-mongodb-atlas-uri
+   JWT_SECRET=your-production-jwt-secret
+   JWT_EXPIRE=7d
+   OPENAI_API_KEY=your-openai-api-key
+   CORS_ORIGIN=https://your-frontend-domain.onrender.com
+   ```
+
+3. **빌드 설정**:
+   - Build Command: `npm install`
+   - Start Command: `npm start`
+
+### 프론트엔드 배포 (Render):
+
+1. **새 Static Site 생성**:
+   - Render 대시보드에서 "New Static Site" 선택
+   - GitHub 저장소 연결
+
+2. **빌드 설정**:
+   - Build Command: `cd frontend && npm install && npm run build`
+   - Publish Directory: `frontend/build`
+
+3. **환경 변수 설정**:
+   ```
+   REACT_APP_API_URL=https://your-backend-service.onrender.com/api
+   ```
+
+### 보안 주의사항:
+
+- ✅ `.env` 파일은 절대 Git에 커밋하지 마세요
+- ✅ 프로덕션에서는 강력한 JWT 시크릿을 사용하세요
+- ✅ CORS 설정을 실제 도메인으로 제한하세요
+- ✅ MongoDB Atlas 사용을 권장합니다
 
 ## 📝 라이센스
 

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Eye, Calendar, Heart, BookOpen, User, Mic, GraduationCap, Star, Bookmark } from 'lucide-react';
+import { Users, Eye, Calendar, Heart, User, Mic, GraduationCap, Star, Bookmark } from 'lucide-react';
 import { scriptAPI, emotionAPI } from '../services/api';
-import { dummyScripts, dummyEmotions } from '../data/dummyData';
 
 const Home = () => {
   const [popularScripts, setPopularScripts] = useState([]);

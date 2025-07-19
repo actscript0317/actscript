@@ -8,13 +8,11 @@ import {
   Users, 
   Film, 
   Heart, 
-  Clock, 
   Eye,
   Trash2,
   Copy,
   X,
-  Search,
-  Filter
+  Search
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 

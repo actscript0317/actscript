@@ -289,7 +289,7 @@ export const dummyEmotions = [
 ];
 
 // 필터 옵션 정의
-export const filterOptions = {
+const filterOptions = {
   gender: [
     { value: '', label: '전체' },
     { value: '여자', label: '여자' },
@@ -401,10 +401,4 @@ export const apiResponseStructure = {
   }
 };
 
-export default {
-  dummyUser,
-  dummyScripts,
-  dummyLikedScript,
-  dummyEmotion,
-  apiResponseStructure
-}; 
+export default filterOptions; 

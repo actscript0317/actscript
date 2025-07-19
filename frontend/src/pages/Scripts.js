@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Users, Eye, Calendar, Heart, X, Filter, ChevronDown, Bookmark } from 'lucide-react';
-import { scriptAPI, emotionAPI } from '../services/api';
+import { Search, Users, Eye, Filter, ChevronDown, Bookmark } from 'lucide-react';
+import { scriptAPI } from '../services/api';
 import { filterOptions } from '../data/dummyData';
 
 const Scripts = () => {

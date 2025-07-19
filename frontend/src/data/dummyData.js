@@ -346,13 +346,13 @@ const filterOptions = {
 };
 
 // 더미 좋아요 데이터 구조
-export const dummyLikedScript = {
+const dummyLikedScript = {
   ...dummyScripts[0], // 첫 번째 대본을 예시로 사용
   likedAt: '2024-01-20T10:30:00.000Z' // 좋아요를 누른 시간
 };
 
 // 더미 감정 데이터 구조
-export const dummyEmotion = {
+const dummyEmotion = {
   _id: 'emotion123',
   name: '사랑',
   description: '사랑하는 마음을 표현하는 감정',
@@ -365,7 +365,7 @@ export const dummyEmotion = {
 };
 
 // API 응답 구조 예시
-export const apiResponseStructure = {
+const apiResponseStructure = {
   // 로그인 성공 응답
   loginSuccess: {
     success: true,

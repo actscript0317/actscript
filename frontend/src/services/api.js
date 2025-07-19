@@ -4,12 +4,25 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://actscript.onrende
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // 타임아웃 증가
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true, // 쿠키 전송을 위해 필요
 });
+
+// API 요청/응답 디버깅
+if (process.env.NODE_ENV !== 'production') {
+  api.interceptors.request.use(request => {
+    console.log('Starting Request:', request);
+    return request;
+  });
+
+  api.interceptors.response.use(response => {
+    console.log('Response:', response);
+    return response;
+  });
+}
 
 // 요청 인터셉터 - 모든 요청에 토큰 추가
 api.interceptors.request.use(

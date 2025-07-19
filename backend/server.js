@@ -26,10 +26,26 @@ connectDB();
 // 미들웨어 설정
 app.use(helmet()); // 보안 헤더 설정
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
+// CORS 설정
 app.use(cors({
-  origin: config.CORS_ORIGIN,
-  credentials: true
-})); // CORS 설정
+  origin: function(origin, callback) {
+    // origin이 undefined인 경우는 같은 origin에서의 요청
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = Array.isArray(config.CORS_ORIGIN) 
+      ? config.CORS_ORIGIN 
+      : [config.CORS_ORIGIN];
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || config.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱
 app.use(cookieParser()); // 쿠키 파싱

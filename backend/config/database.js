@@ -17,11 +17,21 @@ const connectDB = async () => {
     console.log('🔗 MongoDB 연결 시도 중...');
     console.log('연결 URI (비밀번호 마스킹):', config.MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'));
     
-    const conn = await mongoose.connect(config.MONGODB_URI, {
+    // MongoDB 연결 문자열에서 데이터베이스 이름이 없으면 추가
+    let uri = config.MONGODB_URI;
+    if (!uri.includes('?')) {
+      uri = `${uri}/acting_scripts?retryWrites=true&w=majority`;
+    } else if (!uri.includes('/acting_scripts?')) {
+      uri = uri.replace('/?', '/acting_scripts?');
+    }
+    
+    const conn = await mongoose.connect(uri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      retryWrites: true,
+      w: 'majority'
     });
     
     console.log(`✅ MongoDB 연결됨: ${conn.connection.host}`);

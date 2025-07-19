@@ -4,6 +4,10 @@ const Emotion = require('../models/Emotion');
 
 const connectDB = async () => {
   try {
+    if (!config.MONGODB_URI) {
+      throw new Error('MONGODB_URI 환경 변수가 설정되지 않았습니다.');
+    }
+    
     const conn = await mongoose.connect(config.MONGODB_URI);
     
     console.log(`MongoDB 연결됨: ${conn.connection.host}`);
@@ -13,6 +17,7 @@ const connectDB = async () => {
     
   } catch (error) {
     console.error('MongoDB 연결 실패:', error);
+    console.error('환경 변수 확인: MONGODB_URI =', config.MONGODB_URI ? '설정됨' : '설정되지 않음');
     process.exit(1);
   }
 };

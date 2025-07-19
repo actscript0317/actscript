@@ -220,18 +220,25 @@ npm install
    - Render 대시보드에서 "New Web Service" 선택
    - GitHub 저장소 연결
 
-2. **환경 변수 설정**:
+2. **MongoDB Atlas 설정** (필수):
+   - [MongoDB Atlas](https://www.mongodb.com/atlas)에서 무료 클러스터 생성
+   - Database Access에서 사용자 생성
+   - Network Access에서 `0.0.0.0/0` (모든 IP 허용) 추가
+   - Connect 버튼 클릭 → "Connect your application" 선택
+   - 연결 문자열 복사 (예: `mongodb+srv://username:password@cluster.mongodb.net/acting_scripts`)
+
+3. **환경 변수 설정**:
    ```
    NODE_ENV=production
    PORT=10000
-   MONGODB_URI=your-mongodb-atlas-uri
+   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/acting_scripts
    JWT_SECRET=your-production-jwt-secret
    JWT_EXPIRE=7d
    OPENAI_API_KEY=your-openai-api-key
    CORS_ORIGIN=https://your-frontend-domain.onrender.com
    ```
 
-3. **빌드 설정**:
+4. **빌드 설정**:
    - Build Command: `npm install`
    - Start Command: `npm start`
 

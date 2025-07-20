@@ -81,16 +81,52 @@ export const authAPI = {
 // 대본 API
 export const scriptAPI = {
   // 모든 대본 조회
-  getAll: (params = {}) => api.get('/scripts', { params }),
+  getAll: async (params = {}) => {
+    try {
+      const response = await api.get('/scripts', { params });
+      console.log('API getAll response:', response);
+      return response;
+    } catch (error) {
+      console.error('API getAll error:', error);
+      throw error;
+    }
+  },
   
   // 인기 대본 조회
-  getPopular: () => api.get('/scripts/popular'),
+  getPopular: async () => {
+    try {
+      const response = await api.get('/scripts/popular');
+      console.log('API getPopular response:', response);
+      return response;
+    } catch (error) {
+      console.error('API getPopular error:', error);
+      throw error;
+    }
+  },
   
   // 최신 대본 조회
-  getLatest: () => api.get('/scripts/latest'),
+  getLatest: async () => {
+    try {
+      const response = await api.get('/scripts/latest');
+      console.log('API getLatest response:', response);
+      return response;
+    } catch (error) {
+      console.error('API getLatest error:', error);
+      throw error;
+    }
+  },
   
   // 특정 대본 조회
-  getById: (id) => api.get(`/scripts/${id}`),
+  getById: async (id) => {
+    try {
+      const response = await api.get(`/scripts/${id}`);
+      console.log('API getById response:', response);
+      return response;
+    } catch (error) {
+      console.error('API getById error:', error);
+      throw error;
+    }
+  },
   
   // 조회수 증가
   incrementView: (id) => api.patch(`/scripts/${id}/view`),

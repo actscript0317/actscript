@@ -50,25 +50,33 @@ const Scripts = () => {
     try {
       setLoading(true);
         
-        // API 파라미터 구성
-        const params = new URLSearchParams();
+      // API 파라미터 구성
+      const params = new URLSearchParams();
         
-        if (searchTerm) params.append('search', searchTerm);
-        if (filters.gender) params.append('gender', filters.gender);
-        if (filters.characterCount) params.append('characters', filters.characterCount);
-        if (filters.mood) params.append('mood', filters.mood);
-        if (filters.duration) params.append('duration', filters.duration);
-        if (filters.ageGroup) params.append('ageGroup', filters.ageGroup);
-        if (filters.purpose) params.append('purpose', filters.purpose);
-        if (filters.scriptType) params.append('scriptType', filters.scriptType);
-        if (sortBy) params.append('sort', sortBy);
+      if (searchTerm) params.append('search', searchTerm);
+      if (filters.gender) params.append('gender', filters.gender);
+      if (filters.characterCount) params.append('characters', filters.characterCount);
+      if (filters.mood) params.append('mood', filters.mood);
+      if (filters.duration) params.append('duration', filters.duration);
+      if (filters.ageGroup) params.append('ageGroup', filters.ageGroup);
+      if (filters.purpose) params.append('purpose', filters.purpose);
+      if (filters.scriptType) params.append('scriptType', filters.scriptType);
+      if (sortBy) params.append('sort', sortBy);
 
+      console.log('Fetching scripts with params:', Object.fromEntries(params));
       const response = await scriptAPI.getAll(params);
-        setFilteredScripts(response.data.scripts || []);
+      console.log('API Response:', response);
+
+      // response.data가 배열인 경우와 객체인 경우 모두 처리
+      const scripts = Array.isArray(response.data) ? response.data : 
+                     response.data.scripts ? response.data.scripts : [];
+      
+      console.log('Processed scripts:', scripts);
+      setFilteredScripts(scripts);
         
     } catch (error) {
       console.error('대본 목록 조회 실패:', error);
-        setFilteredScripts([]);
+      setFilteredScripts([]);
     } finally {
       setLoading(false);
     }
@@ -395,11 +403,17 @@ const Scripts = () => {
         </div>
 
         {/* 대본 목록 */}
-        {filteredScripts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {filteredScripts.map((script) => (
-            <ScriptCard key={script._id} script={script} />
-          ))}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">로딩 중...</p>
+          </div>
+        ) : filteredScripts && filteredScripts.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {filteredScripts.map((script) => {
+              console.log('Rendering script:', script);
+              return <ScriptCard key={script._id} script={script} />;
+            })}
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
@@ -410,13 +424,25 @@ const Scripts = () => {
             <p className="text-gray-600 mb-4">
               다른 조건으로 검색해보시거나 필터를 조정해보세요
             </p>
-            {activeFiltersCount > 0 && (
-            <button
-                onClick={clearAllFilters}
+            {Object.values(filters).some(Boolean) && (
+              <button
+                onClick={() => {
+                  setFilters({
+                    gender: '',
+                    characterCount: '',
+                    mood: '',
+                    duration: '',
+                    ageGroup: '',
+                    purpose: '',
+                    scriptType: ''
+                  });
+                  setSearchTerm('');
+                  setSortBy('newest');
+                }}
                 className="inline-flex items-center px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-            >
+              >
                 모든 필터 초기화
-            </button>
+              </button>
             )}
           </div>
         )}
@@ -427,127 +453,83 @@ const Scripts = () => {
 
 // 대본 카드 컴포넌트
 const ScriptCard = ({ script }) => {
-  // 좋아요 수 가져오기
-  const getLikeCount = (scriptId) => {
-    const likeCounts = JSON.parse(localStorage.getItem('scriptLikeCounts') || '{}');
-    return likeCounts[scriptId] || 0;
-  };
+  if (!script) {
+    console.warn('Script object is undefined or null');
+    return null;
+  }
 
-  // 저장 수 가져오기
-  const getSaveCount = (scriptId) => {
-    const saveCounts = JSON.parse(localStorage.getItem('scriptSaveCounts') || '{}');
-    return saveCounts[scriptId] || 0;
-  };
-
-  // 대본 형태별 색상
-  const getTypeColor = (type) => {
-    const colors = {
-      '독백': 'bg-blue-100 text-blue-800 border-blue-200',
-      '대화': 'bg-green-100 text-green-800 border-green-200',
-      '상황극': 'bg-purple-100 text-purple-800 border-purple-200',
-      '내레이션': 'bg-orange-100 text-orange-800 border-orange-200',
-      '기타': 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    return colors[type] || 'bg-gray-100 text-gray-800 border-gray-200';
-  };
-
-  // 분위기별 색상
-  const getMoodColor = (mood) => {
-    const colors = {
-      '감정적인': 'bg-pink-100 text-pink-800',
-      '코믹한': 'bg-yellow-100 text-yellow-800',
-      '진지한': 'bg-gray-100 text-gray-800',
-      '로맨스': 'bg-red-100 text-red-800',
-      '스릴러': 'bg-indigo-100 text-indigo-800',
-      '판타지': 'bg-purple-100 text-purple-800',
-      'SF': 'bg-cyan-100 text-cyan-800',
-      '시대극': 'bg-amber-100 text-amber-800',
-      '기타': 'bg-gray-100 text-gray-800'
-    };
-    return colors[mood] || 'bg-gray-100 text-gray-800';
-  };
+  console.log('ScriptCard rendering with script:', script);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 transition-all hover:shadow-md hover:border-emerald-200 h-full flex flex-col">
+    <Link
+      to={`/scripts/${script._id}`}
+      className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 transition-all hover:shadow-md hover:border-emerald-200 h-full flex flex-col"
+    >
       {/* 헤더 */}
       <div className="mb-4">
         <h3 className="text-xl font-semibold mb-2 text-gray-800 overflow-hidden">
-          <span className="block truncate">{script.title}</span>
-      </h3>
+          <span className="block truncate">{script.title || '제목 없음'}</span>
+        </h3>
         <p className="text-gray-600 text-sm overflow-hidden h-10">
-          <span className="block truncate">{script.situation}</span>
+          <span className="block truncate">{script.situation || '상황 설명 없음'}</span>
         </p>
       </div>
 
       {/* 메타 정보 */}
       <div className="mb-4 space-y-2">
         <div className="flex flex-wrap gap-2">
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getTypeColor(script.scriptType || '기타')}`}>
-            {script.scriptType || '기타'}
-          </span>
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getMoodColor(script.mood || '기타')}`}>
-            {script.mood || '기타'}
-          </span>
+          {script.scriptType && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {script.scriptType}
+            </span>
+          )}
+          {script.mood && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+              {script.mood}
+            </span>
+          )}
         </div>
         
         <div className="flex items-center text-sm text-gray-600 flex-wrap gap-4">
-          <div className="flex items-center">
-        <Users className="w-4 h-4 mr-1" />
-        <span>{script.characterCount}명</span>
-          </div>
+          {script.characterCount && (
+            <div className="flex items-center">
+              <Users className="w-4 h-4 mr-1" />
+              <span>{script.characterCount}명</span>
+            </div>
+          )}
         
-          <div className="flex items-center">
-            <Eye className="w-4 h-4 mr-1" />
-        <span>{script.views}</span>
-          </div>
+          {typeof script.views === 'number' && (
+            <div className="flex items-center">
+              <Eye className="w-4 h-4 mr-1" />
+              <span>{script.views}</span>
+            </div>
+          )}
           
           <div className="flex items-center">
             <Heart className="w-4 h-4 mr-1 text-red-500" />
-            <span>{getLikeCount(script._id)}</span>
+            <span>{script.likes || 0}</span>
           </div>
           
           <div className="flex items-center">
             <Bookmark className="w-4 h-4 mr-1 text-emerald-500" />
-            <span>{getSaveCount(script._id)}</span>
+            <span>{script.saves || 0}</span>
           </div>
         </div>
-
-        <div className="text-xs text-gray-500">
-          {script.duration || '시간 미정'} · {script.ageGroup || '연령 미정'} · {script.purpose || '목적 미정'}
-        </div>
-      </div>
-      
-      {/* 감정 태그 */}
-      <div className="mb-4 flex-grow">
-        <div className="flex flex-wrap gap-1">
-          {script.emotions?.slice(0, 3).map((emotion, index) => (
-            <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-            #{emotion}
-          </span>
-        ))}
-          {script.emotions?.length > 3 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-              +{script.emotions.length - 3}
-            </span>
-          )}
-        </div>
       </div>
 
-      {/* 하단 정보 */}
-      <div className="mt-auto">
-        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-          <span>by {script.author?.name || '익명'}</span>
-          <span>{new Date(script.createdAt).toLocaleDateString('ko-KR')}</span>
-      </div>
-      
-      <Link
-        to={`/scripts/${script._id}`}
-          className="block w-full bg-emerald-500 text-white text-center py-3 rounded-lg hover:bg-emerald-600 transition-colors font-medium"
-      >
-        자세히 보기
-      </Link>
-      </div>
-    </div>
+      {/* 태그 */}
+      {script.emotions && script.emotions.length > 0 && (
+        <div className="mt-auto pt-4 border-t border-gray-100">
+          <div className="flex flex-wrap gap-2">
+            {script.emotions.map((emotion, index) => (
+              <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                #{emotion}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </Link>
   );
 };
 

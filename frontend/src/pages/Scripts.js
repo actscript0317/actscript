@@ -10,6 +10,7 @@ const Scripts = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(true);
+  const [error, setError] = useState(null);
 
   // 필터 상태
   const [filters, setFilters] = useState({
@@ -49,6 +50,7 @@ const Scripts = () => {
     const fetchScripts = async () => {
     try {
       setLoading(true);
+      setError(null);
         
       // API 파라미터 구성
       const params = new URLSearchParams();
@@ -64,18 +66,22 @@ const Scripts = () => {
       if (sortBy) params.append('sort', sortBy);
 
       console.log('Fetching scripts with params:', Object.fromEntries(params));
-      const response = await scriptAPI.getAll(params);
-      console.log('API Response:', response);
+      
+      // API 호출
+      const data = await scriptAPI.getAll(params);
+      console.log('Received scripts data:', data);
 
-      // response.data가 배열인 경우와 객체인 경우 모두 처리
-      const scripts = Array.isArray(response.data) ? response.data : 
-                     response.data.scripts ? response.data.scripts : [];
+      // 데이터 구조 확인 및 처리
+      const scripts = Array.isArray(data) ? data : 
+                     data.scripts ? data.scripts :
+                     data.data ? data.data : [];
       
       console.log('Processed scripts:', scripts);
       setFilteredScripts(scripts);
         
     } catch (error) {
-      console.error('대본 목록 조회 실패:', error);
+      console.error('Failed to fetch scripts:', error);
+      setError(error.message || '대본 목록을 불러오는데 실패했습니다.');
       setFilteredScripts([]);
     } finally {
       setLoading(false);

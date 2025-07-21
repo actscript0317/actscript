@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import useAuth from './hooks/useAuth';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -17,32 +17,28 @@ import { Toaster } from 'react-hot-toast';
 import LoadingSpinner from './components/LoadingSpinner';
 
 function App() {
-  const { checkAuth } = useAuth();
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        await checkAuth();
-      } finally {
+    // 초기 로딩 상태 처리
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsInitializing(false);
+    } else {
+      // 토큰이 있으면 잠시 후 초기화 완료
+      const timer = setTimeout(() => {
         setIsInitializing(false);
-      }
-    };
-
-    initializeAuth();
-  }, [checkAuth]);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   if (isInitializing) {
     return <LoadingSpinner />;
   }
 
   return (
-    <Router
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true
-      }}
-    >
+    <Router>
       <Navbar />
       <main className="min-h-screen">
         <Routes>
@@ -55,6 +51,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/mypage" element={<PrivateRoute><MyPage /></PrivateRoute>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       <Footer />

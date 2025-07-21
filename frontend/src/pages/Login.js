@@ -11,26 +11,29 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { login, loading, user } = useAuth();
+  const { login, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/';
-
-  // 이미 로그인된 경우 리다이렉트
-  useEffect(() => {
-    if (user) {
-      navigate(from);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      toast.error(error);
+      return;
     }
-  }, [user, navigate, from]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    setError('');
+    const result = await login(formData.email, formData.password);
+    
+    if (result.success) {
+      toast.success('로그인되었습니다!');
+      // 페이지 새로고침을 위해 navigate 후 reload
+      navigate('/mypage', { replace: true });
+      window.location.reload();
+    } else {
+      setError(result.message);
+      toast.error(result.message);
+    }
   };
 
   const validateForm = () => {
@@ -49,23 +52,13 @@ const Login = () => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      toast.error(error);
-      return;
-    }
-
-    const result = await login(formData.email, formData.password);
-    
-    if (result.success) {
-      toast.success('로그인되었습니다!');
-      window.location.href = '/mypage';  // 페이지 새로고침과 함께 마이페이지로 이동
-    } else {
-      setError(result.message);
-      toast.error(result.message);
-    }
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setError('');
   };
 
   return (

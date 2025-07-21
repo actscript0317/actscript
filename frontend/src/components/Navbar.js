@@ -8,9 +8,23 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
+  // 초기 로그인 상태 확인 및 토큰 변경 감지
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token);
+    // 초기 상태 설정
+    setIsLoggedIn(!!localStorage.getItem('token'));
+
+    // 토큰 변경 감지를 위한 이벤트 리스너
+    const handleStorageChange = () => {
+      setIsLoggedIn(!!localStorage.getItem('token'));
+    };
+
+    // storage 이벤트 리스너 등록
+    window.addEventListener('storage', handleStorageChange);
+
+    // 컴포넌트 언마운트 시 이벤트 리스너 제거
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -18,7 +32,7 @@ const Navbar = () => {
     localStorage.removeItem('user');
     setIsLoggedIn(false);
     toast.success('로그아웃되었습니다.');
-    window.location.reload();
+    navigate('/');
   };
 
   return (

@@ -203,17 +203,26 @@ router.post('/register', [
 
 // 로그인
 router.post('/login', [
-  body('loginId')
+  body('email')
     .notEmpty()
-    .withMessage('사용자명 또는 이메일을 입력해주세요.'),
+    .withMessage('이메일을 입력해주세요.')
+    .isEmail()
+    .withMessage('올바른 이메일 형식이 아닙니다.'),
   body('password')
     .notEmpty()
     .withMessage('비밀번호를 입력해주세요.')
 ], async (req, res) => {
   try {
+    debug('로그인 요청', { 
+      email: req.body.email,
+      ip: req.ip,
+      userAgent: req.get('user-agent')
+    });
+
     // 유효성 검사
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      debug('유효성 검사 실패', { errors: errors.array() });
       return res.status(400).json({
         success: false,
         message: '입력 데이터에 오류가 있습니다.',
@@ -221,25 +230,23 @@ router.post('/login', [
       });
     }
 
-    const { loginId, password } = req.body;
+    const { email, password } = req.body;
 
-    // 사용자 찾기 (사용자명 또는 이메일로)
-    const user = await User.findOne({
-      $or: [
-        { username: loginId },
-        { email: loginId }
-      ]
-    }).select('+password');
+    // 사용자 찾기
+    debug('사용자 조회 중');
+    const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
+      debug('사용자를 찾을 수 없음', { email });
       return res.status(401).json({
         success: false,
-        message: '사용자명 또는 비밀번호가 올바르지 않습니다.'
+        message: '이메일 또는 비밀번호가 올바르지 않습니다.'
       });
     }
 
     // 계정 활성화 확인
     if (!user.isActive) {
+      debug('비활성화된 계정', { userId: user._id });
       return res.status(401).json({
         success: false,
         message: '비활성화된 계정입니다. 관리자에게 문의하세요.'
@@ -247,11 +254,13 @@ router.post('/login', [
     }
 
     // 비밀번호 확인
+    debug('비밀번호 확인 중');
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
+      debug('비밀번호 불일치', { userId: user._id });
       return res.status(401).json({
         success: false,
-        message: '사용자명 또는 비밀번호가 올바르지 않습니다.'
+        message: '이메일 또는 비밀번호가 올바르지 않습니다.'
       });
     }
 
@@ -260,7 +269,10 @@ router.post('/login', [
     await user.save({ validateBeforeSave: false });
 
     // JWT 토큰 생성
+    debug('JWT 토큰 생성 중');
     const token = user.getSignedJwtToken();
+
+    debug('로그인 성공', { userId: user._id });
 
     res.status(200)
       .cookie('token', token, getCookieOptions())
@@ -272,11 +284,15 @@ router.post('/login', [
       });
 
   } catch (error) {
-    console.error('로그인 오류:', error);
+    debug('로그인 처리 중 에러', { 
+      error: error.message,
+      stack: error.stack
+    });
+
     res.status(500).json({
       success: false,
       message: '로그인 중 오류가 발생했습니다.',
-      error: error.message
+      error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
     });
   }
 });

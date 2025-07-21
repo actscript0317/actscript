@@ -61,7 +61,7 @@ const Login = () => {
     
     if (result.success) {
       toast.success('로그인되었습니다!');
-      navigate('/mypage', { replace: true });
+      window.location.href = '/mypage';  // 페이지 새로고침과 함께 마이페이지로 이동
     } else {
       setError(result.message);
       toast.error(result.message);

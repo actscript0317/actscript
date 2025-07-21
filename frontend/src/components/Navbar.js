@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User } from 'lucide-react';
-import useAuth from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 
 const Navbar = () => {
-  const { user, logout, isAuthenticated } = useAuth();
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    await logout();
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setIsLoggedIn(false);
     toast.success('로그아웃되었습니다.');
-    navigate('/login');
+    window.location.reload();
   };
 
   return (
@@ -36,7 +42,7 @@ const Navbar = () => {
               >
                 대본 목록
               </Link>
-              {isAuthenticated && (
+              {isLoggedIn && (
                 <>
                   <Link
                     to="/add-script"
@@ -61,7 +67,7 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {isAuthenticated ? (
+            {isLoggedIn ? (
               <div className="flex items-center space-x-4">
                 <Link
                   to="/mypage"
@@ -128,7 +134,7 @@ const Navbar = () => {
           >
             대본 목록
           </Link>
-          {isAuthenticated && (
+          {isLoggedIn && (
             <>
               <Link
                 to="/add-script"
@@ -155,7 +161,7 @@ const Navbar = () => {
           )}
         </div>
         <div className="pt-4 pb-3 border-t border-gray-200">
-          {isAuthenticated ? (
+          {isLoggedIn ? (
             <div className="space-y-1">
               <Link
                 to="/mypage"

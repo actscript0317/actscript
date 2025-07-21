@@ -3,6 +3,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 
+// 디버그 로그 유틸리티
+const debug = (message, data = {}) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 👤 User Model - ${message}`, {
+    ...data,
+    password: data.password ? '[HIDDEN]' : undefined
+  });
+};
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -54,15 +63,27 @@ const userSchema = new mongoose.Schema({
 // 데이터 유효성 검사 미들웨어
 userSchema.pre('validate', function(next) {
   try {
-    console.log('Validating user data:', this._id || 'new user', this.email);
+    debug('유효성 검사 시작', {
+      id: this._id,
+      email: this.email,
+      username: this.username
+    });
     
     if (!this.email || !this.password || !this.username || !this.name) {
-      throw new Error('필수 필드가 누락되었습니다.');
+      const error = new Error('필수 필드가 누락되었습니다.');
+      debug('유효성 검사 실패 - 필수 필드 누락', {
+        hasEmail: !!this.email,
+        hasPassword: !!this.password,
+        hasUsername: !!this.username,
+        hasName: !!this.name
+      });
+      return next(error);
     }
     
+    debug('유효성 검사 통과');
     next();
   } catch (error) {
-    console.error('Validation error:', error);
+    debug('유효성 검사 중 에러', { error: error.message });
     next(error);
   }
 });
@@ -70,22 +91,27 @@ userSchema.pre('validate', function(next) {
 // 비밀번호 해싱 미들웨어
 userSchema.pre('save', async function(next) {
   try {
-    console.log('Starting pre-save hook for:', this._id || 'new user', this.email);
+    debug('save 미들웨어 시작', {
+      id: this._id,
+      email: this.email,
+      isNew: this.isNew,
+      isModified: this.isModified('password')
+    });
     
     // 비밀번호가 수정되지 않았으면 넘어감
     if (!this.isModified('password')) {
-      console.log('Password not modified, skipping hash');
+      debug('비밀번호 변경 없음, 해싱 스킵');
       return next();
     }
     
     // 비밀번호 해싱
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
-    console.log('Password hashed successfully');
+    debug('비밀번호 해싱 완료');
     
     next();
   } catch (error) {
-    console.error('Error in pre-save hook:', error);
+    debug('save 미들웨어 에러', { error: error.message });
     next(error);
   }
 });
@@ -93,23 +119,28 @@ userSchema.pre('save', async function(next) {
 // save 이벤트 리스너
 userSchema.post('save', function(doc, next) {
   try {
-    console.log('User saved successfully:', {
+    debug('사용자 저장 완료', {
       id: doc._id,
       email: doc.email,
       username: doc.username
     });
     next();
   } catch (error) {
-    console.error('Error in post-save hook:', error);
+    debug('save 후처리 중 에러', { error: error.message });
     next(error);
   }
 });
 
-// save 실패 이벤트 리스너
+// 저장 실패 이벤트 리스너
 userSchema.post('save', function(error, doc, next) {
   if (error.name === 'MongoServerError' && error.code === 11000) {
+    debug('중복 키 에러 발생', {
+      error: error.message,
+      keyPattern: error.keyPattern
+    });
     next(new Error('이미 존재하는 사용자명 또는 이메일입니다.'));
   } else {
+    debug('기타 저장 에러', { error: error.message });
     next(error);
   }
 });
@@ -117,13 +148,15 @@ userSchema.post('save', function(error, doc, next) {
 // 비밀번호 검증 메소드
 userSchema.methods.matchPassword = async function(enteredPassword) {
   try {
+    debug('비밀번호 검증 시도');
     if (!this.password) {
       throw new Error('저장된 비밀번호가 없습니다.');
     }
     const isMatch = await bcrypt.compare(enteredPassword, this.password);
+    debug('비밀번호 검증 완료', { isMatch });
     return isMatch;
   } catch (error) {
-    console.error('Password verification error:', error);
+    debug('비밀번호 검증 에러', { error: error.message });
     throw error;
   }
 };
@@ -131,11 +164,13 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
 // JWT 토큰 생성 메소드
 userSchema.methods.getSignedJwtToken = function() {
   try {
+    debug('JWT 토큰 생성 시작');
     if (!config.JWT_SECRET) {
+      debug('JWT_SECRET 누락 경고');
       console.warn('JWT_SECRET not found in config, using fallback secret');
     }
     
-    return jwt.sign(
+    const token = jwt.sign(
       { 
         id: this._id,
         username: this.username,
@@ -144,8 +179,11 @@ userSchema.methods.getSignedJwtToken = function() {
       config.JWT_SECRET || 'fallback-secret-key',
       { expiresIn: config.JWT_EXPIRE || '7d' }
     );
+    
+    debug('JWT 토큰 생성 완료');
+    return token;
   } catch (error) {
-    console.error('JWT token generation error:', error);
+    debug('JWT 토큰 생성 에러', { error: error.message });
     throw error;
   }
 };
@@ -153,11 +191,12 @@ userSchema.methods.getSignedJwtToken = function() {
 // 사용자 정보를 안전하게 반환하는 메소드
 userSchema.methods.toSafeObject = function() {
   try {
+    debug('안전한 사용자 객체 생성');
     const userObject = this.toObject();
     delete userObject.password;
     return userObject;
   } catch (error) {
-    console.error('Error in toSafeObject:', error);
+    debug('안전한 사용자 객체 생성 에러', { error: error.message });
     throw error;
   }
 };
@@ -181,8 +220,6 @@ if (mongoose.models.User) {
 
 // 모델 생성 및 내보내기
 const User = mongoose.model('User', userSchema);
-
-// 모델 생성 확인
-console.log('User model created successfully');
+debug('User 모델 생성됨');
 
 module.exports = User; 

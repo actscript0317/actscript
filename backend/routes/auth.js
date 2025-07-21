@@ -3,8 +3,18 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const config = require('../config/env');
+const mongoose = require('mongoose');
 
 const router = express.Router();
+
+// 디버그 로그 유틸리티
+const debug = (message, data = {}) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 🔐 Auth Route - ${message}`, {
+    ...data,
+    password: data.password ? '[HIDDEN]' : undefined
+  });
+};
 
 // 쿠키 옵션
 const getCookieOptions = () => ({
@@ -34,19 +44,25 @@ router.post('/register', [
     .isLength({ min: 1, max: 50 })
     .withMessage('이름은 1-50자 사이여야 합니다.')
 ], async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    console.log('📝 회원가입 요청 시작');
-    console.log('요청 데이터:', { 
-      ...req.body, 
-      password: '[HIDDEN]',
+    debug('회원가입 요청 시작', { 
+      body: { ...req.body, password: '[HIDDEN]' },
       ip: req.ip,
       userAgent: req.get('user-agent')
     });
+
+    // MongoDB 연결 상태 확인
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('데이터베이스 연결이 활성화되지 않았습니다.');
+    }
     
     // 유효성 검사
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ 유효성 검사 실패:', errors.array());
+      debug('유효성 검사 실패', { errors: errors.array() });
       return res.status(400).json({
         success: false,
         message: '입력 데이터에 오류가 있습니다.',
@@ -57,19 +73,21 @@ router.post('/register', [
     const { username, email, password, name } = req.body;
 
     // 중복 확인
-    console.log('🔍 사용자 중복 확인 중...');
+    debug('사용자 중복 확인');
     const existingUser = await User.findOne({
       $or: [
         { username: username.toLowerCase() },
         { email: email.toLowerCase() }
       ]
-    });
+    }).session(session);
 
     if (existingUser) {
-      console.log('❌ 중복된 사용자 발견:', {
+      debug('중복된 사용자 발견', {
         existingUsername: existingUser.username === username.toLowerCase(),
         existingEmail: existingUser.email === email.toLowerCase()
       });
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
         message: existingUser.username === username.toLowerCase()
@@ -79,7 +97,7 @@ router.post('/register', [
     }
 
     // 사용자 생성
-    console.log('👤 새 사용자 생성 중...');
+    debug('새 사용자 생성');
     const user = new User({
       username: username.toLowerCase(),
       email: email.toLowerCase(),
@@ -90,10 +108,17 @@ router.post('/register', [
     });
 
     // mongoose 유효성 검사
-    console.log('✔️ mongoose 모델 유효성 검사 중...');
+    debug('mongoose 모델 유효성 검사');
     const validationError = user.validateSync();
     if (validationError) {
-      console.error('❌ mongoose 유효성 검사 실패:', validationError);
+      debug('mongoose 유효성 검사 실패', {
+        errors: Object.values(validationError.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }))
+      });
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
         message: '입력 데이터가 유효하지 않습니다.',
@@ -105,17 +130,21 @@ router.post('/register', [
     }
 
     // 사용자 저장
-    console.log('💾 사용자 데이터 저장 중...');
-    const savedUser = await user.save();
-    console.log('✅ 사용자 저장 완료:', savedUser._id);
+    debug('사용자 데이터 저장');
+    const savedUser = await user.save({ session });
+    debug('사용자 저장 완료', { userId: savedUser._id });
 
     // JWT 토큰 생성
-    console.log('🔑 JWT 토큰 생성 중...');
+    debug('JWT 토큰 생성');
     const token = savedUser.getSignedJwtToken();
-    console.log('✅ JWT 토큰 생성 완료');
+
+    // 트랜잭션 커밋
+    await session.commitTransaction();
+    session.endSession();
+
+    debug('회원가입 완료', { userId: savedUser._id });
 
     // 응답 전송
-    console.log('📤 회원가입 완료 응답 전송');
     res.status(201)
       .cookie('token', token, getCookieOptions())
       .json({
@@ -126,8 +155,15 @@ router.post('/register', [
       });
 
   } catch (error) {
-    console.error('❌ 회원가입 처리 중 에러:', error);
-    
+    debug('회원가입 처리 중 에러', { 
+      error: error.message,
+      stack: error.stack
+    });
+
+    // 트랜잭션 롤백
+    await session.abortTransaction();
+    session.endSession();
+
     // mongoose 유효성 검사 에러
     if (error.name === 'ValidationError') {
       return res.status(400).json({
@@ -149,13 +185,13 @@ router.post('/register', [
       });
     }
 
-    // 기타 에러
-    console.error('❌ 상세 에러 정보:', {
-      name: error.name,
-      code: error.code,
-      message: error.message,
-      stack: error.stack
-    });
+    // 데이터베이스 연결 에러
+    if (error.message.includes('데이터베이스 연결')) {
+      return res.status(503).json({
+        success: false,
+        message: '데이터베이스 연결 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      });
+    }
 
     res.status(500).json({
       success: false,

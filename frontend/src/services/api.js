@@ -25,10 +25,13 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    console.log(`🚀 [API 요청] ${config.method.toUpperCase()} ${config.url}`, {
-      data: config.data ? { ...config.data, password: config.data.password ? '[HIDDEN]' : undefined } : undefined,
-      params: config.params,
-    });
+    // 개발 환경에서만 로깅
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🚀 [API 요청] ${config.method.toUpperCase()} ${config.url}`, {
+        data: config.data ? { ...config.data, password: config.data.password ? '[HIDDEN]' : undefined } : undefined,
+        params: config.params,
+      });
+    }
     return config;
   },
   (error) => {
@@ -40,24 +43,31 @@ api.interceptors.request.use(
 // 응답 인터셉터
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ [API 응답] ${response.config.method.toUpperCase()} ${response.config.url}`, {
-      status: response.status,
-      data: response.data,
-    });
+    // 개발 환경에서만 로깅
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ [API 응답] ${response.config.method.toUpperCase()} ${response.config.url}`, {
+        status: response.status,
+        data: response.data,
+      });
+    }
     return response;
   },
   (error) => {
+    // 에러 응답 로깅
     console.error('❌ [API 응답 실패]', {
       status: error.response?.status,
       data: error.response?.data,
       message: error.message,
+      url: error.config?.url,
     });
 
     // 401 에러 처리 (인증 실패)
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
 
     return Promise.reject(error);
@@ -78,19 +88,39 @@ export const scriptAPI = {
   getPopular: async () => {
     try {
       const response = await api.get('/scripts/popular');
-      return response.data;
+      return {
+        success: true,
+        data: {
+          scripts: response.data?.scripts || []
+        }
+      };
     } catch (error) {
       console.error('Get Popular Scripts Error:', error);
-      throw error;
+      return {
+        success: false,
+        data: {
+          scripts: []
+        }
+      };
     }
   },
   getLatest: async () => {
     try {
       const response = await api.get('/scripts/latest');
-      return response.data;
+      return {
+        success: true,
+        data: {
+          scripts: response.data?.scripts || []
+        }
+      };
     } catch (error) {
       console.error('Get Latest Scripts Error:', error);
-      throw error;
+      return {
+        success: false,
+        data: {
+          scripts: []
+        }
+      };
     }
   },
   getById: async (id) => {
@@ -145,10 +175,20 @@ export const emotionAPI = {
   getAll: async () => {
     try {
       const response = await api.get('/emotions');
-      return response.data;
+      return {
+        success: true,
+        data: {
+          emotions: response.data?.emotions || []
+        }
+      };
     } catch (error) {
       console.error('Get All Emotions Error:', error);
-      throw error;
+      return {
+        success: false,
+        data: {
+          emotions: []
+        }
+      };
     }
   },
   getById: async (id) => {
@@ -157,33 +197,6 @@ export const emotionAPI = {
       return response.data;
     } catch (error) {
       console.error('Get Emotion By Id Error:', error);
-      throw error;
-    }
-  },
-  create: async (data) => {
-    try {
-      const response = await api.post('/emotions', data);
-      return response.data;
-    } catch (error) {
-      console.error('Create Emotion Error:', error);
-      throw error;
-    }
-  },
-  update: async (id, data) => {
-    try {
-      const response = await api.put(`/emotions/${id}`, data);
-      return response.data;
-    } catch (error) {
-      console.error('Update Emotion Error:', error);
-      throw error;
-    }
-  },
-  delete: async (id) => {
-    try {
-      const response = await api.delete(`/emotions/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('Delete Emotion Error:', error);
       throw error;
     }
   },

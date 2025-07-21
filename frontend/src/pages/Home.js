@@ -8,6 +8,7 @@ const Home = () => {
   const [latestScripts, setLatestScripts] = useState([]);
   const [emotions, setEmotions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   // 카테고리 데이터
@@ -110,19 +111,34 @@ const Home = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 실제 API 호출
-        const [popularRes, latestRes, emotionsRes] = await Promise.all([
-          scriptAPI.getPopular(),
-          scriptAPI.getLatest(),
-          emotionAPI.getAll()
-        ]);
-        
-        setPopularScripts(popularRes.data || []);
-        setLatestScripts(latestRes.data || []);
-        setEmotions(emotionsRes.data || []);
-        
+        setLoading(true);
+        setError(null);
+
+        // 각 API 호출을 개별적으로 처리
+        try {
+          const popularRes = await scriptAPI.getPopular();
+          setPopularScripts(popularRes.data?.scripts || []);
+        } catch (error) {
+          console.error('인기 대본 로딩 실패:', error);
+        }
+
+        try {
+          const latestRes = await scriptAPI.getLatest();
+          setLatestScripts(latestRes.data?.scripts || []);
+        } catch (error) {
+          console.error('최신 대본 로딩 실패:', error);
+        }
+
+        try {
+          const emotionsRes = await emotionAPI.getAll();
+          setEmotions(emotionsRes.data?.emotions || []);
+        } catch (error) {
+          console.error('감정 데이터 로딩 실패:', error);
+        }
+
       } catch (error) {
         console.error('데이터 로딩 실패:', error);
+        setError('데이터를 불러오는 중 문제가 발생했습니다.');
       } finally {
         setLoading(false);
       }
@@ -135,8 +151,26 @@ const Home = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="spinner mx-auto"></div>
-          <p className="mt-4 text-secondary">로딩 중...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">😢</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">데이터 로딩 실패</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+          >
+            새로고침
+          </button>
         </div>
       </div>
     );

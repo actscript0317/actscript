@@ -4,73 +4,51 @@ import { User, Heart, Settings, Eye, Calendar, Users, Bookmark, Sparkles, Palett
 import { useAuth } from '../contexts/AuthContext';
 
 const MyPage = () => {
-  const { 
-    user, 
-    isAuthenticated, 
-    savedScripts, 
-    loadSavedScripts, 
-    removeSavedScript,
-    aiGeneratedScripts,
-    loadAIGeneratedScripts,
-    removeAIGeneratedScript
-  } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [dataInitialized, setDataInitialized] = useState(false);
+  const [savedScripts, setSavedScripts] = useState([]);
+  const [aiGeneratedScripts, setAiGeneratedScripts] = useState([]);
 
-  // 저장한 대본 데이터 로드
   useEffect(() => {
-    if (isAuthenticated && !dataInitialized) {
-      // 더미 데이터가 없으면 추가 (테스트용)
-      const stored = localStorage.getItem('savedScripts');
-      if (!stored || JSON.parse(stored).length === 0) {
-        const dummySavedScripts = [
-          {
-            _id: '1',
-            title: '첫사랑의 추억',
-            characterCount: 2,
-            views: 1250,
-            emotions: ['그리움', '사랑'],
-            createdAt: '2024-01-15',
-            savedAt: '2024-01-20'
-          },
-          {
-            _id: '3',
-            title: '희망의 메시지',
-            characterCount: 1,
-            views: 750,
-            emotions: ['희망', '기쁨'],
-            createdAt: '2024-01-05',
-            savedAt: '2024-01-12'
-          }
-        ];
-        localStorage.setItem('savedScripts', JSON.stringify(dummySavedScripts));
+    const loadUserData = async () => {
+      try {
+        // 저장된 대본 불러오기
+        const storedScripts = localStorage.getItem('savedScripts');
+        const scripts = storedScripts ? JSON.parse(storedScripts) : [];
+        setSavedScripts(scripts);
+
+        // AI 생성 대본 불러오기
+        const storedAIScripts = localStorage.getItem('aiGeneratedScripts');
+        const aiScripts = storedAIScripts ? JSON.parse(storedAIScripts) : [];
+        setAiGeneratedScripts(aiScripts);
+
+      } catch (error) {
+        console.error('데이터 로드 중 오류:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      loadSavedScripts();
-      loadAIGeneratedScripts();
-      setDataInitialized(true);
-      setTimeout(() => setLoading(false), 500);
-    } else if (isAuthenticated && dataInitialized) {
-      setLoading(false);
-    } else if (!isAuthenticated) {
+    };
+
+    if (isAuthenticated) {
+      loadUserData();
+    } else {
       setLoading(false);
     }
-  }, [isAuthenticated, dataInitialized, loadSavedScripts, loadAIGeneratedScripts]);
+  }, [isAuthenticated]);
 
   // 저장 제거 핸들러
   const handleRemoveSave = (scriptId) => {
-    console.log('저장 제거:', scriptId);
-    removeSavedScript(scriptId);
+    const updatedScripts = savedScripts.filter(script => script._id !== scriptId);
+    setSavedScripts(updatedScripts);
+    localStorage.setItem('savedScripts', JSON.stringify(updatedScripts));
   };
 
-  // 디버깅용 로그
-  console.log('MyPage 렌더링:', { 
-    isAuthenticated, 
-    loading, 
-    dataInitialized,
-    savedScriptsCount: savedScripts.length,
-    user: user?.name 
-  });
+  // AI 생성 대본 제거 핸들러
+  const handleRemoveAIScript = (scriptId) => {
+    const updatedScripts = aiGeneratedScripts.filter(script => script._id !== scriptId);
+    setAiGeneratedScripts(updatedScripts);
+    localStorage.setItem('aiGeneratedScripts', JSON.stringify(updatedScripts));
+  };
 
   if (!isAuthenticated) {
     return (
@@ -78,7 +56,7 @@ const MyPage = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">로그인이 필요합니다</h2>
           <p className="text-gray-600 mb-6">마이페이지를 이용하려면 먼저 로그인해주세요.</p>
-          <Link to="/login" className="btn btn-primary">
+          <Link to="/login" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark">
             로그인하기
           </Link>
         </div>
@@ -90,8 +68,8 @@ const MyPage = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="spinner mx-auto"></div>
-          <p className="mt-4 text-secondary">로딩 중...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
@@ -112,17 +90,13 @@ const MyPage = () => {
                 <h1 className="text-2xl font-bold text-gray-900">마이페이지</h1>
                 <p className="text-gray-600">안녕하세요, {user?.name || user?.username}님!</p>
               </div>
-              <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-600 px-3 py-2 rounded-lg hover:bg-gray-50">
-                <Settings className="w-5 h-5" />
-                <span>설정</span>
-              </button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* 내 정보 섹션 */}
-            <div className="lg:col-span-1 space-y-8">
+            <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                   <User className="w-5 h-5 mr-2 text-emerald-600" />
@@ -141,16 +115,6 @@ const MyPage = () => {
                   </div>
                   
                   <div>
-                    <label className="text-sm font-medium text-gray-500">가입일</label>
-                    <p className="text-gray-900">
-                      {user?.createdAt 
-                        ? new Date(user.createdAt).toLocaleDateString('ko-KR')
-                        : '2024년 1월 1일'
-                      }
-                    </p>
-                  </div>
-                  
-                  <div>
                     <label className="text-sm font-medium text-gray-500">저장한 대본</label>
                     <p className="text-2xl font-bold text-emerald-600">{savedScripts.length}개</p>
                   </div>
@@ -158,34 +122,6 @@ const MyPage = () => {
                   <div>
                     <label className="text-sm font-medium text-gray-500">AI 생성 대본</label>
                     <p className="text-2xl font-bold text-purple-600">{aiGeneratedScripts.length}개</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mt-6">
-                  <button className="w-full px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors">
-                    프로필 수정
-                  </button>
-                  
-                  {/* 디버깅용 테스트 버튼들 */}
-                  <div className="text-xs text-gray-500 border-t pt-2">
-                    <p>라우팅 테스트:</p>
-                    <div className="flex gap-2 mt-2">
-                      <Link to="/" className="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs">
-                        홈
-                      </Link>
-                      <Link to="/scripts" className="px-2 py-1 bg-green-100 text-green-600 rounded text-xs">
-                        대본목록
-                      </Link>
-                      <button 
-                        onClick={() => {
-                          console.log('현재 상태:', { isAuthenticated, user, loading });
-                          alert('라우팅 테스트 - 콘솔을 확인하세요');
-                        }}
-                        className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs"
-                      >
-                        상태확인
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -208,7 +144,6 @@ const MyPage = () => {
                     <Link 
                       to="/scripts" 
                       className="text-emerald-600 hover:text-emerald-700 font-medium"
-                      onClick={() => console.log('대본 둘러보기 클릭됨')}
                     >
                       대본 둘러보기 →
                     </Link>
@@ -216,58 +151,21 @@ const MyPage = () => {
                 ) : (
                   <div className="space-y-4">
                     {savedScripts.map((script) => (
-                      <div key={script._id} className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 hover:shadow-sm transition-all">
+                      <div key={script._id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                              {script.title}
-                            </h3>
-                            
-                            <div className="flex items-center text-sm text-gray-600 mb-3 flex-wrap gap-4">
-                              <div className="flex items-center">
-                                <Users className="w-4 h-4 mr-1" />
-                                <span>{script.characterCount}명</span>
-                              </div>
-                              
-                              <div className="flex items-center">
-                                <Eye className="w-4 h-4 mr-1" />
-                                <span>{script.views}</span>
-                              </div>
-                              
-                              <div className="flex items-center">
-                                <Calendar className="w-4 h-4 mr-1" />
-                                <span>{new Date(script.createdAt).toLocaleDateString('ko-KR')}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {script.emotions?.map((emotion, index) => (
-                                <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                  #{emotion}
-                                </span>
-                              ))}
-                            </div>
-                            
-                            <p className="text-xs text-gray-500">
-                              {new Date(script.savedAt).toLocaleDateString('ko-KR')}에 저장 추가
+                          <div>
+                            <h3 className="text-lg font-semibold">{script.title}</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              저장일: {new Date(script.savedAt).toLocaleDateString()}
                             </p>
                           </div>
-                          
-                          <div className="flex items-center space-x-2 ml-4">
-                            <button 
+                          <div>
+                            <button
                               onClick={() => handleRemoveSave(script._id)}
-                              className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
-                              title="저장 취소"
+                              className="text-red-600 hover:text-red-700"
                             >
-                              <Bookmark className="w-4 h-4 fill-current" />
+                              삭제
                             </button>
-                            <Link 
-                              to={`/scripts/${script._id}`}
-                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
-                              onClick={() => console.log('스크립트 보기 클릭됨:', script._id)}
-                            >
-                              보기
-                            </Link>
                           </div>
                         </div>
                       </div>
@@ -297,74 +195,20 @@ const MyPage = () => {
                 ) : (
                   <div className="space-y-4">
                     {aiGeneratedScripts.map((script) => (
-                      <div key={script._id} className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-sm transition-all">
+                      <div key={script._id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="text-lg font-semibold text-gray-900">
-                                {script.title}
-                              </h3>
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                <Sparkles className="w-3 h-3 mr-1" />
-                                AI 생성
-                              </span>
-                            </div>
-                            
-                            <div className="flex items-center text-sm text-gray-600 mb-3 flex-wrap gap-4">
-                              <div className="flex items-center">
-                                <Users className="w-4 h-4 mr-1" />
-                                <span>{script.characterCount}명</span>
-                              </div>
-                              
-                              <div className="flex items-center">
-                                <Palette className="w-4 h-4 mr-1" />
-                                <span>{script.genre}</span>
-                              </div>
-                              
-                              <div className="flex items-center">
-                                <Heart className="w-4 h-4 mr-1" />
-                                <span>{script.emotion}</span>
-                              </div>
-                              
-                              <div className="flex items-center">
-                                <Clock className="w-4 h-4 mr-1" />
-                                <span>{script.length}</span>
-                              </div>
-                              
-                              <div className="flex items-center">
-                                <Calendar className="w-4 h-4 mr-1" />
-                                <span>{new Date(script.generatedAt).toLocaleDateString('ko-KR')}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
-                              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                                {script.content.length > 200 
-                                  ? script.content.substring(0, 200) + '...' 
-                                  : script.content
-                                }
-                              </p>
-                            </div>
+                          <div>
+                            <h3 className="text-lg font-semibold">{script.title}</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              생성일: {new Date(script.generatedAt).toLocaleDateString()}
+                            </p>
                           </div>
-                          
-                          <div className="flex items-center space-x-2 ml-4">
-                            <button 
-                              onClick={() => removeAIGeneratedScript(script._id)}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="삭제"
+                          <div>
+                            <button
+                              onClick={() => handleRemoveAIScript(script._id)}
+                              className="text-red-600 hover:text-red-700"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                            <button 
-                              onClick={() => {
-                                navigator.clipboard.writeText(script.content);
-                                alert('대본이 클립보드에 복사되었습니다!');
-                              }}
-                              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
-                            >
-                              복사
+                              삭제
                             </button>
                           </div>
                         </div>

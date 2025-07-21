@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
-import axios from 'axios';
+import { authAPI } from '../services/api';
 
 const useAuth = () => {
   const register = async (formData) => {
     console.log('[회원가입 요청]', formData);
     try {
-      const res = await axios.post('/auth/register', formData);
+      const res = await authAPI.register(formData);
       console.log('[회원가입 응답]', res.data);
       return { success: true };
     } catch (error) {

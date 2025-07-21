@@ -27,14 +27,19 @@ connectDB();
 app.use(helmet()); // 보안 헤더 설정
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
 // CORS 설정을 가장 먼저 적용
+const allowedOrigins = [
+  'https://actscript-1.onrender.com', // 프론트엔드
+  'http://localhost:3000'             // 개발용
+];
 app.use(cors({
-  origin: [
-    'https://actscript-1.onrender.com', // 프론트엔드 도메인
-    'http://localhost:3000'             // 개발용
-  ],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true
 }));
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱

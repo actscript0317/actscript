@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Eye, EyeOff } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
+import { toast } from 'react-hot-toast';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,8 +14,7 @@ const Register = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -24,57 +24,19 @@ const Register = () => {
       ...prev,
       [name]: value
     }));
-    
-    // 에러 클리어
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.username.trim()) {
-      newErrors.username = '사용자명을 입력해주세요';
-    } else if (formData.username.length < 3) {
-      newErrors.username = '사용자명은 3자 이상이어야 합니다';
-    }
-
-    if (!formData.name.trim()) {
-      newErrors.name = '이름을 입력해주세요';
-    }
-
-    if (!formData.email) {
-      newErrors.email = '이메일을 입력해주세요';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = '올바른 이메일 형식이 아닙니다';
-    }
-
-    if (!formData.password) {
-      newErrors.password = '비밀번호를 입력해주세요';
-    } else if (formData.password.length < 6) {
-      newErrors.password = '비밀번호는 6자 이상이어야 합니다';
-    }
-
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = '비밀번호 확인을 입력해주세요';
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = '비밀번호가 일치하지 않습니다';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
+    const { username, email, password, confirmPassword, name } = formData;
+
+    // 비밀번호 확인
     if (password !== confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.');
+      toast.error('비밀번호가 일치하지 않습니다.');
       return;
     }
 
@@ -87,200 +49,144 @@ const Register = () => {
     });
 
     if (result.success) {
-      // 회원가입 성공
       toast.success('회원가입이 완료되었습니다!');
-      navigate('/'); // 홈으로 이동
+      navigate('/');
     } else {
-      // 회원가입 실패
       setError(result.message);
       toast.error(result.message);
     }
   };
 
   return (
-    <div className="min-h-screen flex-center py-12 px-4">
-      <div className="w-full max-w-md">
-        {/* 헤더 */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            회원가입
-          </h2>
-          <p className="text-secondary">
-            새 계정을 만들어 연기대본 라이브러리를 이용하세요
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-900">회원가입</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            이미 계정이 있으신가요?{' '}
+            <Link to="/login" className="text-primary hover:text-primary-dark">
+              로그인하기
+            </Link>
           </p>
         </div>
 
-        {/* 회원가입 폼 */}
-        <div className="card">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* 일반 에러 메시지 */}
-            {errors.general && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                {errors.general}
-              </div>
-            )}
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
 
-            {/* 사용자명 입력 */}
+          <div className="space-y-4">
             <div>
-              <label htmlFor="username" className="form-label">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                 사용자명
               </label>
               <input
                 id="username"
-                type="text"
                 name="username"
+                type="text"
+                required
                 value={formData.username}
                 onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                 placeholder="사용자명을 입력하세요"
-                className={`form-input ${errors.username ? 'border-red-500' : ''}`}
-                disabled={loading}
               />
-              {errors.username && (
-                <p className="mt-2 text-sm text-red-600">{errors.username}</p>
-              )}
             </div>
 
-            {/* 이름 입력 */}
             <div>
-              <label htmlFor="name" className="form-label">
-                이름
-              </label>
-              <input
-                id="name"
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="실명을 입력하세요"
-                className={`form-input ${errors.name ? 'border-red-500' : ''}`}
-                disabled={loading}
-              />
-              {errors.name && (
-                <p className="mt-2 text-sm text-red-600">{errors.name}</p>
-              )}
-            </div>
-
-            {/* 이메일 입력 */}
-            <div>
-              <label htmlFor="email" className="form-label">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 이메일
               </label>
               <input
                 id="email"
-                type="email"
                 name="email"
+                type="email"
+                required
                 value={formData.email}
                 onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                 placeholder="이메일을 입력하세요"
-                className={`form-input ${errors.email ? 'border-red-500' : ''}`}
-                disabled={loading}
               />
-              {errors.email && (
-                <p className="mt-2 text-sm text-red-600">{errors.email}</p>
-              )}
             </div>
 
-            {/* 비밀번호 입력 */}
             <div>
-              <label htmlFor="password" className="form-label">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                이름
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                value={formData.name}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="이름을 입력하세요"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 비밀번호
               </label>
               <div className="relative">
                 <input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
                   name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
                   value={formData.password}
                   onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                   placeholder="비밀번호를 입력하세요"
-                  className={`form-input pr-12 ${errors.password ? 'border-red-500' : ''}`}
-                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  disabled={loading}
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="mt-2 text-sm text-red-600">{errors.password}</p>
-              )}
             </div>
 
-            {/* 비밀번호 확인 입력 */}
             <div>
-              <label htmlFor="confirmPassword" className="form-label">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                 비밀번호 확인
               </label>
               <div className="relative">
                 <input
                   id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                   placeholder="비밀번호를 다시 입력하세요"
-                  className={`form-input pr-12 ${errors.confirmPassword ? 'border-red-500' : ''}`}
-                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  disabled={loading}
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.confirmPassword && (
-                <p className="mt-2 text-sm text-red-600">{errors.confirmPassword}</p>
-              )}
             </div>
+          </div>
 
-            {/* 회원가입 버튼 */}
+          <div>
             <button
               type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full flex-center disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                  가입 중...
-                </>
-              ) : (
-                <>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  회원가입
-                </>
-              )}
+              <UserPlus className="w-5 h-5 mr-2" />
+              회원가입
             </button>
-
-            {/* 로그인 링크 */}
-            <div className="text-center">
-              <p className="text-secondary">
-                이미 계정이 있으신가요?{' '}
-                <Link 
-                  to="/login" 
-                  className="text-primary hover:underline font-medium"
-                >
-                  로그인하기
-                </Link>
-              </p>
-            </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );

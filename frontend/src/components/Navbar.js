@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = React.useState(false);
   const navigate = useNavigate();
 
@@ -36,7 +36,7 @@ const Navbar = () => {
               >
                 대본 목록
               </Link>
-              {user && (
+              {isAuthenticated && (
                 <>
                   <Link
                     to="/add-script"
@@ -61,7 +61,7 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {user ? (
+            {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <Link
                   to="/mypage"
@@ -128,7 +128,7 @@ const Navbar = () => {
           >
             대본 목록
           </Link>
-          {user && (
+          {isAuthenticated && (
             <>
               <Link
                 to="/add-script"
@@ -155,7 +155,7 @@ const Navbar = () => {
           )}
         </div>
         <div className="pt-4 pb-3 border-t border-gray-200">
-          {user ? (
+          {isAuthenticated ? (
             <div className="space-y-1">
               <Link
                 to="/mypage"

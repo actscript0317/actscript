@@ -61,7 +61,7 @@ const Login = () => {
     
     if (result.success) {
       toast.success('로그인되었습니다!');
-      navigate(from, { replace: true });
+      navigate('/mypage', { replace: true });
     } else {
       setError(result.message);
       toast.error(result.message);

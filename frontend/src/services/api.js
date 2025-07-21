@@ -1,45 +1,50 @@
 import axios from 'axios';
 
+// API 기본 설정
 const API_BASE_URL = process.env.REACT_APP_API_URL ||
   (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5000/api'
+    ? 'http://localhost:10000/api'
     : 'https://actscript.onrender.com/api');
 
+// axios 인스턴스 생성
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: true, // 쿠키 포함
 });
 
-// API 요청/응답 디버깅
-api.interceptors.request.use(request => {
-  console.log('API Request:', {
-    url: request.url,
-    method: request.method,
-    data: request.data,
-    headers: request.headers
-  });
-  return request;
-});
+// 요청 인터셉터
+api.interceptors.request.use(
+  (config) => {
+    console.log(`🚀 [API 요청] ${config.method.toUpperCase()} ${config.url}`, {
+      data: config.data,
+      params: config.params,
+    });
+    return config;
+  },
+  (error) => {
+    console.error('❌ [API 요청 실패]', error);
+    return Promise.reject(error);
+  }
+);
 
+// 응답 인터셉터
 api.interceptors.response.use(
-  response => {
-    console.log('API Response:', {
-      url: response.config.url,
+  (response) => {
+    console.log(`✅ [API 응답] ${response.config.method.toUpperCase()} ${response.config.url}`, {
       status: response.status,
-      data: response.data
+      data: response.data,
     });
     return response;
   },
-  error => {
-    console.error('API Error:', {
-      url: error.config?.url,
+  (error) => {
+    console.error('❌ [API 응답 실패]', {
       status: error.response?.status,
+      data: error.response?.data,
       message: error.message,
-      response: error.response?.data
     });
     return Promise.reject(error);
   }

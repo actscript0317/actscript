@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import useAuth from './hooks/useAuth';
+import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import PrivateRoute from './components/PrivateRoute';
@@ -38,25 +38,27 @@ function App() {
   }
 
   return (
-    <Router>
-      <Navbar />
-      <main className="min-h-screen">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/scripts" element={<Scripts />} />
-          <Route path="/scripts/:id" element={<ScriptDetail />} />
-          <Route path="/add-script" element={<PrivateRoute><AddScript /></PrivateRoute>} />
-          <Route path="/ai-script" element={<PrivateRoute><AIScript /></PrivateRoute>} />
-          <Route path="/script-vault" element={<PrivateRoute><ScriptVault /></PrivateRoute>} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/mypage" element={<PrivateRoute><MyPage /></PrivateRoute>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <Footer />
-      <Toaster position="top-center" />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Navbar />
+        <main className="min-h-screen">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/scripts" element={<Scripts />} />
+            <Route path="/scripts/:id" element={<ScriptDetail />} />
+            <Route path="/add-script" element={<PrivateRoute><AddScript /></PrivateRoute>} />
+            <Route path="/ai-script" element={<PrivateRoute><AIScript /></PrivateRoute>} />
+            <Route path="/script-vault" element={<PrivateRoute><ScriptVault /></PrivateRoute>} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/mypage" element={<PrivateRoute><MyPage /></PrivateRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <Footer />
+        <Toaster position="top-center" />
+      </Router>
+    </AuthProvider>
   );
 }
 

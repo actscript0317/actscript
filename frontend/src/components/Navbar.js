@@ -1,26 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut, LogIn, UserPlus, Sparkles, Archive } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
+import { toast } from 'react-hot-toast';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
+
+  // 모바일 메뉴가 열려있을 때 스크롤 방지
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMenuOpen]);
 
   const handleLogout = async () => {
     await logout();
     setIsUserMenuOpen(false);
+    toast.success('로그아웃되었습니다.');
     navigate('/');
   };
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+    setIsUserMenuOpen(false); // 모바일 메뉴 열 때 사용자 메뉴 닫기
   };
 
   const toggleUserMenu = () => {
     setIsUserMenuOpen(!isUserMenuOpen);
+    setIsMenuOpen(false); // 사용자 메뉴 열 때 모바일 메뉴 닫기
   };
 
   const closeMenus = () => {
@@ -29,214 +45,187 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="header">
-      <div className="container">
-        <div className="flex-between py-4">
-          {/* 로고 */}
-          <div>
-            <Link 
-              to="/" 
-              className="text-xl font-bold text-primary"
-              onClick={closeMenus}
-            >
-              연기대본
-            </Link>
-          </div>
-
-          {/* 데스크톱 메뉴 */}
-          <div className="hidden md:flex items-center space-x-1">
-            <Link to="/" className="nav-link">홈</Link>
-            <Link to="/scripts" className="nav-link">대본 목록</Link>
-            <Link to="/add-script" className="nav-link">대본 등록</Link>
-            <Link 
-              to="/script-vault" 
-              className="flex items-center space-x-1 nav-link hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-600"
-            >
-              <Archive className="w-4 h-4" />
-              <span>대본함</span>
-            </Link>
-            <Link 
-              to="/ai-script" 
-              className="flex items-center space-x-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span className="font-medium">나만의 대본 만들기</span>
-            </Link>
-
-            {/* 인증 상태에 따른 메뉴 */}
-            {loading ? (
-              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
-            ) : isAuthenticated ? (
-              <div className="relative ml-4">
-                <button
-                  onClick={toggleUserMenu}
-                  className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg"
-                >
-                  <User className="w-4 h-4" />
-                  <span className="hidden sm:block">{user?.name || user?.username}</span>
-                </button>
-                
-                {/* 사용자 드롭다운 메뉴 */}
-                {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                    <div className="px-4 py-2 text-sm text-gray-500 border-b">
-                      <div className="font-medium">{user?.name || user?.username}</div>
-                      <div className="text-xs">{user?.email}</div>
-                    </div>
-                    <Link
-                      to="/mypage"
-                      onClick={closeMenus}
-                      className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      마이페이지
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      로그아웃
-                    </button>
-                  </div>
+    <>
+      <nav className="bg-white shadow-sm relative z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            {/* 로고 및 메인 메뉴 */}
+            <div className="flex">
+              <Link to="/" className="flex-shrink-0 flex items-center" onClick={closeMenus}>
+                <span className="text-xl font-bold text-primary">ActScript</span>
+              </Link>
+              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                <Link to="/scripts" className="nav-link" onClick={closeMenus}>
+                  대본 라이브러리
+                </Link>
+                <Link to="/ai-script" className="nav-link" onClick={closeMenus}>
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  AI 대본 생성
+                </Link>
+                {user && (
+                  <Link to="/script-vault" className="nav-link" onClick={closeMenus}>
+                    <Archive className="w-4 h-4 mr-1" />
+                    내 대본 보관함
+                  </Link>
                 )}
               </div>
-            ) : (
-              <div className="flex items-center space-x-2 ml-4">
-                <Link 
-                  to="/login" 
-                  className="flex items-center space-x-1 text-gray-600 hover:text-primary px-3 py-2 rounded"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>로그인</span>
-                </Link>
-                <Link 
-                  to="/register" 
-                  className="btn btn-primary flex items-center space-x-1"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>회원가입</span>
-                </Link>
-              </div>
-            )}
-          </div>
+            </div>
 
-          {/* 모바일 메뉴 버튼 */}
-          <div className="md:hidden">
-            <button
-              onClick={toggleMenu}
-              className="p-2 rounded text-gray-600 hover:bg-gray-100"
-            >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
-
-        {/* 모바일 메뉴 */}
-        {isMenuOpen && (
-          <div className="md:hidden pb-4">
-            <div className="space-y-2">
-              <Link 
-                to="/" 
-                className="block px-3 py-2 rounded text-gray-700 hover:bg-gray-100"
-                onClick={closeMenus}
-              >
-                홈
-              </Link>
-              <Link 
-                to="/scripts" 
-                className="block px-3 py-2 rounded text-gray-700 hover:bg-gray-100"
-                onClick={closeMenus}
-              >
-                대본 목록
-              </Link>
-              <Link 
-                to="/add-script" 
-                className="block px-3 py-2 rounded text-gray-700 hover:bg-gray-100"
-                onClick={closeMenus}
-              >
-                대본 등록
-              </Link>
-              <Link 
-                to="/script-vault" 
-                className="flex items-center space-x-2 px-3 py-2 rounded text-gray-700 hover:bg-gray-100"
-                onClick={closeMenus}
-              >
-                <Archive className="w-4 h-4" />
-                <span>대본함</span>
-              </Link>
-              <Link 
-                to="/ai-script" 
-                className="flex items-center space-x-2 px-3 py-2 rounded bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium shadow-md"
-                onClick={closeMenus}
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>나만의 대본 만들기</span>
-              </Link>
-
-              {/* 모바일 인증 메뉴 */}
+            {/* 사용자 메뉴 */}
+            <div className="hidden sm:ml-6 sm:flex sm:items-center">
               {loading ? (
-                <div className="px-3 py-2">
-                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                </div>
-              ) : isAuthenticated ? (
-                <div className="border-t pt-2 mt-2">
-                  <div className="px-3 py-2 text-sm text-gray-500">
-                    <div className="font-medium">{user?.name || user?.username}</div>
-                    <div className="text-xs">{user?.email}</div>
-                  </div>
-                  <Link
-                    to="/mypage"
-                    onClick={closeMenus}
-                    className="w-full text-left flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded"
-                  >
-                    <User className="w-4 h-4 mr-2" />
-                    마이페이지
-                  </Link>
+                <div className="animate-pulse bg-gray-200 h-8 w-24 rounded"></div>
+              ) : user ? (
+                <div className="relative">
                   <button
-                    onClick={() => {
-                      handleLogout();
-                      closeMenus();
-                    }}
-                    className="w-full text-left flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded"
+                    onClick={toggleUserMenu}
+                    className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
                   >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    로그아웃
+                    <User className="w-5 h-5" />
+                    <span>{user.name}</span>
                   </button>
+                  {isUserMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={closeMenus}
+                      ></div>
+                      <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+                        <div className="py-1">
+                          <Link
+                            to="/mypage"
+                            onClick={closeMenus}
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            마이페이지
+                          </Link>
+                          <button
+                            onClick={handleLogout}
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <LogOut className="w-4 h-4 mr-2 inline-block" />
+                            로그아웃
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
-                <div className="border-t pt-2 mt-2 space-y-2">
-                  <Link 
-                    to="/login" 
-                    className="flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded"
-                    onClick={closeMenus}
-                  >
-                    <LogIn className="w-4 h-4 mr-2" />
+                <div className="flex items-center space-x-4">
+                  <Link to="/login" className="nav-link" onClick={closeMenus}>
+                    <LogIn className="w-4 h-4 mr-1" />
                     로그인
                   </Link>
-                  <Link 
-                    to="/register" 
-                    className="flex items-center px-3 py-2 bg-primary text-white rounded"
-                    onClick={closeMenus}
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
+                  <Link to="/register" className="nav-link" onClick={closeMenus}>
+                    <UserPlus className="w-4 h-4 mr-1" />
                     회원가입
                   </Link>
                 </div>
               )}
             </div>
+
+            {/* 모바일 메뉴 버튼 */}
+            <div className="flex items-center sm:hidden">
+              <button
+                onClick={toggleMenu}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+              >
+                {isMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 모바일 메뉴 */}
+        {isMenuOpen && (
+          <div className="fixed inset-0 z-40 overflow-hidden">
+            {/* 배경 오버레이 */}
+            <div 
+              className="absolute inset-0 bg-black bg-opacity-50"
+              onClick={closeMenus}
+            ></div>
+            {/* 메뉴 컨텐츠 */}
+            <div className="absolute inset-y-0 right-0 max-w-xs w-full bg-white shadow-xl overflow-y-auto">
+              <div className="pt-2 pb-3 space-y-1 px-4">
+                <Link
+                  to="/scripts"
+                  onClick={closeMenus}
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                >
+                  대본 라이브러리
+                </Link>
+                <Link
+                  to="/ai-script"
+                  onClick={closeMenus}
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                >
+                  <Sparkles className="w-4 h-4 mr-1 inline-block" />
+                  AI 대본 생성
+                </Link>
+                {user && (
+                  <Link
+                    to="/script-vault"
+                    onClick={closeMenus}
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                  >
+                    <Archive className="w-4 h-4 mr-1 inline-block" />
+                    내 대본 보관함
+                  </Link>
+                )}
+              </div>
+              <div className="pt-4 pb-3 border-t border-gray-200 px-4">
+                {user ? (
+                  <div className="space-y-1">
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      <div className="font-medium">{user.name}</div>
+                      <div className="text-xs">{user.email}</div>
+                    </div>
+                    <Link
+                      to="/mypage"
+                      onClick={closeMenus}
+                      className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                    >
+                      마이페이지
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <LogOut className="w-4 h-4 mr-2 inline-block" />
+                      로그아웃
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Link
+                      to="/login"
+                      onClick={closeMenus}
+                      className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                    >
+                      <LogIn className="w-4 h-4 mr-1 inline-block" />
+                      로그인
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={closeMenus}
+                      className="block px-3 py-2 rounded-md text-base font-medium text-primary hover:text-primary-dark hover:bg-primary-50"
+                    >
+                      <UserPlus className="w-4 h-4 mr-1 inline-block" />
+                      회원가입
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
-      </div>
-
-      {/* 배경 클릭 시 메뉴 닫기 */}
-      {(isUserMenuOpen || isMenuOpen) && (
-        <div 
-          className="fixed inset-0 z-40 bg-gray-800 bg-opacity-50" 
-          onClick={closeMenus}
-        ></div>
-      )}
-    </nav>
+      </nav>
+    </>
   );
 };
 

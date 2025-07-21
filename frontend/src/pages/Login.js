@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
+import { toast } from 'react-hot-toast';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -9,9 +10,8 @@ const Login = () => {
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [error, setError] = useState('');
+  const { login, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -23,58 +23,41 @@ const Login = () => {
       ...prev,
       [name]: value
     }));
-    
-    // 에러 클리어
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
+    setError('');
   };
 
   const validateForm = () => {
-    const newErrors = {};
-
     if (!formData.email) {
-      newErrors.email = '이메일을 입력해주세요';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = '올바른 이메일 형식이 아닙니다';
+      setError('이메일을 입력해주세요');
+      return false;
     }
-
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('올바른 이메일 형식이 아닙니다');
+      return false;
+    }
     if (!formData.password) {
-      newErrors.password = '비밀번호를 입력해주세요';
+      setError('비밀번호를 입력해주세요');
+      return false;
     }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      toast.error(error);
+      return;
+    }
 
-    setLoading(true);
-    try {
-      const result = await login({
-        email: formData.email,
-        password: formData.password
-      });
-      
-      if (result.success) {
-        navigate(from, { replace: true });
-      } else {
-        setErrors({
-          general: result.message || '로그인에 실패했습니다'
-        });
-      }
-    } catch (error) {
-      setErrors({
-        general: error.message || '로그인에 실패했습니다'
-      });
-    } finally {
-      setLoading(false);
+    const result = await login(formData.email, formData.password);
+    
+    if (result.success) {
+      toast.success('로그인되었습니다!');
+      navigate(from, { replace: true });
+    } else {
+      setError(result.message);
+      toast.error(result.message);
     }
   };
 
@@ -95,9 +78,9 @@ const Login = () => {
         <div className="card">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 일반 에러 메시지 */}
-            {errors.general && (
+            {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                {errors.general}
+                {error}
               </div>
             )}
 
@@ -113,12 +96,9 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="이메일을 입력하세요"
-                className={`form-input ${errors.email ? 'border-red-500' : ''}`}
+                className={`form-input ${error ? 'border-red-500' : ''}`}
                 disabled={loading}
               />
-              {errors.email && (
-                <p className="mt-2 text-sm text-red-600">{errors.email}</p>
-              )}
             </div>
 
             {/* 비밀번호 입력 */}
@@ -134,7 +114,7 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="비밀번호를 입력하세요"
-                  className={`form-input pr-12 ${errors.password ? 'border-red-500' : ''}`}
+                  className={`form-input pr-12 ${error ? 'border-red-500' : ''}`}
                   disabled={loading}
                 />
                 <button
@@ -150,9 +130,6 @@ const Login = () => {
                   )}
                 </button>
               </div>
-              {errors.password && (
-                <p className="mt-2 text-sm text-red-600">{errors.password}</p>
-              )}
             </div>
 
             {/* 로그인 버튼 */}

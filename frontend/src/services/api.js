@@ -76,17 +76,17 @@ api.interceptors.response.use(
 // 인증 API
 export const authAPI = {
   // 회원가입
-  register: (data) => api.post('/auth/register', data),
+  register: (data) => axios.post(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/register`, data),
   // 로그인
-  login: (data) => api.post('/auth/login', data),
+  login: (data) => axios.post(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/login`, data),
   // 로그아웃
-  logout: () => api.post('/auth/logout'),
+  logout: () => axios.post(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/logout`),
   // 현재 사용자 정보 조회
-  getMe: () => api.get('/auth/me'),
+  getMe: () => axios.get(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/me`),
   // 프로필 수정
-  updateProfile: (data) => api.put('/auth/profile', data),
+  updateProfile: (data) => axios.put(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/profile`, data),
   // 비밀번호 변경
-  changePassword: (data) => api.put('/auth/password', data),
+  changePassword: (data) => axios.put(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/password`, data),
 };
 
 // 대본 API

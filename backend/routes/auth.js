@@ -35,9 +35,12 @@ router.post('/register', [
     .withMessage('이름은 1-50자 사이여야 합니다.')
 ], async (req, res) => {
   try {
+    console.log('회원가입 요청:', { ...req.body, password: '[HIDDEN]' });
+    
     // 유효성 검사
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('유효성 검사 실패:', errors.array());
       return res.status(400).json({
         success: false,
         message: '입력 데이터에 오류가 있습니다.',
@@ -56,6 +59,7 @@ router.post('/register', [
     });
 
     if (existingUser) {
+      console.log('중복된 사용자 존재:', existingUser.email);
       return res.status(400).json({
         success: false,
         message: existingUser.username === username 
@@ -65,18 +69,22 @@ router.post('/register', [
     }
 
     // 사용자 생성
-    const user = await User.create({
+    console.log('새 사용자 생성 시도');
+    const user = new User({
       username,
       email,
       password,
       name
     });
-    console.log('User created:', user); // 실제로 저장된 user 객체 로그
-    const userInDb = await User.findOne({ username });
-    console.log('User in DB after create:', userInDb); // DB에서 다시 조회
+
+    // 사용자 저장
+    console.log('사용자 저장 시도');
+    await user.save();
+    console.log('사용자 저장 완료:', user._id);
 
     // JWT 토큰 생성
     const token = user.getSignedJwtToken();
+    console.log('JWT 토큰 생성 완료');
 
     res.status(201)
       .cookie('token', token, getCookieOptions())
@@ -88,7 +96,15 @@ router.post('/register', [
       });
 
   } catch (error) {
-    console.error('회원가입 오류:', error);
+    console.error('회원가입 처리 중 에러:', error);
+    // MongoDB 중복 키 에러 처리
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        message: `이미 사용 중인 ${field === 'username' ? '사용자명' : '이메일'}입니다.`
+      });
+    }
     res.status(500).json({
       success: false,
       message: '회원가입 중 오류가 발생했습니다.',

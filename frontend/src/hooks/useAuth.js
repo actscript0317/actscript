@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { toast } from 'react-hot-toast';
 
 const useAuth = () => {
   const [user, setUser] = useState(() => {
@@ -32,6 +33,8 @@ const useAuth = () => {
       }
 
       const res = await authAPI.getMe();
+      console.log('인증 상태 확인 응답:', res.data);
+      
       if (res.data.success && res.data.user) {
         setAuthState(res.data.user, token);
         return true;
@@ -40,7 +43,7 @@ const useAuth = () => {
         return false;
       }
     } catch (error) {
-      console.error('[인증 확인 실패]', error);
+      console.error('인증 상태 확인 실패:', error);
       setAuthState(null, null);
       return false;
     }
@@ -52,7 +55,9 @@ const useAuth = () => {
     setError(null);
 
     try {
+      console.log('로그인 요청:', { email });
       const res = await authAPI.login({ email, password });
+      console.log('로그인 응답:', res.data);
       
       if (res.data.success && res.data.token && res.data.user) {
         setAuthState(res.data.user, res.data.token);
@@ -62,10 +67,10 @@ const useAuth = () => {
         };
       }
 
-      throw new Error('로그인 응답에 필요한 데이터가 없습니다.');
+      throw new Error(res.data.message || '로그인에 실패했습니다.');
     } catch (error) {
-      console.error('[로그인 실패]', error);
-      const errorMessage = error.response?.data?.message || '로그인에 실패했습니다.';
+      console.error('로그인 실패:', error);
+      const errorMessage = error.response?.data?.message || error.message || '로그인에 실패했습니다.';
       setError(errorMessage);
       return { 
         success: false, 
@@ -81,15 +86,20 @@ const useAuth = () => {
     try {
       await authAPI.logout();
     } catch (error) {
-      console.error('[로그아웃 실패]', error);
+      console.error('로그아웃 실패:', error);
     } finally {
       setAuthState(null, null);
+      toast.success('로그아웃되었습니다.');
     }
   }, [setAuthState]);
 
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {
-    checkAuth();
+    const verifyAuth = async () => {
+      const isAuthenticated = await checkAuth();
+      console.log('초기 인증 상태:', { isAuthenticated });
+    };
+    verifyAuth();
   }, [checkAuth]);
 
   return {

@@ -22,15 +22,24 @@ const Login = () => {
       return;
     }
 
-    const result = await login(formData.email, formData.password);
-    
-    if (result.success) {
-      toast.success('로그인되었습니다!');
-      // 페이지 새로고침 없이 React Router의 navigate 사용
-      navigate('/mypage', { replace: true });
-    } else {
-      setError(result.message);
-      toast.error(result.message);
+    try {
+      console.log('로그인 시도:', { email: formData.email });
+      const result = await login(formData.email, formData.password);
+      
+      if (result.success) {
+        console.log('로그인 성공:', { user: result.user });
+        toast.success('로그인되었습니다!');
+        navigate('/mypage', { replace: true });
+      } else {
+        console.error('로그인 실패:', result.message);
+        setError(result.message);
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('로그인 에러:', error);
+      const errorMessage = error.response?.data?.message || '로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -45,6 +54,10 @@ const Login = () => {
     }
     if (!formData.password) {
       setError('비밀번호를 입력해주세요');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('비밀번호는 6자 이상이어야 합니다');
       return false;
     }
     return true;

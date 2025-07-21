@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut, LogIn, UserPlus, Sparkles, Archive } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
@@ -9,6 +9,18 @@ const Navbar = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { user, loading, logout } = useAuth();
+
+  // 모바일 메뉴가 열려있을 때 스크롤 방지
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMenuOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -67,7 +79,7 @@ const Navbar = () => {
                 <div className="relative">
                   <button
                     onClick={toggleUserMenu}
-                    className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md"
+                    className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
                   >
                     <User className="w-5 h-5" />
                     <span>{user.name}</span>
@@ -80,10 +92,6 @@ const Navbar = () => {
                       ></div>
                       <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
                         <div className="py-1">
-                          <div className="px-4 py-2 text-sm text-gray-500 border-b">
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-xs truncate">{user.email}</div>
-                          </div>
                           <Link
                             to="/mypage"
                             onClick={closeMenus}
@@ -93,7 +101,7 @@ const Navbar = () => {
                           </Link>
                           <button
                             onClick={handleLogout}
-                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
                             <LogOut className="w-4 h-4 mr-2 inline-block" />
                             로그아웃
@@ -175,7 +183,7 @@ const Navbar = () => {
                   <div className="space-y-1">
                     <div className="px-3 py-2 text-sm text-gray-500">
                       <div className="font-medium">{user.name}</div>
-                      <div className="text-xs truncate">{user.email}</div>
+                      <div className="text-xs">{user.email}</div>
                     </div>
                     <Link
                       to="/mypage"

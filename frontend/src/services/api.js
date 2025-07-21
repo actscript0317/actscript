@@ -19,8 +19,14 @@ const api = axios.create({
 // 요청 인터셉터
 api.interceptors.request.use(
   (config) => {
+    // 토큰이 있으면 헤더에 추가
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     console.log(`🚀 [API 요청] ${config.method.toUpperCase()} ${config.url}`, {
-      data: config.data,
+      data: config.data ? { ...config.data, password: config.data.password ? '[HIDDEN]' : undefined } : undefined,
       params: config.params,
     });
     return config;
@@ -46,53 +52,17 @@ api.interceptors.response.use(
       data: error.response?.data,
       message: error.message,
     });
-    return Promise.reject(error);
-  }
-);
 
-// 요청 인터셉터 - 토큰 처리
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    console.error('Request Interceptor Error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// 응답 인터셉터 - 인증 에러 처리
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+    // 401 에러 처리 (인증 실패)
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+
     return Promise.reject(error);
   }
 );
-
-// 인증 API
-export const authAPI = {
-  // 회원가입
-  register: (data) => axios.post(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/register`, data),
-  // 로그인
-  login: (data) => axios.post(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/login`, data),
-  // 로그아웃
-  logout: () => axios.post(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/logout`),
-  // 현재 사용자 정보 조회
-  getMe: () => axios.get(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/me`),
-  // 프로필 수정
-  updateProfile: (data) => axios.put(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/profile`, data),
-  // 비밀번호 변경
-  changePassword: (data) => axios.put(`${process.env.REACT_APP_API_URL || API_BASE_URL}/auth/password`, data),
-};
 
 // 대본 API
 export const scriptAPI = {
@@ -217,6 +187,22 @@ export const emotionAPI = {
       throw error;
     }
   },
+};
+
+// 인증 API
+export const authAPI = {
+  // 회원가입
+  register: (data) => api.post('/auth/register', data),
+  // 로그인
+  login: (data) => api.post('/auth/login', data),
+  // 로그아웃
+  logout: () => api.post('/auth/logout'),
+  // 현재 사용자 정보 조회
+  getMe: () => api.get('/auth/me'),
+  // 프로필 수정
+  updateProfile: (data) => api.put('/auth/profile', data),
+  // 비밀번호 변경
+  changePassword: (data) => api.put('/auth/password', data),
 };
 
 export default api; 

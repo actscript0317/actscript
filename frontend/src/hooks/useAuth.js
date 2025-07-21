@@ -2,7 +2,11 @@ import { useState, useCallback } from 'react';
 import { authAPI } from '../services/api';
 
 const useAuth = () => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    // 초기 상태를 localStorage에서 가져옴
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -69,8 +73,7 @@ const useAuth = () => {
       const res = await authAPI.register(registerData);
       console.log('[회원가입 응답]', res.data);
 
-      // 회원가입 성공 시 자동 로그인 처리
-      if (res.data.success !== false && res.data.token && res.data.user) {
+      if (res.data.success && res.data.token && res.data.user) {
         setAuthState(res.data.user, res.data.token);
         return { 
           success: true,
@@ -104,12 +107,17 @@ const useAuth = () => {
     setError(null);
 
     try {
+      console.log('[로그인 요청]', { email, password: '[HIDDEN]' });
+      
       const res = await authAPI.login({ email, password });
       console.log('[로그인 응답]', res.data);
 
-      if (res.data.success !== false && res.data.token && res.data.user) {
+      if (res.data.success && res.data.token && res.data.user) {
         setAuthState(res.data.user, res.data.token);
-        return { success: true, user: res.data.user };
+        return { 
+          success: true,
+          user: res.data.user
+        };
       }
 
       throw new Error('로그인 응답에 필요한 데이터가 없습니다.');
@@ -118,7 +126,10 @@ const useAuth = () => {
       console.log('[로그인 실패]', error.response?.data || error);
       const errorMessage = error.response?.data?.message || '로그인에 실패했습니다.';
       setError(errorMessage);
-      return { success: false, message: errorMessage };
+      return { 
+        success: false, 
+        message: errorMessage
+      };
     } finally {
       setLoading(false);
     }
@@ -131,22 +142,30 @@ const useAuth = () => {
 
   // 로그인 상태 확인
   const checkAuth = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+    try {
+      const token = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
 
-    if (token && savedUser) {
-      try {
-        const res = await authAPI.getMe();
-        if (res.data.user) {
-          setAuthState(res.data.user, token);
-          return true;
-        }
-      } catch (error) {
-        console.log('[인증 확인 실패]', error);
+      if (!token || !savedUser) {
         setAuthState(null, null);
+        return false;
       }
+
+      // 토큰으로 현재 사용자 정보 조회
+      const res = await authAPI.getMe();
+      
+      if (res.data.user) {
+        setAuthState(res.data.user, token);
+        return true;
+      } else {
+        setAuthState(null, null);
+        return false;
+      }
+    } catch (error) {
+      console.log('[인증 확인 실패]', error);
+      setAuthState(null, null);
+      return false;
     }
-    return false;
   }, [setAuthState]);
 
   return {

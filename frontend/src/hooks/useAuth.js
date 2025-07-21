@@ -27,20 +27,26 @@ const useAuth = () => {
   const checkAuth = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
+      const savedUser = localStorage.getItem('user');
+
+      if (!token || !savedUser) {
         setAuthState(null, null);
         return false;
       }
 
       const res = await authAPI.getMe();
+      
       if (res.data.success && res.data.user) {
+        // 토큰은 유효하고 사용자 정보도 있는 경우
         setAuthState(res.data.user, token);
         return true;
       } else {
+        // 토큰은 있지만 사용자 정보를 가져올 수 없는 경우
         setAuthState(null, null);
         return false;
       }
     } catch (error) {
+      // API 호출 실패 (토큰 만료 등)
       console.error('[인증 확인 실패]', error);
       setAuthState(null, null);
       return false;
@@ -49,12 +55,11 @@ const useAuth = () => {
 
   // 주기적으로 인증 상태 확인
   useEffect(() => {
-    const checkAuthPeriodically = () => {
-      checkAuth();
-    };
+    // 초기 인증 상태 확인
+    checkAuth();
 
     // 5분마다 인증 상태 확인
-    const interval = setInterval(checkAuthPeriodically, 5 * 60 * 1000);
+    const interval = setInterval(checkAuth, 5 * 60 * 1000);
 
     // 컴포넌트 언마운트 시 인터벌 제거
     return () => clearInterval(interval);

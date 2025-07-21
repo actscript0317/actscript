@@ -10,8 +10,16 @@ const PrivateRoute = ({ children }) => {
 
   useEffect(() => {
     const verifyAuth = async () => {
-      await checkAuth();
-      setIsChecking(false);
+      try {
+        const isAuthenticated = await checkAuth();
+        if (!isAuthenticated) {
+          // 인증 실패 시 localStorage 초기화
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      } finally {
+        setIsChecking(false);
+      }
     };
 
     verifyAuth();

@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
 
 const useAuth = () => {
@@ -10,7 +9,6 @@ const useAuth = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
   // 로그인 상태 설정
   const setAuthState = useCallback((userData, token) => {
@@ -134,9 +132,8 @@ const useAuth = () => {
       console.error('[로그아웃 실패]', error);
     } finally {
       setAuthState(null, null);
-      navigate('/login');
     }
-  }, [setAuthState, navigate]);
+  }, [setAuthState]);
 
   return {
     user,

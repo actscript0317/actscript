@@ -8,6 +8,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
 const checkDBConnection = require('./middleware/dbCheck');
+const mongoose = require('mongoose'); // Added for health check
 
 // 라우트 임포트
 const scriptRoutes = require('./routes/scripts');
@@ -74,15 +75,39 @@ app.use('/api/ai-script', aiScriptRoutes);
 
 // 기본 라우트
 app.get('/', (req, res) => {
+  // User-Agent 확인
+  const userAgent = req.get('user-agent');
+  
+  // Render의 헬스 체크 요청인 경우
+  if (userAgent && (userAgent.includes('Go-http-client') || userAgent.includes('render'))) {
+    return res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // 일반 요청인 경우
   res.json({
     message: '연기 대본 라이브러리 API',
     version: '1.0.0',
+    environment: config.NODE_ENV,
+    status: 'running',
     endpoints: {
       auth: '/api/auth',
       scripts: '/api/scripts',
       emotions: '/api/emotions',
       aiScript: '/api/ai-script'
     }
+  });
+});
+
+// 헬스 체크 엔드포인트
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
 
@@ -108,11 +133,16 @@ app.use((error, req, res, next) => {
 
 // 서버 시작
 app.listen(PORT, () => {
+  const serverUrl = config.NODE_ENV === 'production'
+    ? 'https://actscript.onrender.com'
+    : `http://localhost:${PORT}`;
+
   console.log(`
 🚀 서버가 포트 ${PORT}에서 실행 중입니다.
 🌐 환경: ${config.NODE_ENV}
-📖 API 문서: http://localhost:${PORT}/
-🔐 인증 API: http://localhost:${PORT}/api/auth
+📖 API 문서: ${serverUrl}/
+🔐 인증 API: ${serverUrl}/api/auth
+🔄 CORS 허용 도메인: ${config.CORS_ORIGIN}
   `);
 });
 

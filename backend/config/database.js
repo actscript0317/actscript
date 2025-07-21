@@ -29,8 +29,8 @@ const connectDB = async () => {
       connectTimeoutMS: 20000, // 초기 연결 타임아웃
       retryWrites: true,
       w: 'majority',
-      keepAlive: true,
-      keepAliveInitialDelay: 300000 // 5분
+      // Deprecated 옵션 제거
+      heartbeatFrequencyMS: 10000 // 연결 상태 확인 주기
     };
 
     // MongoDB 연결 시도

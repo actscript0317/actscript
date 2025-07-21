@@ -18,14 +18,19 @@ const app = express();
 connectDB();
 
 // CORS 설정
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://actscript.onrender.com', 'https://www.actscript.com'] 
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://actscript-1.onrender.com', 'https://actscript.onrender.com']
     : 'http://localhost:3000',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
 
 // 보안 미들웨어
 app.use(helmet());

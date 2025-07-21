@@ -4,7 +4,7 @@ import axios from 'axios';
 const API_BASE_URL = process.env.REACT_APP_API_URL ||
   (process.env.NODE_ENV === 'development'
     ? 'http://localhost:10000/api'
-    : 'https://actscript.onrender.com/api');
+    : 'https://actscript-1.onrender.com/api');
 
 // axios 인스턴스 생성
 const api = axios.create({
@@ -12,13 +12,20 @@ const api = axios.create({
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json'
   },
-  withCredentials: true, // 쿠키 포함
+  withCredentials: true // 쿠키 포함
 });
 
 // 요청 인터셉터
 api.interceptors.request.use(
   (config) => {
+    // CORS 헤더 추가
+    config.headers['Access-Control-Allow-Origin'] = process.env.NODE_ENV === 'development'
+      ? 'http://localhost:3000'
+      : 'https://actscript-1.onrender.com';
+    config.headers['Access-Control-Allow-Credentials'] = 'true';
+
     // 토큰이 있으면 헤더에 추가
     const token = localStorage.getItem('token');
     if (token) {

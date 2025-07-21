@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NODE_ENV === 'development'
-  ? 'http://localhost:5000/api'
-  : 'https://actscript.onrender.com/api'; // 실제 백엔드 도메인
+const API_BASE_URL = process.env.REACT_APP_API_URL ||
+  (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5000/api'
+    : 'https://actscript.onrender.com/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -75,134 +76,57 @@ api.interceptors.response.use(
 // 인증 API
 export const authAPI = {
   // 회원가입
-  register: async (data) => {
-    try {
-      const response = await api.post('/auth/register', data);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-      }
-      return response;
-    } catch (error) {
-      console.error('Register Error:', error);
-      throw error;
-    }
-  },
-  
+  register: (data) => api.post('/auth/register', data),
   // 로그인
-  login: async (data) => {
-    try {
-      const response = await api.post('/auth/login', data);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-      }
-      return response;
-    } catch (error) {
-      console.error('Login Error:', error);
-      throw error;
-    }
-  },
-  
+  login: (data) => api.post('/auth/login', data),
   // 로그아웃
-  logout: async () => {
-    try {
-      await api.post('/auth/logout');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    } catch (error) {
-      console.error('Logout Error:', error);
-      // 로컬 스토리지는 항상 클리어
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      throw error;
-    }
-  },
-  
+  logout: () => api.post('/auth/logout'),
   // 현재 사용자 정보 조회
-  getMe: async () => {
-    try {
-      const response = await api.get('/auth/me');
-      return response;
-    } catch (error) {
-      console.error('GetMe Error:', error);
-      throw error;
-    }
-  },
-  
+  getMe: () => api.get('/auth/me'),
   // 프로필 수정
-  updateProfile: async (data) => {
-    try {
-      const response = await api.put('/auth/profile', data);
-      if (response.data.user) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-      }
-      return response;
-    } catch (error) {
-      console.error('Update Profile Error:', error);
-      throw error;
-    }
-  },
-  
+  updateProfile: (data) => api.put('/auth/profile', data),
   // 비밀번호 변경
-  changePassword: async (data) => {
-    try {
-      const response = await api.put('/auth/password', data);
-      return response;
-    } catch (error) {
-      console.error('Change Password Error:', error);
-      throw error;
-    }
-  },
+  changePassword: (data) => api.put('/auth/password', data),
 };
 
 // 대본 API
 export const scriptAPI = {
-  // 모든 대본 조회
   getAll: async (params = {}) => {
     try {
       const response = await api.get('/scripts', { params });
-      return response.data;  // 응답에서 data 객체만 반환
+      return response.data;
     } catch (error) {
       console.error('Get All Scripts Error:', error);
       throw error;
     }
   },
-  
-  // 인기 대본 조회
   getPopular: async () => {
     try {
       const response = await api.get('/scripts/popular');
-      return response.data;  // 응답에서 data 객체만 반환
+      return response.data;
     } catch (error) {
       console.error('Get Popular Scripts Error:', error);
       throw error;
     }
   },
-  
-  // 최신 대본 조회
   getLatest: async () => {
     try {
       const response = await api.get('/scripts/latest');
-      return response.data;  // 응답에서 data 객체만 반환
+      return response.data;
     } catch (error) {
       console.error('Get Latest Scripts Error:', error);
       throw error;
     }
   },
-  
-  // 특정 대본 조회
   getById: async (id) => {
     try {
       const response = await api.get(`/scripts/${id}`);
-      return response.data;  // 응답에서 data 객체만 반환
+      return response.data;
     } catch (error) {
       console.error('Get Script By Id Error:', error);
       throw error;
     }
   },
-  
-  // 조회수 증가
   incrementView: async (id) => {
     try {
       const response = await api.patch(`/scripts/${id}/view`);
@@ -212,8 +136,6 @@ export const scriptAPI = {
       throw error;
     }
   },
-  
-  // 대본 생성
   create: async (data) => {
     try {
       const response = await api.post('/scripts', data);
@@ -223,8 +145,6 @@ export const scriptAPI = {
       throw error;
     }
   },
-  
-  // 대본 수정
   update: async (id, data) => {
     try {
       const response = await api.put(`/scripts/${id}`, data);
@@ -234,8 +154,6 @@ export const scriptAPI = {
       throw error;
     }
   },
-  
-  // 대본 삭제
   delete: async (id) => {
     try {
       const response = await api.delete(`/scripts/${id}`);
@@ -249,7 +167,6 @@ export const scriptAPI = {
 
 // 감정 API
 export const emotionAPI = {
-  // 모든 감정 조회
   getAll: async () => {
     try {
       const response = await api.get('/emotions');
@@ -259,8 +176,6 @@ export const emotionAPI = {
       throw error;
     }
   },
-  
-  // 특정 감정 조회
   getById: async (id) => {
     try {
       const response = await api.get(`/emotions/${id}`);
@@ -270,8 +185,6 @@ export const emotionAPI = {
       throw error;
     }
   },
-  
-  // 감정 생성
   create: async (data) => {
     try {
       const response = await api.post('/emotions', data);
@@ -281,8 +194,6 @@ export const emotionAPI = {
       throw error;
     }
   },
-  
-  // 감정 수정
   update: async (id, data) => {
     try {
       const response = await api.put(`/emotions/${id}`, data);
@@ -292,8 +203,6 @@ export const emotionAPI = {
       throw error;
     }
   },
-  
-  // 감정 삭제
   delete: async (id) => {
     try {
       const response = await api.delete(`/emotions/${id}`);

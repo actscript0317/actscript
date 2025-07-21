@@ -71,29 +71,29 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
+    setError('');
 
-    setLoading(true);
-    try {
-      const result = await register(formData);
-      
-      if (result.success) {
-        // 회원가입 성공 시 바로 홈으로 이동 (자동 로그인됨)
-        navigate('/', { 
-          replace: true
-        });
-      } else {
-        setErrors({
-          general: result.message || '회원가입에 실패했습니다'
-        });
-      }
-    } catch (error) {
-      setErrors({
-        general: error.message || '회원가입에 실패했습니다'
-      });
-    } finally {
-      setLoading(false);
+    if (password !== confirmPassword) {
+      setError('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    const result = await register({
+      username,
+      email,
+      password,
+      confirmPassword,
+      name
+    });
+
+    if (result.success) {
+      // 회원가입 성공
+      toast.success('회원가입이 완료되었습니다!');
+      navigate('/'); // 홈으로 이동
+    } else {
+      // 회원가입 실패
+      setError(result.message);
+      toast.error(result.message);
     }
   };
 

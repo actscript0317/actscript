@@ -8,7 +8,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
 const checkDBConnection = require('./middleware/dbCheck');
-const mongoose = require('mongoose'); // Added for health check
+const mongoose = require('mongoose');
 
 // 라우트 임포트
 const scriptRoutes = require('./routes/scripts');
@@ -22,11 +22,20 @@ const PORT = config.PORT;
 // 환경 변수를 process.env에 설정 (다른 파일에서 사용할 수 있도록)
 Object.assign(process.env, config);
 
+// 요청 로깅 미들웨어
+app.use((req, res, next) => {
+  console.log(`📥 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log('요청 헤더:', req.headers);
+  console.log('요청 바디:', req.body);
+  next();
+});
+
 // CORS 설정 (반드시 다른 미들웨어보다 먼저)
 const allowedOrigins = [
   'https://actscript-1.onrender.com',  // Render 프론트엔드 도메인
-  'https://actscript.onrender.com',    // 대체 도메인 (필요한 경우)
-  'http://localhost:3000'              // 로컬 개발용
+  'https://actscript.onrender.com',    // 대체 도메인
+  'http://localhost:3000',             // 로컬 개발용
+  'http://localhost:5000'              // 로컬 개발용 대체 포트
 ];
 
 const corsOptions = {
@@ -67,11 +76,24 @@ app.use(cookieParser()); // 쿠키 파싱
 // 데이터베이스 연결 확인 미들웨어
 app.use('/api', checkDBConnection);
 
-// 라우트 설정
+// API 라우트 설정
 app.use('/api/auth', authRoutes);
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/emotions', emotionRoutes);
 app.use('/api/ai-script', aiScriptRoutes);
+
+// 응답 로깅 미들웨어
+app.use((req, res, next) => {
+  const originalJson = res.json;
+  res.json = function(body) {
+    console.log(`📤 [${new Date().toISOString()}] 응답:`, {
+      status: res.statusCode,
+      body
+    });
+    return originalJson.call(this, body);
+  };
+  next();
+});
 
 // 기본 라우트
 app.get('/', (req, res) => {
@@ -101,18 +123,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// 헬스 체크 엔드포인트
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
-
 // 404 에러 핸들링
 app.use('*', (req, res) => {
+  console.log('❌ 404 에러:', req.originalUrl);
   res.status(404).json({
     message: '요청하신 페이지를 찾을 수 없습니다.',
     path: req.originalUrl
@@ -121,7 +134,7 @@ app.use('*', (req, res) => {
 
 // 전역 에러 핸들링
 app.use((error, req, res, next) => {
-  console.error(error.stack);
+  console.error('❌ 서버 에러:', error.stack);
   
   res.status(error.status || 500).json({
     message: config.NODE_ENV === 'production' 

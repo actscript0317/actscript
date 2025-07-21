@@ -130,51 +130,17 @@ router.post('/register', [
     }
 
     // 사용자 저장
-    debug('사용자 데이터 저장 시도', {
-      username: user.username,
-      email: user.email,
-      mongooseConnection: mongoose.connection.readyState
-    });
-
-    let savedUser;
-    try {
-      savedUser = await user.save({ session });
-    } catch (saveError) {
-      debug('사용자 저장 실패', {
-        error: saveError.message,
-        code: saveError.code,
-        name: saveError.name,
-        stack: saveError.stack
-      });
-      throw saveError;
-    }
-
-    if (!savedUser) {
-      throw new Error('사용자 저장 실패: 저장된 문서가 없습니다.');
-    }
-
-    debug('사용자 저장 완료', { 
-      userId: savedUser._id,
-      collection: savedUser.collection.name
-    });
-
-    // 저장된 사용자 확인
-    const verifyUser = await User.findById(savedUser._id).session(session);
-    if (!verifyUser) {
-      throw new Error('사용자 저장 확인 실패: 저장된 사용자를 찾을 수 없습니다.');
-    }
-    debug('저장된 사용자 확인 완료');
+    debug('사용자 데이터 저장');
+    const savedUser = await user.save({ session });
+    debug('사용자 저장 완료', { userId: savedUser._id });
 
     // JWT 토큰 생성
-    debug('JWT 토큰 생성 시작');
+    debug('JWT 토큰 생성');
     const token = savedUser.getSignedJwtToken();
-    debug('JWT 토큰 생성 완료');
 
     // 트랜잭션 커밋
-    debug('트랜잭션 커밋 시도');
     await session.commitTransaction();
     session.endSession();
-    debug('트랜잭션 커밋 완료');
 
     debug('회원가입 완료', { userId: savedUser._id });
 

@@ -71,6 +71,9 @@ router.post('/register', [
       password,
       name
     });
+    console.log('User created:', user); // 실제로 저장된 user 객체 로그
+    const userInDb = await User.findOne({ username });
+    console.log('User in DB after create:', userInDb); // DB에서 다시 조회
 
     // JWT 토큰 생성
     const token = user.getSignedJwtToken();

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
@@ -13,7 +13,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const { login, loading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,9 +26,8 @@ const Login = () => {
     
     if (result.success) {
       toast.success('로그인되었습니다!');
-      // 페이지 새로고침을 위해 navigate 후 reload
+      // 페이지 새로고침 없이 React Router의 navigate 사용
       navigate('/mypage', { replace: true });
-      window.location.reload();
     } else {
       setError(result.message);
       toast.error(result.message);

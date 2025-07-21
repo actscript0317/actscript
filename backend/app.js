@@ -7,6 +7,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
+const path = require('path');
 const config = require('./config/env');
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/error');
@@ -45,10 +46,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// 라우트
+// API 라우트
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/scripts', require('./routes/scripts'));
 app.use('/api/ai', require('./routes/ai'));
+
+// 프로덕션 환경에서 정적 파일 제공
+if (process.env.NODE_ENV === 'production') {
+  // 정적 파일 제공
+  app.use(express.static(path.join(__dirname, '../frontend/build')));
+
+  // 모든 요청을 React 앱으로 전달
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../frontend/build', 'index.html'));
+  });
+}
 
 // 에러 핸들러
 app.use(errorHandler);

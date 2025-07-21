@@ -1,9 +1,8 @@
 import axios from 'axios';
 
-// 프로덕션 환경에서는 Render 호스팅 URL 사용
-const API_BASE_URL = process.env.NODE_ENV === 'development' 
+const API_BASE_URL = process.env.NODE_ENV === 'development'
   ? 'http://localhost:5000/api'
-  : 'https://actscript-api.onrender.com/api';  // Render의 백엔드 URL로 수정
+  : 'https://actscript.onrender.com/api'; // 실제 백엔드 도메인
 
 const api = axios.create({
   baseURL: API_BASE_URL,

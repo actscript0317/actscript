@@ -20,27 +20,25 @@ const PORT = config.PORT;
 // 환경 변수를 process.env에 설정 (다른 파일에서 사용할 수 있도록)
 Object.assign(process.env, config);
 
+// CORS 설정 (반드시 다른 미들웨어보다 먼저)
+const allowedOrigins = [
+  'https://actscript-1.onrender.com',
+  'http://localhost:3000'
+];
+const corsOptions = {
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // 프리플라이트 요청 허용
+
 // 데이터베이스 연결
 connectDB();
 
 // 미들웨어 설정
 app.use(helmet()); // 보안 헤더 설정
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
-// CORS 설정을 가장 먼저 적용
-const allowedOrigins = [
-  'https://actscript-1.onrender.com', // 프론트엔드
-  'http://localhost:3000'             // 개발용
-];
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.options('*', cors({
-  origin: allowedOrigins,
-  credentials: true
-}));
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱
 app.use(cookieParser()); // 쿠키 파싱

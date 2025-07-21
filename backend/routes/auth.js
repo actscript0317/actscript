@@ -35,12 +35,18 @@ router.post('/register', [
     .withMessage('이름은 1-50자 사이여야 합니다.')
 ], async (req, res) => {
   try {
-    console.log('회원가입 요청:', { ...req.body, password: '[HIDDEN]' });
+    console.log('📝 회원가입 요청 시작');
+    console.log('요청 데이터:', { 
+      ...req.body, 
+      password: '[HIDDEN]',
+      ip: req.ip,
+      userAgent: req.get('user-agent')
+    });
     
     // 유효성 검사
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('유효성 검사 실패:', errors.array());
+      console.log('❌ 유효성 검사 실패:', errors.array());
       return res.status(400).json({
         success: false,
         message: '입력 데이터에 오류가 있습니다.',
@@ -51,53 +57,90 @@ router.post('/register', [
     const { username, email, password, name } = req.body;
 
     // 중복 확인
+    console.log('🔍 사용자 중복 확인 중...');
     const existingUser = await User.findOne({
       $or: [
-        { username: username },
-        { email: email }
+        { username: username.toLowerCase() },
+        { email: email.toLowerCase() }
       ]
     });
 
     if (existingUser) {
-      console.log('중복된 사용자 존재:', existingUser.email);
+      console.log('❌ 중복된 사용자 발견:', {
+        existingUsername: existingUser.username === username.toLowerCase(),
+        existingEmail: existingUser.email === email.toLowerCase()
+      });
       return res.status(400).json({
         success: false,
-        message: existingUser.username === username 
-          ? '이미 사용 중인 사용자명입니다.' 
+        message: existingUser.username === username.toLowerCase()
+          ? '이미 사용 중인 사용자명입니다.'
           : '이미 사용 중인 이메일입니다.'
       });
     }
 
     // 사용자 생성
-    console.log('새 사용자 생성 시도');
+    console.log('👤 새 사용자 생성 중...');
     const user = new User({
-      username,
-      email,
+      username: username.toLowerCase(),
+      email: email.toLowerCase(),
       password,
-      name
+      name,
+      isActive: true,
+      role: 'user'
     });
 
+    // mongoose 유효성 검사
+    console.log('✔️ mongoose 모델 유효성 검사 중...');
+    const validationError = user.validateSync();
+    if (validationError) {
+      console.error('❌ mongoose 유효성 검사 실패:', validationError);
+      return res.status(400).json({
+        success: false,
+        message: '입력 데이터가 유효하지 않습니다.',
+        errors: Object.values(validationError.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }))
+      });
+    }
+
     // 사용자 저장
-    console.log('사용자 저장 시도');
-    await user.save();
-    console.log('사용자 저장 완료:', user._id);
+    console.log('💾 사용자 데이터 저장 중...');
+    const savedUser = await user.save();
+    console.log('✅ 사용자 저장 완료:', savedUser._id);
 
     // JWT 토큰 생성
-    const token = user.getSignedJwtToken();
-    console.log('JWT 토큰 생성 완료');
+    console.log('🔑 JWT 토큰 생성 중...');
+    const token = savedUser.getSignedJwtToken();
+    console.log('✅ JWT 토큰 생성 완료');
 
+    // 응답 전송
+    console.log('📤 회원가입 완료 응답 전송');
     res.status(201)
       .cookie('token', token, getCookieOptions())
       .json({
         success: true,
         message: '회원가입이 완료되었습니다.',
         token,
-        user: user.toSafeObject()
+        user: savedUser.toSafeObject()
       });
 
   } catch (error) {
-    console.error('회원가입 처리 중 에러:', error);
-    // MongoDB 중복 키 에러 처리
+    console.error('❌ 회원가입 처리 중 에러:', error);
+    
+    // mongoose 유효성 검사 에러
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: '입력 데이터가 유효하지 않습니다.',
+        errors: Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }))
+      });
+    }
+    
+    // MongoDB 중복 키 에러
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
@@ -105,10 +148,19 @@ router.post('/register', [
         message: `이미 사용 중인 ${field === 'username' ? '사용자명' : '이메일'}입니다.`
       });
     }
+
+    // 기타 에러
+    console.error('❌ 상세 에러 정보:', {
+      name: error.name,
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
+
     res.status(500).json({
       success: false,
       message: '회원가입 중 오류가 발생했습니다.',
-      error: error.message
+      error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
     });
   }
 });

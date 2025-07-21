@@ -17,41 +17,66 @@ const connectDB = async () => {
     );
     console.log('🔗 MongoDB 연결 시도 중:', maskedUri);
     
-    // MongoDB 연결 옵션
+    // Render 환경을 위한 MongoDB 연결 옵션
     const mongooseOptions = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 10000, // Render의 콜드 스타트를 고려하여 타임아웃 증가
-      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 20000, // Render의 콜드 스타트를 고려하여 타임아웃 증가
+      socketTimeoutMS: 60000, // 소켓 타임아웃 증가
       maxPoolSize: 10, // Render의 무료 티어 리소스 제한 고려
       minPoolSize: 2,
+      maxIdleTimeMS: 60000, // 유휴 연결 타임아웃
+      connectTimeoutMS: 20000, // 초기 연결 타임아웃
       retryWrites: true,
-      w: 'majority'
+      w: 'majority',
+      keepAlive: true,
+      keepAliveInitialDelay: 300000 // 5분
     };
 
-    // MongoDB 연결
-    const conn = await mongoose.connect(config.MONGODB_URI, mongooseOptions);
-    
-    console.log(`✅ MongoDB 연결됨: ${conn.connection.host}`);
-    console.log(`✅ 데이터베이스 이름: ${conn.connection.name}`);
-    
-    // 연결 이벤트 리스너 추가
-    mongoose.connection.on('error', err => {
-      console.error('MongoDB 연결 에러:', err);
-    });
+    // MongoDB 연결 시도
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    mongoose.connection.on('disconnected', () => {
-      console.warn('MongoDB 연결이 끊어졌습니다. 재연결을 시도합니다.');
-    });
+    while (retryCount < maxRetries) {
+      try {
+        const conn = await mongoose.connect(config.MONGODB_URI, mongooseOptions);
+        console.log(`✅ MongoDB 연결됨: ${conn.connection.host}`);
+        console.log(`✅ 데이터베이스 이름: ${conn.connection.name}`);
+        
+        // 연결 이벤트 리스너
+        mongoose.connection.on('error', err => {
+          console.error('MongoDB 연결 에러:', err);
+          // Render 환경에서는 심각한 에러 발생 시 프로세스 재시작
+          if (config.NODE_ENV === 'production') {
+            console.error('심각한 데이터베이스 오류. 서버를 재시작합니다.');
+            process.exit(1);
+          }
+        });
 
-    mongoose.connection.on('reconnected', () => {
-      console.log('MongoDB에 재연결되었습니다.');
-    });
-    
-    // 기본 감정 데이터 삽입
-    await seedEmotions();
-    
-    return conn;
+        mongoose.connection.on('disconnected', () => {
+          console.warn('MongoDB 연결이 끊어졌습니다. 재연결을 시도합니다.');
+        });
+
+        mongoose.connection.on('reconnected', () => {
+          console.log('MongoDB에 재연결되었습니다.');
+        });
+        
+        // 기본 감정 데이터 삽입
+        await seedEmotions();
+        
+        return conn;
+      } catch (error) {
+        retryCount++;
+        console.error(`❌ MongoDB 연결 시도 ${retryCount}/${maxRetries} 실패:`, error.message);
+        
+        if (retryCount === maxRetries) {
+          throw new Error(`MongoDB 연결 실패 (${maxRetries}회 시도 후)`);
+        }
+        
+        // 재시도 전 대기
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    }
     
   } catch (error) {
     console.error('❌ MongoDB 연결 실패:', error.message);
@@ -61,11 +86,16 @@ const connectDB = async () => {
       console.error('1. MongoDB Atlas 클러스터가 실행 중인지');
       console.error('2. IP 화이트리스트에 Render 서버 IP가 등록되어 있는지');
       console.error('3. 데이터베이스 사용자 인증 정보가 올바른지');
+      console.error('4. Network Access에서 0.0.0.0/0이 허용되어 있는지');
     }
     
-    // Render에서는 연결 실패 시 항상 프로세스 종료
-    console.error('Render 환경에서 MongoDB 연결 실패. 서버를 재시작합니다.');
-    process.exit(1);
+    // Render 환경에서는 연결 실패 시 프로세스 재시작
+    if (config.NODE_ENV === 'production') {
+      console.error('Render 환경에서 MongoDB 연결 실패. 서버를 재시작합니다.');
+      process.exit(1);
+    } else {
+      console.warn('⚠️ 개발 환경에서 MongoDB 연결 실패. 서버는 계속 실행되지만 데이터베이스 기능이 비활성화됩니다.');
+    }
   }
 };
 

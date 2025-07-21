@@ -95,7 +95,10 @@ userSchema.pre('save', async function(next) {
       id: this._id,
       email: this.email,
       isNew: this.isNew,
-      isModified: this.isModified('password')
+      isModified: this.isModified('password'),
+      modelState: this.modelName,
+      collection: this.collection.name,
+      mongooseConnection: mongoose.connection.readyState
     });
     
     // 비밀번호가 수정되지 않았으면 넘어감
@@ -105,13 +108,18 @@ userSchema.pre('save', async function(next) {
     }
     
     // 비밀번호 해싱
+    debug('비밀번호 해싱 시작');
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
     debug('비밀번호 해싱 완료');
     
     next();
   } catch (error) {
-    debug('save 미들웨어 에러', { error: error.message });
+    debug('save 미들웨어 에러', { 
+      error: error.message,
+      stack: error.stack,
+      code: error.code
+    });
     next(error);
   }
 });
@@ -122,25 +130,43 @@ userSchema.post('save', function(doc, next) {
     debug('사용자 저장 완료', {
       id: doc._id,
       email: doc.email,
-      username: doc.username
+      username: doc.username,
+      collection: doc.collection.name,
+      modelState: doc.modelName
     });
     next();
   } catch (error) {
-    debug('save 후처리 중 에러', { error: error.message });
+    debug('save 후처리 중 에러', { 
+      error: error.message,
+      stack: error.stack,
+      code: error.code
+    });
     next(error);
   }
 });
 
 // 저장 실패 이벤트 리스너
 userSchema.post('save', function(error, doc, next) {
+  debug('save 에러 핸들러 실행', {
+    errorName: error.name,
+    errorCode: error.code,
+    errorMessage: error.message,
+    docId: doc ? doc._id : null
+  });
+
   if (error.name === 'MongoServerError' && error.code === 11000) {
     debug('중복 키 에러 발생', {
       error: error.message,
-      keyPattern: error.keyPattern
+      keyPattern: error.keyPattern,
+      keyValue: error.keyValue
     });
     next(new Error('이미 존재하는 사용자명 또는 이메일입니다.'));
   } else {
-    debug('기타 저장 에러', { error: error.message });
+    debug('기타 저장 에러', { 
+      error: error.message,
+      stack: error.stack,
+      code: error.code
+    });
     next(error);
   }
 });

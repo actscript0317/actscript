@@ -130,17 +130,51 @@ router.post('/register', [
     }
 
     // 사용자 저장
-    debug('사용자 데이터 저장');
-    const savedUser = await user.save({ session });
-    debug('사용자 저장 완료', { userId: savedUser._id });
+    debug('사용자 데이터 저장 시도', {
+      username: user.username,
+      email: user.email,
+      mongooseConnection: mongoose.connection.readyState
+    });
+
+    let savedUser;
+    try {
+      savedUser = await user.save({ session });
+    } catch (saveError) {
+      debug('사용자 저장 실패', {
+        error: saveError.message,
+        code: saveError.code,
+        name: saveError.name,
+        stack: saveError.stack
+      });
+      throw saveError;
+    }
+
+    if (!savedUser) {
+      throw new Error('사용자 저장 실패: 저장된 문서가 없습니다.');
+    }
+
+    debug('사용자 저장 완료', { 
+      userId: savedUser._id,
+      collection: savedUser.collection.name
+    });
+
+    // 저장된 사용자 확인
+    const verifyUser = await User.findById(savedUser._id).session(session);
+    if (!verifyUser) {
+      throw new Error('사용자 저장 확인 실패: 저장된 사용자를 찾을 수 없습니다.');
+    }
+    debug('저장된 사용자 확인 완료');
 
     // JWT 토큰 생성
-    debug('JWT 토큰 생성');
+    debug('JWT 토큰 생성 시작');
     const token = savedUser.getSignedJwtToken();
+    debug('JWT 토큰 생성 완료');
 
     // 트랜잭션 커밋
+    debug('트랜잭션 커밋 시도');
     await session.commitTransaction();
     session.endSession();
+    debug('트랜잭션 커밋 완료');
 
     debug('회원가입 완료', { userId: savedUser._id });
 
@@ -422,6 +456,47 @@ router.put('/password', protect, [
     res.status(500).json({
       success: false,
       message: '비밀번호 변경 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
+
+// MongoDB 연결 상태 확인
+router.get('/db-status', async (req, res) => {
+  try {
+    debug('데이터베이스 상태 확인 요청');
+    
+    const status = {
+      mongooseState: mongoose.connection.readyState,
+      connected: mongoose.connection.readyState === 1,
+      host: mongoose.connection.host,
+      name: mongoose.connection.name,
+      collections: Object.keys(mongoose.connection.collections)
+    };
+    
+    // 연결 테스트
+    if (status.connected) {
+      try {
+        // 간단한 쿼리로 실제 연결 테스트
+        const testDoc = new mongoose.Types.ObjectId();
+        await mongoose.connection.db.collection('users').findOne({ _id: testDoc });
+        status.queryTest = 'success';
+      } catch (queryError) {
+        status.queryTest = 'failed';
+        status.queryError = queryError.message;
+      }
+    }
+    
+    debug('데이터베이스 상태', status);
+    
+    res.json({
+      success: true,
+      status
+    });
+  } catch (error) {
+    debug('데이터베이스 상태 확인 실패', { error: error.message });
+    res.status(500).json({
+      success: false,
       error: error.message
     });
   }

@@ -1,23 +1,28 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import LoadingSpinner from './LoadingSpinner';
 
 const PrivateRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, checkAuth } = useAuth();
+  const [isChecking, setIsChecking] = useState(true);
   const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
-          <p className="mt-4 text-gray-600">로딩 중...</p>
-        </div>
-      </div>
-    );
+  useEffect(() => {
+    const verifyAuth = async () => {
+      await checkAuth();
+      setIsChecking(false);
+    };
+
+    verifyAuth();
+  }, [checkAuth]);
+
+  if (isChecking) {
+    return <LoadingSpinner />;
   }
 
   if (!user) {
+    // 현재 경로를 state로 전달하여 로그인 후 리다이렉트할 수 있도록 함
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

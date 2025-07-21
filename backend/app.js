@@ -18,22 +18,26 @@ const app = express();
 connectDB();
 
 // CORS 설정
-const corsOptions = {
+app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://actscript-1.onrender.com', 'https://actscript.onrender.com']
+    ? ['https://actscript-1.onrender.com']
     : 'http://localhost:3000',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
-
-app.use(cors(corsOptions));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin'
+  ]
+}));
 
 // 보안 미들웨어
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 app.use(mongoSanitize());
 app.use(xss());
 app.use(hpp());

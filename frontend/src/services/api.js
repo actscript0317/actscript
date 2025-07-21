@@ -12,7 +12,6 @@ const api = axios.create({
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json'
   },
   withCredentials: true // 쿠키 포함
 });
@@ -20,12 +19,6 @@ const api = axios.create({
 // 요청 인터셉터
 api.interceptors.request.use(
   (config) => {
-    // CORS 헤더 추가
-    config.headers['Access-Control-Allow-Origin'] = process.env.NODE_ENV === 'development'
-      ? 'http://localhost:3000'
-      : 'https://actscript-1.onrender.com';
-    config.headers['Access-Control-Allow-Credentials'] = 'true';
-
     // 토큰이 있으면 헤더에 추가
     const token = localStorage.getItem('token');
     if (token) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
@@ -11,8 +11,15 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { login, loading } = useAuth();
+  const { login, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // 인증 상태가 변경될 때 리다이렉션
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +36,7 @@ const Login = () => {
       if (result.success) {
         console.log('로그인 성공:', { user: result.user });
         toast.success('로그인되었습니다!');
-        navigate('/mypage', { replace: true });
+        // 리다이렉션은 useEffect에서 처리됨
       } else {
         console.error('로그인 실패:', result.message);
         setError(result.message);

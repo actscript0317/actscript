@@ -7,7 +7,7 @@ const useAuth = () => {
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // 초기 로딩 상태를 true로 설정
   const [error, setError] = useState(null);
 
   // 로그인 상태 설정
@@ -46,6 +46,8 @@ const useAuth = () => {
       console.error('인증 상태 확인 실패:', error);
       setAuthState(null, null);
       return false;
+    } finally {
+      setLoading(false); // 인증 확인 완료 후 로딩 상태 해제
     }
   }, [setAuthState]);
 
@@ -60,7 +62,8 @@ const useAuth = () => {
       console.log('로그인 응답:', res.data);
       
       if (res.data.success && res.data.token && res.data.user) {
-        setAuthState(res.data.user, res.data.token);
+        await setAuthState(res.data.user, res.data.token);
+        await checkAuth(); // 로그인 후 인증 상태 재확인
         return { 
           success: true,
           user: res.data.user
@@ -72,6 +75,7 @@ const useAuth = () => {
       console.error('로그인 실패:', error);
       const errorMessage = error.response?.data?.message || error.message || '로그인에 실패했습니다.';
       setError(errorMessage);
+      setAuthState(null, null);
       return { 
         success: false, 
         message: errorMessage

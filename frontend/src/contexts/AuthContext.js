@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  const [loading, setLoading] = useState(true); // 초기 로딩 상태를 true로 설정
+  const [loading, setLoading] = useState(false); // 초기 로딩을 false로 변경
   const [error, setError] = useState(null);
   const [aiGeneratedScripts, setAIGeneratedScripts] = useState([]);
   const [savedScripts, setSavedScripts] = useState([]);
@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
+      setLoading(false); // 로그인 성공 시 즉시 로딩 해제
     } else {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -28,6 +29,8 @@ export const AuthProvider = ({ children }) => {
       setAIGeneratedScripts([]);
       setSavedScripts([]);
     }
+    // 강제 리렌더링을 위한 상태 업데이트
+    setError(null);
   }, []);
 
   // 로그인 상태 확인
@@ -84,12 +87,9 @@ export const AuthProvider = ({ children }) => {
       if (res.data.success && res.data.token && res.data.user) {
         // 즉시 인증 상태 업데이트
         setAuthState(res.data.user, res.data.token);
-        setLoading(false); // 로딩 즉시 해제
         
-        // 백그라운드에서 인증 상태 재확인 (선택적)
-        setTimeout(() => {
-          checkAuth();
-        }, 100);
+        // 강제로 모든 컴포넌트 리렌더링 트리거
+        setLoading(false);
         
         return { 
           success: true,
@@ -215,8 +215,23 @@ export const AuthProvider = ({ children }) => {
 
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    
+    if (token && savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+        // 백그라운드에서 토큰 유효성 검사
+        setTimeout(() => {
+          checkAuth();
+        }, 100);
+      } catch (error) {
+        console.error('저장된 사용자 데이터 파싱 오류:', error);
+        setAuthState(null, null);
+      }
+    }
+  }, [checkAuth, setAuthState]);
 
   // 로그인 시 스크립트 로드
   useEffect(() => {

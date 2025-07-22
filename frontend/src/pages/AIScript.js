@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   Sparkles, 
   Users, 
@@ -32,6 +33,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const AIScript = () => {
   const { addAIGeneratedScript, addSavedScript } = useAuth();
+  const navigate = useNavigate();
   
   // 폼 상태 관리
   const [formData, setFormData] = useState({
@@ -405,17 +407,17 @@ const AIScript = () => {
 
       setGeneratedScript(data.script);
       
-      // AuthContext에 AI 생성 대본 저장
-      if (addAIGeneratedScript) {
-        addAIGeneratedScript({
-          title: `${formData.genre} ${formData.emotions.join(', ')} 대본`,
-          content: data.script,
-          characterCount: formData.characterCount,
-          genre: formData.genre,
-          emotion: formData.emotions.join(', '),
-          metadata: data.metadata
-        });
-      }
+      // AI 생성 대본을 자동으로 저장하지 않고, 사용자가 저장 버튼을 눌렀을 때만 저장
+      // if (addAIGeneratedScript) {
+      //   addAIGeneratedScript({
+      //     title: `${formData.genre} ${formData.emotions.join(', ')} 대본`,
+      //     content: data.script,
+      //     characterCount: formData.characterCount,
+      //     genre: formData.genre,
+      //     emotion: formData.emotions.join(', '),
+      //     metadata: data.metadata
+      //   });
+      // }
       
       // 결과 영역으로 스크롤
       setTimeout(() => {
@@ -807,23 +809,36 @@ const AIScript = () => {
                   </button>
                   <button
                     onClick={() => {
-                      const extractedTitle = extractTitleFromScript(generatedScript);
-                      const finalTitle = extractedTitle || 
-                        `${formData.genre || '미분류'} ${formData.emotions[0] || ''} 대본`.trim();
-                      
-                      const savedScript = {
-                        _id: 'saved_' + Date.now(),
-                        title: finalTitle,
-                        content: generatedScript,
-                        characterCount: formData.characterCount,
-                        genre: formData.genre,
-                        emotion: formData.emotions.join(', '),
-                        length: formData.length,
-                        savedAt: new Date().toISOString(),
-                        isAIGenerated: false
-                      };
-                      addSavedScript(savedScript);
-                      alert('대본이 대본함에 저장되었습니다!');
+                      try {
+                        const extractedTitle = extractTitleFromScript(generatedScript);
+                        const finalTitle = extractedTitle || 
+                          `${formData.genre || '미분류'} ${formData.emotions[0] || ''} 대본`.trim();
+                        
+                        const savedScript = {
+                          _id: 'saved_' + Date.now(),
+                          title: finalTitle,
+                          content: generatedScript,
+                          characterCount: formData.characterCount,
+                          genre: formData.genre,
+                          emotion: formData.emotions.join(', '),
+                          length: formData.length,
+                          savedAt: new Date().toISOString(),
+                          isAIGenerated: false
+                        };
+                        
+                        if (addSavedScript) {
+                          addSavedScript(savedScript);
+                          // 성공 메시지와 함께 대본함으로 이동할지 묻기
+                          if (confirm('대본이 성공적으로 저장되었습니다! 대본함으로 이동하시겠습니까?')) {
+                            navigate('/script-vault');
+                          }
+                        } else {
+                          alert('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
+                        }
+                      } catch (error) {
+                        console.error('저장 중 오류:', error);
+                        alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+                      }
                     }}
                     className="flex items-center justify-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
                   >
@@ -831,7 +846,7 @@ const AIScript = () => {
                     🔖 저장하기
                   </button>
                   <button
-                    onClick={() => window.location.href = '/script-vault'}
+                    onClick={() => navigate('/script-vault')}
                     className="flex items-center justify-center px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md"
                   >
                     <Archive className="w-5 h-5 mr-2" />
@@ -1095,23 +1110,36 @@ const AIScript = () => {
                       </button>
                       <button
                         onClick={() => {
-                          const extractedTitle = extractTitleFromScript(generatedScript);
-                          const finalTitle = extractedTitle || 
-                            `${formData.genre || '미분류'} ${formData.emotions[0] || ''} 대본`.trim();
-                          
-                          const savedScript = {
-                            _id: 'saved_' + Date.now(),
-                            title: finalTitle,
-                            content: generatedScript,
-                            characterCount: formData.characterCount,
-                            genre: formData.genre,
-                            emotion: formData.emotions.join(', '),
-                            length: formData.length,
-                            savedAt: new Date().toISOString(),
-                            isAIGenerated: false
-                          };
-                          addSavedScript(savedScript);
-                          alert('대본이 대본함에 저장되었습니다!');
+                          try {
+                            const extractedTitle = extractTitleFromScript(generatedScript);
+                            const finalTitle = extractedTitle || 
+                              `${formData.genre || '미분류'} ${formData.emotions[0] || ''} 대본`.trim();
+                            
+                            const savedScript = {
+                              _id: 'saved_' + Date.now(),
+                              title: finalTitle,
+                              content: generatedScript,
+                              characterCount: formData.characterCount,
+                              genre: formData.genre,
+                              emotion: formData.emotions.join(', '),
+                              length: formData.length,
+                              savedAt: new Date().toISOString(),
+                              isAIGenerated: false
+                            };
+                            
+                            if (addSavedScript) {
+                              addSavedScript(savedScript);
+                              // 성공 메시지와 함께 대본함으로 이동할지 묻기
+                              if (confirm('대본이 성공적으로 저장되었습니다! 대본함으로 이동하시겠습니까?')) {
+                                navigate('/script-vault');
+                              }
+                            } else {
+                              alert('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
+                            }
+                          } catch (error) {
+                            console.error('저장 중 오류:', error);
+                            alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+                          }
                         }}
                         className="flex items-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
@@ -1129,7 +1157,7 @@ const AIScript = () => {
                         리라이팅하기
                       </button>
                       <button
-                        onClick={() => window.location.href = '/script-vault'}
+                        onClick={() => navigate('/script-vault')}
                         className="flex items-center px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
                         <Archive className="w-5 h-5 mr-2" />

@@ -34,9 +34,21 @@ const ScriptVault = () => {
 
   // 컴포넌트 마운트 시 대본 목록 로드
   useEffect(() => {
+    console.log('ScriptVault mounted - loading scripts...');
+    console.log('AI Scripts count:', aiGeneratedScripts.length);
+    console.log('Saved Scripts count:', savedScripts.length);
     loadAIGeneratedScripts();
     loadSavedScripts();
   }, [loadAIGeneratedScripts, loadSavedScripts]);
+
+  // 스크립트 상태 변경 감지
+  useEffect(() => {
+    console.log('AI Generated Scripts updated:', aiGeneratedScripts);
+  }, [aiGeneratedScripts]);
+
+  useEffect(() => {
+    console.log('Saved Scripts updated:', savedScripts);
+  }, [savedScripts]);
 
   // 대본에서 제목 추출 함수
   const extractTitleFromScript = (scriptContent) => {

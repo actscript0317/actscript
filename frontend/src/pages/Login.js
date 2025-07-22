@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
-import useAuth from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 
 const Login = () => {

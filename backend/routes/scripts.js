@@ -1,11 +1,11 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Script = require('../models/Script');
-const auth = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 const router = express.Router();
 
 // AI 생성 스크립트 조회 (인증 필요)
-router.get('/ai', auth, async (req, res) => {
+router.get('/ai', protect, async (req, res) => {
   try {
     // 현재는 빈 배열 반환 (추후 AI 스크립트 모델 구현 시 수정)
     res.json({
@@ -22,7 +22,7 @@ router.get('/ai', auth, async (req, res) => {
 });
 
 // 저장된 스크립트 조회 (인증 필요)
-router.get('/saved', auth, async (req, res) => {
+router.get('/saved', protect, async (req, res) => {
   try {
     // 현재는 빈 배열 반환 (추후 저장된 스크립트 모델 구현 시 수정)
     res.json({
@@ -39,7 +39,7 @@ router.get('/saved', auth, async (req, res) => {
 });
 
 // AI 스크립트 생성 (인증 필요)
-router.post('/ai', auth, async (req, res) => {
+router.post('/ai', protect, async (req, res) => {
   try {
     // 현재는 임시 응답 (추후 AI 스크립트 생성 로직 구현)
     res.json({
@@ -57,7 +57,7 @@ router.post('/ai', auth, async (req, res) => {
 });
 
 // AI 스크립트 삭제 (인증 필요)
-router.delete('/ai/:id', auth, async (req, res) => {
+router.delete('/ai/:id', protect, async (req, res) => {
   try {
     // 현재는 임시 응답
     res.json({
@@ -74,7 +74,7 @@ router.delete('/ai/:id', auth, async (req, res) => {
 });
 
 // 저장된 스크립트 삭제 (인증 필요)
-router.delete('/saved/:id', auth, async (req, res) => {
+router.delete('/saved/:id', protect, async (req, res) => {
   try {
     // 현재는 임시 응답
     res.json({

@@ -1,5 +1,16 @@
 require('dotenv').config();
 
+// 환경 변수 검증
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error('❌ 필수 환경 변수가 누락되었습니다:', missingVars);
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
+
 module.exports = {
   PORT: process.env.PORT || 10000,
   MONGODB_URI: process.env.MONGODB_URI,

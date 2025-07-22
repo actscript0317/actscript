@@ -10,30 +10,19 @@ const hpp = require('hpp');
 const path = require('path');
 const config = require('./config/env');
 const connectDB = require('./config/database');
-const errorHandler = require('./middleware/error');
 
 const app = express();
 
 // 데이터베이스 연결
 connectDB();
 
-// 기본 CORS 설정
-app.use(cors());
-
-// 상세 CORS 설정
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://actscript-1.onrender.com');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // preflight 요청 처리
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
+// 간단한 CORS 설정 (server.js에서 이미 설정되어 있다면 생략 가능)
+app.use(cors({
+  origin: ['https://actscript-1.onrender.com', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+}));
 
 // 보안 미들웨어
 app.use(helmet({
@@ -60,7 +49,8 @@ app.use(morgan('dev'));
 // API 라우트
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/scripts', require('./routes/scripts'));
-app.use('/api/ai', require('./routes/ai'));
+app.use('/api/emotions', require('./routes/emotions'));
+app.use('/api/ai-script', require('./routes/ai-script'));
 
 // 프로덕션 환경에서 정적 파일 제공
 if (process.env.NODE_ENV === 'production') {
@@ -74,12 +64,15 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // 에러 핸들러
-app.use(errorHandler);
-
-// 서버 시작
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`🚀 서버가 ${PORT}번 포트에서 실행 중입니다.`);
+app.use((error, req, res, next) => {
+  console.error('❌ 서버 에러:', error.stack);
+  
+  res.status(error.status || 500).json({
+    message: config.NODE_ENV === 'production' 
+      ? '서버 내부 오류가 발생했습니다.' 
+      : error.message,
+    ...(config.NODE_ENV !== 'production' && { stack: error.stack })
+  });
 });
 
 module.exports = app; 

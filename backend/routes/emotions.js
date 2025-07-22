@@ -6,9 +6,16 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const emotions = await Emotion.find().sort({ name: 1 }).select('-__v');
-    res.json(emotions);
+    res.json({
+      success: true,
+      emotions: emotions
+    });
   } catch (error) {
-    res.status(500).json({ message: '감정 조회 중 오류가 발생했습니다.', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: '감정 조회 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
   }
 });
 
@@ -18,12 +25,22 @@ router.get('/:id', async (req, res) => {
     const emotion = await Emotion.findById(req.params.id).select('-__v');
     
     if (!emotion) {
-      return res.status(404).json({ message: '감정을 찾을 수 없습니다.' });
+      return res.status(404).json({ 
+        success: false,
+        message: '감정을 찾을 수 없습니다.' 
+      });
     }
     
-    res.json(emotion);
+    res.json({
+      success: true,
+      emotion: emotion
+    });
   } catch (error) {
-    res.status(500).json({ message: '감정 조회 중 오류가 발생했습니다.', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: '감정 조회 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
   }
 });
 

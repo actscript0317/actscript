@@ -2,7 +2,7 @@ const express = require('express');
 const OpenAI = require('openai');
 const config = require('../config/env');
 const AIScript = require('../models/AIScript');
-const auth = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -49,7 +49,7 @@ const extractTitleFromScript = (scriptContent) => {
 };
 
   // 대본 생성 API
-router.post('/generate', auth, async (req, res) => {
+router.post('/generate', protect, async (req, res) => {
   try {
     // OpenAI API 키 확인
     if (!openai) {
@@ -579,7 +579,7 @@ ${selectedIntensity.instruction}
 });
 
 // 사용자의 AI 생성 스크립트 목록 조회
-router.get('/scripts', auth, async (req, res) => {
+router.get('/scripts', protect, async (req, res) => {
   try {
     const scripts = await AIScript.find({ userId: req.user._id })
       .sort({ createdAt: -1 })
@@ -600,7 +600,7 @@ router.get('/scripts', auth, async (req, res) => {
 });
 
 // 특정 AI 스크립트 조회
-router.get('/scripts/:id', auth, async (req, res) => {
+router.get('/scripts/:id', protect, async (req, res) => {
   try {
     const script = await AIScript.findOne({ 
       _id: req.params.id, 
@@ -626,7 +626,7 @@ router.get('/scripts/:id', auth, async (req, res) => {
 });
 
 // AI 스크립트를 대본함에 저장
-router.put('/scripts/:id/save', auth, async (req, res) => {
+router.put('/scripts/:id/save', protect, async (req, res) => {
   try {
     const script = await AIScript.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
@@ -657,7 +657,7 @@ router.put('/scripts/:id/save', auth, async (req, res) => {
 });
 
 // AI 스크립트 삭제
-router.delete('/scripts/:id', auth, async (req, res) => {
+router.delete('/scripts/:id', protect, async (req, res) => {
   try {
     const script = await AIScript.findOneAndDelete({ 
       _id: req.params.id, 
@@ -683,7 +683,7 @@ router.delete('/scripts/:id', auth, async (req, res) => {
 });
 
 // 저장된 AI 스크립트 목록 조회 (대본함용)
-router.get('/saved', auth, async (req, res) => {
+router.get('/saved', protect, async (req, res) => {
   try {
     const savedScripts = await AIScript.find({ 
       userId: req.user._id, 

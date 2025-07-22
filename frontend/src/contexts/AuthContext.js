@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, scriptAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const AuthContext = createContext(null);
@@ -11,6 +11,8 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true); // 초기 로딩 상태를 true로 설정
   const [error, setError] = useState(null);
+  const [aiGeneratedScripts, setAIGeneratedScripts] = useState([]);
+  const [savedScripts, setSavedScripts] = useState([]);
 
   // 로그인 상태 설정
   const setAuthState = useCallback((userData, token) => {
@@ -22,6 +24,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);
+      // 로그아웃 시 스크립트 상태 초기화
+      setAIGeneratedScripts([]);
+      setSavedScripts([]);
     }
   }, []);
 
@@ -95,10 +100,74 @@ export const AuthProvider = ({ children }) => {
     }
   }, [setAuthState]);
 
+  // AI 생성 스크립트 로드
+  const loadAIGeneratedScripts = useCallback(async () => {
+    try {
+      const response = await scriptAPI.getAIScripts();
+      if (response.data.success) {
+        setAIGeneratedScripts(response.data.scripts || []);
+      } else {
+        setAIGeneratedScripts([]);
+      }
+    } catch (error) {
+      console.error('AI 스크립트 로드 실패:', error);
+      toast.error('AI 스크립트를 불러오는데 실패했습니다.');
+      setAIGeneratedScripts([]);
+    }
+  }, []);
+
+  // 저장된 스크립트 로드
+  const loadSavedScripts = useCallback(async () => {
+    try {
+      const response = await scriptAPI.getSavedScripts();
+      if (response.data.success) {
+        setSavedScripts(response.data.scripts || []);
+      } else {
+        setSavedScripts([]);
+      }
+    } catch (error) {
+      console.error('저장된 스크립트 로드 실패:', error);
+      toast.error('저장된 스크립트를 불러오는데 실패했습니다.');
+      setSavedScripts([]);
+    }
+  }, []);
+
+  // AI 생성 스크립트 삭제
+  const removeAIGeneratedScript = useCallback(async (scriptId) => {
+    try {
+      await scriptAPI.deleteAIScript(scriptId);
+      setAIGeneratedScripts(prev => prev.filter(script => script._id !== scriptId));
+      toast.success('AI 생성 스크립트가 삭제되었습니다.');
+    } catch (error) {
+      console.error('AI 스크립트 삭제 실패:', error);
+      toast.error('AI 스크립트 삭제에 실패했습니다.');
+    }
+  }, []);
+
+  // 저장된 스크립트 삭제
+  const removeSavedScript = useCallback(async (scriptId) => {
+    try {
+      await scriptAPI.deleteSavedScript(scriptId);
+      setSavedScripts(prev => prev.filter(script => script._id !== scriptId));
+      toast.success('저장된 스크립트가 삭제되었습니다.');
+    } catch (error) {
+      console.error('저장된 스크립트 삭제 실패:', error);
+      toast.error('저장된 스크립트 삭제에 실패했습니다.');
+    }
+  }, []);
+
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // 로그인 시 스크립트 로드
+  useEffect(() => {
+    if (user) {
+      loadAIGeneratedScripts();
+      loadSavedScripts();
+    }
+  }, [user, loadAIGeneratedScripts, loadSavedScripts]);
 
   const value = {
     user,
@@ -107,7 +176,13 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     checkAuth,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    aiGeneratedScripts,
+    savedScripts,
+    loadAIGeneratedScripts,
+    loadSavedScripts,
+    removeAIGeneratedScript,
+    removeSavedScript
   };
 
   return (

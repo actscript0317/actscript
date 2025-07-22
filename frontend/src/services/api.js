@@ -77,8 +77,21 @@ api.interceptors.response.use(
   }
 );
 
-// 대본 API
+// 스크립트 API
 export const scriptAPI = {
+  // AI 생성 스크립트 관련
+  getAIScripts: () => api.get('/scripts/ai'),
+  createAIScript: (data) => api.post('/scripts/ai', data),
+  updateAIScript: (id, data) => api.put(`/scripts/ai/${id}`, data),
+  deleteAIScript: (id) => api.delete(`/scripts/ai/${id}`),
+
+  // 저장된 스크립트 관련
+  getSavedScripts: () => api.get('/scripts/saved'),
+  saveScript: (data) => api.post('/scripts/save', data),
+  updateSavedScript: (id, data) => api.put(`/scripts/saved/${id}`, data),
+  deleteSavedScript: (id) => api.delete(`/scripts/saved/${id}`),
+
+  // 기존 스크립트 API
   getAll: async (params = {}) => {
     try {
       const response = await api.get('/scripts', { params });

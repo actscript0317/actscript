@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// API 기본 설정
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://actscript.onrender.com/api';
+// API 기본 설정 - 같은 도메인에서 실행되므로 상대 경로 사용
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 // axios 인스턴스 생성
 const api = axios.create({

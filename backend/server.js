@@ -32,25 +32,32 @@ app.use((req, res, next) => {
 
 // CORS 설정 (반드시 다른 미들웨어보다 먼저)
 const allowedOrigins = [
-  'https://actscript-1.onrender.com',  // Render 프론트엔드 도메인
-  'https://actscript.onrender.com',    // 대체 도메인
+  'https://actscript-1.onrender.com',  // Render 프론트엔드 도메인 (주요)
+  'https://actscript.onrender.com',    // 대체 도메인 (혹시 다른 배포)
   'http://localhost:3000',             // 로컬 개발용
   'http://localhost:5000'              // 로컬 개발용 대체 포트
 ];
 
 const corsOptions = {
   origin: function(origin, callback) {
-    // origin이 undefined인 경우는 같은 도메인에서의 요청
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn('⚠️ CORS 정책으로 인해 차단된 요청:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
+    console.log('🔍 CORS 요청 origin:', origin);
+    // 임시로 모든 origin 허용 (디버깅용)
+    console.log('✅ CORS 허용됨 (임시 - 모든 origin):', origin);
+    callback(null, true);
+    
+    // 원래 로직 (주석 처리)
+    // if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    //   console.log('✅ CORS 허용됨:', origin);
+    //   callback(null, true);
+    // } else {
+    //   console.warn('⚠️ CORS 정책으로 인해 차단된 요청:', origin);
+    //   console.log('허용된 origins:', allowedOrigins);
+    //   callback(new Error('Not allowed by CORS'));
+    // }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 600 // 프리플라이트 요청 캐시 시간 (10분)
 };
@@ -169,7 +176,7 @@ app.use((error, req, res, next) => {
 // 서버 시작
 app.listen(PORT, () => {
   const serverUrl = config.NODE_ENV === 'production'
-    ? 'https://actscript.onrender.com'
+    ? 'https://actscript-1.onrender.com'
     : `http://localhost:${PORT}`;
 
   console.log(`

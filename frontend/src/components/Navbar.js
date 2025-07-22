@@ -1,39 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 const Navbar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const { isAuthenticated, logout, loading } = useAuth();
 
-  // 초기 로그인 상태 확인 및 토큰 변경 감지
-  useEffect(() => {
-    // 초기 상태 설정
-    setIsLoggedIn(!!localStorage.getItem('token'));
-
-    // 토큰 변경 감지를 위한 이벤트 리스너
-    const handleStorageChange = () => {
-      setIsLoggedIn(!!localStorage.getItem('token'));
-    };
-
-    // storage 이벤트 리스너 등록
-    window.addEventListener('storage', handleStorageChange);
-
-    // 컴포넌트 언마운트 시 이벤트 리스너 제거
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setIsLoggedIn(false);
-    toast.success('로그아웃되었습니다.');
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
+
+  // 로딩 중일 때는 아무것도 표시하지 않음
+  if (loading) {
+    return null;
+  }
 
   return (
     <nav className="bg-white shadow-lg">
@@ -56,7 +40,7 @@ const Navbar = () => {
               >
                 대본 목록
               </Link>
-              {isLoggedIn && (
+              {isAuthenticated && (
                 <>
                   <Link
                     to="/add-script"
@@ -81,7 +65,7 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {isLoggedIn ? (
+            {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <Link
                   to="/mypage"
@@ -148,7 +132,7 @@ const Navbar = () => {
           >
             대본 목록
           </Link>
-          {isLoggedIn && (
+          {isAuthenticated && (
             <>
               <Link
                 to="/add-script"
@@ -175,7 +159,7 @@ const Navbar = () => {
           )}
         </div>
         <div className="pt-4 pb-3 border-t border-gray-200">
-          {isLoggedIn ? (
+          {isAuthenticated ? (
             <div className="space-y-1">
               <Link
                 to="/mypage"

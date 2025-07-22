@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
@@ -16,33 +16,8 @@ import Register from './pages/Register';
 import MyPage from './pages/MyPage';
 import NotFound from './pages/NotFound';
 import { Toaster } from 'react-hot-toast';
-import LoadingSpinner from './components/LoadingSpinner';
 
 function App() {
-  const [isInitializing, setIsInitializing] = useState(true);
-
-  useEffect(() => {
-    // 초기 로딩 상태 처리
-    const initializeApp = async () => {
-      try {
-        // 필요한 초기화 작업 수행
-        await Promise.all([
-          // 여기에 필요한 초기 데이터 로딩 추가
-        ]);
-      } catch (error) {
-        console.error('앱 초기화 중 오류:', error);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
-    initializeApp();
-  }, []);
-
-  if (isInitializing) {
-    return <LoadingSpinner />;
-  }
-
   return (
     <AuthProvider>
       <Router>

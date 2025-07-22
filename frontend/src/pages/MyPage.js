@@ -1,54 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { User, Heart, Settings, Eye, Calendar, Users, Bookmark, Sparkles, Palette, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const MyPage = () => {
-  const { user, isAuthenticated } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [savedScripts, setSavedScripts] = useState([]);
-  const [aiGeneratedScripts, setAiGeneratedScripts] = useState([]);
+  const { 
+    user, 
+    isAuthenticated, 
+    savedScripts, 
+    aiGeneratedScripts, 
+    loading,
+    removeSavedScript,
+    removeAIGeneratedScript
+  } = useAuth();
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        // 저장된 대본 불러오기
-        const storedScripts = localStorage.getItem('savedScripts');
-        const scripts = storedScripts ? JSON.parse(storedScripts) : [];
-        setSavedScripts(scripts);
-
-        // AI 생성 대본 불러오기
-        const storedAIScripts = localStorage.getItem('aiGeneratedScripts');
-        const aiScripts = storedAIScripts ? JSON.parse(storedAIScripts) : [];
-        setAiGeneratedScripts(aiScripts);
-
-      } catch (error) {
-        console.error('데이터 로드 중 오류:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (isAuthenticated) {
-      loadUserData();
-    } else {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  // 저장 제거 핸들러
-  const handleRemoveSave = (scriptId) => {
-    const updatedScripts = savedScripts.filter(script => script._id !== scriptId);
-    setSavedScripts(updatedScripts);
-    localStorage.setItem('savedScripts', JSON.stringify(updatedScripts));
-  };
-
-  // AI 생성 대본 제거 핸들러
-  const handleRemoveAIScript = (scriptId) => {
-    const updatedScripts = aiGeneratedScripts.filter(script => script._id !== scriptId);
-    setAiGeneratedScripts(updatedScripts);
-    localStorage.setItem('aiGeneratedScripts', JSON.stringify(updatedScripts));
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -59,17 +34,6 @@ const MyPage = () => {
           <Link to="/login" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark">
             로그인하기
           </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
-          <p className="mt-4 text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
@@ -161,7 +125,7 @@ const MyPage = () => {
                           </div>
                           <div>
                             <button
-                              onClick={() => handleRemoveSave(script._id)}
+                              onClick={() => removeSavedScript(script._id)}
                               className="text-red-600 hover:text-red-700"
                             >
                               삭제
@@ -205,7 +169,7 @@ const MyPage = () => {
                           </div>
                           <div>
                             <button
-                              onClick={() => handleRemoveAIScript(script._id)}
+                              onClick={() => removeAIGeneratedScript(script._id)}
                               className="text-red-600 hover:text-red-700"
                             >
                               삭제

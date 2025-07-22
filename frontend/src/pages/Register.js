@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Eye, EyeOff } from 'lucide-react';
-import useAuth from '../hooks/useAuth';
+import { authAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const Register = () => {
@@ -15,7 +15,6 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
-  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -40,20 +39,26 @@ const Register = () => {
       return;
     }
 
-    const result = await register({
-      username,
-      email,
-      password,
-      confirmPassword,
-      name
-    });
+    try {
+      const response = await authAPI.register({
+        username,
+        email,
+        password,
+        confirmPassword,
+        name
+      });
 
-    if (result.success) {
-      toast.success('회원가입이 완료되었습니다!');
-      navigate('/');
-    } else {
-      setError(result.message);
-      toast.error(result.message);
+      if (response.data.success) {
+        toast.success('회원가입이 완료되었습니다!');
+        navigate('/login');
+      } else {
+        setError(response.data.message || '회원가입에 실패했습니다.');
+        toast.error(response.data.message || '회원가입에 실패했습니다.');
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || '회원가입 중 오류가 발생했습니다.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 

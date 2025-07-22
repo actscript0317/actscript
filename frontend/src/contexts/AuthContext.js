@@ -52,24 +52,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('[인증 확인 실패]', error);
-      // 타임아웃이나 네트워크 오류인 경우 토큰은 유지하되 로딩만 해제
-      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
-        console.log('서버 연결 중... 잠시 후 다시 시도됩니다.');
-        // 토큰이 있으면 일단 유지
-        const token = localStorage.getItem('token');
-        const savedUser = localStorage.getItem('user');
-        if (token && savedUser) {
-          try {
-            setUser(JSON.parse(savedUser));
-            return true;
-          } catch (e) {
-            setAuthState(null, null);
-            return false;
-          }
-        }
-      } else {
-        setAuthState(null, null);
-      }
+      setAuthState(null, null);
       return false;
     } finally {
       setLoading(false);
@@ -130,17 +113,9 @@ export const AuthProvider = ({ children }) => {
       const response = await scriptAPI.getAIScripts();
       if (response.data.success) {
         setAIGeneratedScripts(response.data.scripts || []);
-      } else {
-        setAIGeneratedScripts([]);
       }
     } catch (error) {
-      console.error('AI 스크립트 로드 실패:', error);
-      // 타임아웃이나 네트워크 오류인 경우 조용히 처리
-      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
-        console.log('서버 연결 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.');
-      } else {
-        toast.error('AI 스크립트를 불러오는데 실패했습니다.');
-      }
+      console.error('[AI 스크립트 로드 실패]', error);
       setAIGeneratedScripts([]);
     }
   }, []);
@@ -148,46 +123,46 @@ export const AuthProvider = ({ children }) => {
   // 저장된 스크립트 로드
   const loadSavedScripts = useCallback(async () => {
     try {
-      const response = await scriptAPI.getSavedScripts();
+      const response = await scriptAPI.getSavedAIScripts();
       if (response.data.success) {
         setSavedScripts(response.data.scripts || []);
-      } else {
-        setSavedScripts([]);
       }
     } catch (error) {
-      console.error('저장된 스크립트 로드 실패:', error);
-      // 타임아웃이나 네트워크 오류인 경우 조용히 처리
-      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
-        console.log('서버 연결 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.');
-      } else {
-        toast.error('저장된 스크립트를 불러오는데 실패했습니다.');
-      }
+      console.error('[저장된 스크립트 로드 실패]', error);
       setSavedScripts([]);
     }
   }, []);
 
-  // AI 생성 스크립트 추가
+  // AI 생성 스크립트 추가 (AI 생성 직후 자동 저장된 것)
   const addAIGeneratedScript = useCallback((scriptData) => {
-    const newScript = {
-      _id: Date.now().toString(), // 임시 ID
-      ...scriptData,
-      isAIGenerated: true,
-      generatedAt: new Date().toISOString()
-    };
-    setAIGeneratedScripts(prev => [newScript, ...prev]);
-    toast.success('AI 생성 대본이 저장되었습니다.');
+    // 생성된 스크립트는 이미 백엔드에서 저장되었으므로 상태만 업데이트
+    setAIGeneratedScripts(prev => [scriptData, ...prev]);
   }, []);
 
-  // 저장된 스크립트 추가
-  const addSavedScript = useCallback((scriptData) => {
-    const newScript = {
-      _id: Date.now().toString(), // 임시 ID
-      ...scriptData,
-      savedAt: new Date().toISOString()
-    };
-    setSavedScripts(prev => [newScript, ...prev]);
-    toast.success('대본이 저장되었습니다.');
-  }, []);
+  // 저장된 스크립트 추가 (대본함에 저장)
+  const addSavedScript = useCallback(async (scriptData) => {
+    try {
+      // scriptData가 AI 생성 스크립트 ID를 포함하고 있으면 백엔드 API 호출
+      if (scriptData.scriptId) {
+        await scriptAPI.saveAIScript(scriptData.scriptId);
+        // 로컬 상태 업데이트 - 저장된 스크립트 목록에 추가
+        await loadSavedScripts();
+        toast.success('대본이 대본함에 저장되었습니다.');
+      } else {
+        // 기존 로직 유지 (localStorage 기반)
+        const newScript = {
+          _id: Date.now().toString(),
+          ...scriptData,
+          savedAt: new Date().toISOString()
+        };
+        setSavedScripts(prev => [newScript, ...prev]);
+        toast.success('대본이 저장되었습니다.');
+      }
+    } catch (error) {
+      console.error('스크립트 저장 실패:', error);
+      toast.error('스크립트 저장에 실패했습니다.');
+    }
+  }, [loadSavedScripts]);
 
   // AI 생성 스크립트 삭제
   const removeAIGeneratedScript = useCallback(async (scriptId) => {
@@ -204,14 +179,22 @@ export const AuthProvider = ({ children }) => {
   // 저장된 스크립트 삭제
   const removeSavedScript = useCallback(async (scriptId) => {
     try {
-      await scriptAPI.deleteSavedScript(scriptId);
-      setSavedScripts(prev => prev.filter(script => script._id !== scriptId));
+      // MongoDB에서 저장된 AI 스크립트인지 확인
+      const script = savedScripts.find(s => s._id === scriptId);
+      if (script && script._id.length === 24) { // MongoDB ObjectId 길이
+        // 실제로는 isSaved를 false로 변경 (삭제하지 않음)
+        // await scriptAPI.deleteSavedScript(scriptId); // 구현 필요시
+        setSavedScripts(prev => prev.filter(script => script._id !== scriptId));
+      } else {
+        // localStorage 기반 스크립트
+        setSavedScripts(prev => prev.filter(script => script._id !== scriptId));
+      }
       toast.success('저장된 스크립트가 삭제되었습니다.');
     } catch (error) {
       console.error('저장된 스크립트 삭제 실패:', error);
       toast.error('저장된 스크립트 삭제에 실패했습니다.');
     }
-  }, []);
+  }, [savedScripts]);
 
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {

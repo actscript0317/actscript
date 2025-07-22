@@ -49,6 +49,7 @@ const AIScript = () => {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedScript, setGeneratedScript] = useState('');
+  const [generatedScriptId, setGeneratedScriptId] = useState(null); // MongoDB에 저장된 스크립트 ID
   const [error, setError] = useState('');
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
@@ -407,6 +408,7 @@ const AIScript = () => {
       }
 
       setGeneratedScript(data.script);
+      setGeneratedScriptId(data.scriptId); // 백엔드에서 반환된 스크립트 ID 저장
       
       // AI 생성 대본을 자동으로 저장하지 않고, 사용자가 저장 버튼을 눌렀을 때만 저장
       // if (addAIGeneratedScript) {
@@ -811,31 +813,20 @@ const AIScript = () => {
                   <button
                     onClick={() => {
                       try {
-                        const extractedTitle = extractTitleFromScript(generatedScript);
-                        const finalTitle = extractedTitle || 
-                          `${formData.genre || '미분류'} ${formData.emotions[0] || ''} 대본`.trim();
-                        
-                        const savedScript = {
-                          _id: 'saved_' + Date.now(),
-                          title: finalTitle,
-                          content: generatedScript,
-                          characterCount: formData.characterCount,
-                          genre: formData.genre,
-                          emotion: formData.emotions.join(', '),
-                          length: formData.length,
-                          savedAt: new Date().toISOString(),
-                          isAIGenerated: false
-                        };
-                        
-                        if (addSavedScript) {
-                          addSavedScript(savedScript);
-                          // 성공 메시지와 함께 대본함으로 이동
-                          toast.success('대본이 성공적으로 저장되었습니다! 대본함으로 이동합니다.');
-                          setTimeout(() => {
-                            navigate('/script-vault');
-                          }, 1000);
+                        if (generatedScriptId) {
+                          // MongoDB에 저장된 AI 스크립트를 대본함에 저장
+                          if (addSavedScript) {
+                            addSavedScript({ scriptId: generatedScriptId });
+                            // 성공 메시지와 함께 대본함으로 이동
+                            toast.success('대본이 성공적으로 저장되었습니다! 대본함으로 이동합니다.');
+                            setTimeout(() => {
+                              navigate('/script-vault');
+                            }, 1000);
+                          } else {
+                            toast.error('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
+                          }
                         } else {
-                          toast.error('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
+                          toast.error('스크립트 ID가 없습니다. 다시 생성해주세요.');
                         }
                       } catch (error) {
                         console.error('저장 중 오류:', error);
@@ -1113,31 +1104,20 @@ const AIScript = () => {
                       <button
                         onClick={() => {
                           try {
-                            const extractedTitle = extractTitleFromScript(generatedScript);
-                            const finalTitle = extractedTitle || 
-                              `${formData.genre || '미분류'} ${formData.emotions[0] || ''} 대본`.trim();
-                            
-                            const savedScript = {
-                              _id: 'saved_' + Date.now(),
-                              title: finalTitle,
-                              content: generatedScript,
-                              characterCount: formData.characterCount,
-                              genre: formData.genre,
-                              emotion: formData.emotions.join(', '),
-                              length: formData.length,
-                              savedAt: new Date().toISOString(),
-                              isAIGenerated: false
-                            };
-                            
-                            if (addSavedScript) {
-                              addSavedScript(savedScript);
-                              // 성공 메시지와 함께 대본함으로 이동
-                              toast.success('대본이 성공적으로 저장되었습니다! 대본함으로 이동합니다.');
-                              setTimeout(() => {
-                                navigate('/script-vault');
-                              }, 1000);
+                            if (generatedScriptId) {
+                              // MongoDB에 저장된 AI 스크립트를 대본함에 저장
+                              if (addSavedScript) {
+                                addSavedScript({ scriptId: generatedScriptId });
+                                // 성공 메시지와 함께 대본함으로 이동
+                                toast.success('대본이 성공적으로 저장되었습니다! 대본함으로 이동합니다.');
+                                setTimeout(() => {
+                                  navigate('/script-vault');
+                                }, 1000);
+                              } else {
+                                toast.error('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
+                              }
                             } else {
-                              toast.error('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
+                              toast.error('스크립트 ID가 없습니다. 다시 생성해주세요.');
                             }
                           } catch (error) {
                             console.error('저장 중 오류:', error);

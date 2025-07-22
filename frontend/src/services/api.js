@@ -101,16 +101,13 @@ api.interceptors.response.use(
 // 스크립트 API
 export const scriptAPI = {
   // AI 생성 스크립트 관련
-  getAIScripts: () => withRetry(() => api.get('/scripts/ai')),
-  createAIScript: (data) => withRetry(() => api.post('/scripts/ai', data)),
-  updateAIScript: (id, data) => withRetry(() => api.put(`/scripts/ai/${id}`, data)),
-  deleteAIScript: (id) => withRetry(() => api.delete(`/scripts/ai/${id}`)),
+  getAIScripts: () => withRetry(() => api.get('/ai-script/scripts')),
+  getAIScript: (id) => withRetry(() => api.get(`/ai-script/scripts/${id}`)),
+  saveAIScript: (id) => withRetry(() => api.put(`/ai-script/scripts/${id}/save`)),
+  deleteAIScript: (id) => withRetry(() => api.delete(`/ai-script/scripts/${id}`)),
 
-  // 저장된 스크립트 관련
-  getSavedScripts: () => withRetry(() => api.get('/scripts/saved')),
-  saveScript: (data) => withRetry(() => api.post('/scripts/save', data)),
-  updateSavedScript: (id, data) => withRetry(() => api.put(`/scripts/saved/${id}`, data)),
-  deleteSavedScript: (id) => withRetry(() => api.delete(`/scripts/saved/${id}`)),
+  // 저장된 AI 스크립트 관련 (대본함)
+  getSavedAIScripts: () => withRetry(() => api.get('/ai-script/saved')),
 
   // 기존 스크립트 API
   getAll: async (params = {}) => {

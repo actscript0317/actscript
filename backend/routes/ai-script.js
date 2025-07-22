@@ -1,6 +1,8 @@
 const express = require('express');
 const OpenAI = require('openai');
 const config = require('../config/env');
+const AIScript = require('../models/AIScript');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -15,8 +17,39 @@ if (config.OPENAI_API_KEY) {
   console.warn('⚠️ OPENAI_API_KEY가 설정되지 않았습니다. AI 기능이 비활성화됩니다.');
 }
 
+// 스크립트에서 제목 추출하는 함수
+const extractTitleFromScript = (scriptContent) => {
+  if (!scriptContent) return null;
+  
+  const lines = scriptContent.split('\n');
+  
+  // **제목:** 패턴 찾기
+  for (let line of lines) {
+    const titleMatch = line.match(/\*\*제목:\*\*\s*(.+)/);
+    if (titleMatch) {
+      return titleMatch[1].trim();
+    }
+  }
+  
+  // [제목] 패턴 찾기  
+  for (let line of lines) {
+    const titleMatch = line.match(/\[(.+)\]/);
+    if (titleMatch && line.includes('제목')) {
+      return titleMatch[1].trim();
+    }
+  }
+  
+  // 첫 번째 줄이 제목일 가능성
+  const firstLine = lines[0]?.trim();
+  if (firstLine && firstLine.length < 50 && !firstLine.includes('[') && !firstLine.includes('상황')) {
+    return firstLine;
+  }
+  
+  return null;
+};
+
   // 대본 생성 API
-router.post('/generate', async (req, res) => {
+router.post('/generate', auth, async (req, res) => {
   try {
     // OpenAI API 키 확인
     if (!openai) {
@@ -327,9 +360,37 @@ ${characterDirectives}
 
     const generatedScript = completion.choices[0].message.content;
 
+    // 제목 추출 (없으면 기본 제목 생성)
+    const extractedTitle = extractTitleFromScript(generatedScript);
+    const title = extractedTitle || `${genre} ${emotion} 대본`;
+
+    // MongoDB에 저장
+    const newScript = new AIScript({
+      userId: req.user._id,
+      title: title,
+      content: generatedScript,
+      characterCount,
+      genre,
+      emotions: emotion.split(', ').filter(e => e.trim()),
+      length,
+      situation: situation || '',
+      style: style || '',
+      location: location || '',
+      metadata: {
+        model: "gpt-4o",
+        generateTime: new Date(),
+        promptTokens: completion.usage?.prompt_tokens,
+        completionTokens: completion.usage?.completion_tokens
+      }
+    });
+
+    const savedScript = await newScript.save();
+
     res.json({
       success: true,
       script: generatedScript,
+      scriptId: savedScript._id,
+      title: title,
       metadata: {
         characterCount,
         genre,
@@ -513,6 +574,133 @@ ${selectedIntensity.instruction}
     res.status(500).json({
       error: '리라이팅 중 오류가 발생했습니다.',
       message: '잠시 후 다시 시도해주세요.'
+    });
+  }
+});
+
+// 사용자의 AI 생성 스크립트 목록 조회
+router.get('/scripts', auth, async (req, res) => {
+  try {
+    const scripts = await AIScript.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .select('title content characterCount genre emotions length situation createdAt isSaved savedAt')
+      .lean();
+
+    res.json({
+      success: true,
+      scripts: scripts
+    });
+  } catch (error) {
+    console.error('AI 스크립트 조회 오류:', error);
+    res.status(500).json({
+      error: '스크립트 조회 중 오류가 발생했습니다.',
+      message: '잠시 후 다시 시도해주세요.'
+    });
+  }
+});
+
+// 특정 AI 스크립트 조회
+router.get('/scripts/:id', auth, async (req, res) => {
+  try {
+    const script = await AIScript.findOne({ 
+      _id: req.params.id, 
+      userId: req.user._id 
+    }).lean();
+
+    if (!script) {
+      return res.status(404).json({
+        error: '스크립트를 찾을 수 없습니다.'
+      });
+    }
+
+    res.json({
+      success: true,
+      script: script
+    });
+  } catch (error) {
+    console.error('AI 스크립트 조회 오류:', error);
+    res.status(500).json({
+      error: '스크립트 조회 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// AI 스크립트를 대본함에 저장
+router.put('/scripts/:id/save', auth, async (req, res) => {
+  try {
+    const script = await AIScript.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      { 
+        isSaved: true, 
+        savedAt: new Date() 
+      },
+      { new: true }
+    );
+
+    if (!script) {
+      return res.status(404).json({
+        error: '스크립트를 찾을 수 없습니다.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '스크립트가 대본함에 저장되었습니다.',
+      script: script
+    });
+  } catch (error) {
+    console.error('AI 스크립트 저장 오류:', error);
+    res.status(500).json({
+      error: '스크립트 저장 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// AI 스크립트 삭제
+router.delete('/scripts/:id', auth, async (req, res) => {
+  try {
+    const script = await AIScript.findOneAndDelete({ 
+      _id: req.params.id, 
+      userId: req.user._id 
+    });
+
+    if (!script) {
+      return res.status(404).json({
+        error: '스크립트를 찾을 수 없습니다.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '스크립트가 삭제되었습니다.'
+    });
+  } catch (error) {
+    console.error('AI 스크립트 삭제 오류:', error);
+    res.status(500).json({
+      error: '스크립트 삭제 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 저장된 AI 스크립트 목록 조회 (대본함용)
+router.get('/saved', auth, async (req, res) => {
+  try {
+    const savedScripts = await AIScript.find({ 
+      userId: req.user._id, 
+      isSaved: true 
+    })
+      .sort({ savedAt: -1 })
+      .select('title content characterCount genre emotions length situation savedAt')
+      .lean();
+
+    res.json({
+      success: true,
+      scripts: savedScripts
+    });
+  } catch (error) {
+    console.error('저장된 AI 스크립트 조회 오류:', error);
+    res.status(500).json({
+      error: '저장된 스크립트 조회 중 오류가 발생했습니다.'
     });
   }
 });

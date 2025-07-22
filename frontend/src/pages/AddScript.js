@@ -25,9 +25,22 @@ const AddScript = () => {
   const fetchEmotions = async () => {
     try {
       const response = await emotionAPI.getAll();
-      setEmotions(response.data);
+      console.log('Emotions API response:', response);
+      
+      // API 응답 구조에 따라 적절히 처리
+      if (response.success && response.data && response.data.emotions) {
+        setEmotions(response.data.emotions);
+      } else if (response.data && Array.isArray(response.data)) {
+        setEmotions(response.data);
+      } else if (Array.isArray(response)) {
+        setEmotions(response);
+      } else {
+        console.error('예상치 못한 emotions 응답 형식:', response);
+        setEmotions([]);
+      }
     } catch (error) {
       console.error('감정 목록 조회 실패:', error);
+      setEmotions([]); // 에러 시 빈 배열로 설정
     }
   };
 
@@ -216,9 +229,9 @@ const AddScript = () => {
               <p className="text-sm text-gray-500 mb-3">대본에 해당하는 감정을 선택하세요 (복수 선택 가능)</p>
               
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                {emotions.map((emotion) => (
+                {Array.isArray(emotions) && emotions.length > 0 ? emotions.map((emotion) => (
                   <label
-                    key={emotion._id}
+                    key={emotion._id || emotion.id || emotion.name}
                     className={`flex items-center p-3 border rounded-lg cursor-pointer transition duration-200 ${
                       formData.emotions.includes(emotion.name)
                         ? 'border-primary-500 bg-primary-50 text-primary-700'
@@ -229,11 +242,15 @@ const AddScript = () => {
                       type="checkbox"
                       checked={formData.emotions.includes(emotion.name)}
                       onChange={() => handleEmotionChange(emotion.name)}
-                      className="mr-2"
+                      className="sr-only"
                     />
                     <span className="text-sm font-medium">{emotion.name}</span>
                   </label>
-                ))}
+                )) : (
+                  <div className="col-span-full text-gray-500 text-center py-4">
+                    감정 목록을 불러오는 중...
+                  </div>
+                )}
               </div>
               
               {errors.emotions && (

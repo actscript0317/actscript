@@ -82,8 +82,15 @@ export const AuthProvider = ({ children }) => {
       const res = await authAPI.login({ email, password });
       
       if (res.data.success && res.data.token && res.data.user) {
-        await setAuthState(res.data.user, res.data.token);
-        await checkAuth(); // 로그인 후 인증 상태 재확인
+        // 즉시 인증 상태 업데이트
+        setAuthState(res.data.user, res.data.token);
+        setLoading(false); // 로딩 즉시 해제
+        
+        // 백그라운드에서 인증 상태 재확인 (선택적)
+        setTimeout(() => {
+          checkAuth();
+        }, 100);
+        
         return { 
           success: true,
           user: res.data.user

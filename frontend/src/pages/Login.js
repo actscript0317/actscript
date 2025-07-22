@@ -17,11 +17,12 @@ const Login = () => {
 
   // 인증 상태가 변경될 때 리다이렉션
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !loading) {
       const from = location.state?.from || '/';
+      console.log('로그인 성공, 리다이렉트:', from);
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, loading, navigate, location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,7 +39,12 @@ const Login = () => {
       if (result.success) {
         console.log('로그인 성공:', { user: result.user });
         toast.success('로그인되었습니다!');
-        // 리다이렉션은 useEffect에서 처리됨
+        
+        // 즉시 리다이렉트 시도
+        const from = location.state?.from || '/';
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 100);
       } else {
         console.error('로그인 실패:', result.message);
         setError(result.message);

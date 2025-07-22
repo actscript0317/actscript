@@ -21,7 +21,11 @@ import {
   AlertCircle,
   BookOpen,
   Target,
-  Zap
+  Zap,
+  Maximize2,
+  Archive,
+  RotateCcw,
+  Eye
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';

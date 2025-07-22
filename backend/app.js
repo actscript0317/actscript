@@ -21,7 +21,6 @@ connectDB();
 const corsOptions = {
   origin: (origin, callback) => {
     const allowedOrigins = [
-      config.CLIENT_URL,
       'https://actscript-1.onrender.com',
       'http://localhost:3000'
     ];
@@ -41,10 +40,16 @@ const corsOptions = {
     'Accept',
     'Origin'
   ],
-  exposedHeaders: ['set-cookie']
+  exposedHeaders: ['Set-Cookie']
 };
 
 app.use(cors(corsOptions));
+
+// 추가 CORS 헤더 설정
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 
 // 보안 미들웨어
 app.use(helmet({

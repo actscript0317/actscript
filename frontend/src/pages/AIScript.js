@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { 
   Sparkles, 
   Users, 
@@ -154,7 +155,7 @@ const AIScript = () => {
         setRewriteIntensity('');
         setRewriteResult(null);
       } else {
-        alert('선택된 텍스트를 찾을 수 없습니다. 다시 선택해주세요.');
+        toast.error('선택된 텍스트를 찾을 수 없습니다. 다시 선택해주세요.');
       }
     }
   };
@@ -162,7 +163,7 @@ const AIScript = () => {
   // 리라이팅 API 호출
   const handleRewrite = async () => {
     if (!selectedText || !rewriteIntensity) {
-      alert('텍스트가 선택되지 않았거나 리라이팅 강도를 선택해주세요.');
+      toast.error('텍스트가 선택되지 않았거나 리라이팅 강도를 선택해주세요.');
       return;
     }
 
@@ -193,7 +194,7 @@ const AIScript = () => {
 
     } catch (error) {
       console.error('리라이팅 오류:', error);
-      alert(error.message || '리라이팅 중 오류가 발생했습니다.');
+      toast.error(error.message || '리라이팅 중 오류가 발생했습니다.');
     } finally {
       setIsRewriting(false);
     }
@@ -800,7 +801,7 @@ const AIScript = () => {
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(generatedScript);
-                      alert('대본이 클립보드에 복사되었습니다!');
+                      toast.success('대본이 클립보드에 복사되었습니다!');
                     }}
                     className="flex items-center justify-center px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
                   >
@@ -828,16 +829,17 @@ const AIScript = () => {
                         
                         if (addSavedScript) {
                           addSavedScript(savedScript);
-                          // 성공 메시지와 함께 대본함으로 이동할지 묻기
-                          if (confirm('대본이 성공적으로 저장되었습니다! 대본함으로 이동하시겠습니까?')) {
+                          // 성공 메시지와 함께 대본함으로 이동
+                          toast.success('대본이 성공적으로 저장되었습니다! 대본함으로 이동합니다.');
+                          setTimeout(() => {
                             navigate('/script-vault');
-                          }
+                          }, 1000);
                         } else {
-                          alert('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
+                          toast.error('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
                         }
                       } catch (error) {
                         console.error('저장 중 오류:', error);
-                        alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+                        toast.error('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
                       }
                     }}
                     className="flex items-center justify-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
@@ -1032,8 +1034,8 @@ const AIScript = () => {
                   </div>
                 </motion.div>
               </motion.div>
-                          )}
-            </AnimatePresence>
+            )}
+          </AnimatePresence>
 
           {/* 대본 상세 보기 모달 */}
           <AnimatePresence>
@@ -1101,7 +1103,7 @@ const AIScript = () => {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(generatedScript);
-                          alert('대본이 클립보드에 복사되었습니다!');
+                          toast.success('대본이 클립보드에 복사되었습니다!');
                         }}
                         className="flex items-center px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
@@ -1129,16 +1131,17 @@ const AIScript = () => {
                             
                             if (addSavedScript) {
                               addSavedScript(savedScript);
-                              // 성공 메시지와 함께 대본함으로 이동할지 묻기
-                              if (confirm('대본이 성공적으로 저장되었습니다! 대본함으로 이동하시겠습니까?')) {
+                              // 성공 메시지와 함께 대본함으로 이동
+                              toast.success('대본이 성공적으로 저장되었습니다! 대본함으로 이동합니다.');
+                              setTimeout(() => {
                                 navigate('/script-vault');
-                              }
+                              }, 1000);
                             } else {
-                              alert('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
+                              toast.error('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
                             }
                           } catch (error) {
                             console.error('저장 중 오류:', error);
-                            alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+                            toast.error('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
                           }
                         }}
                         className="flex items-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"

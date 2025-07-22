@@ -38,6 +38,39 @@ const ScriptVault = () => {
     loadSavedScripts();
   }, [loadAIGeneratedScripts, loadSavedScripts]);
 
+  // 모달 열기/닫기 시 body 스크롤 제어
+  useEffect(() => {
+    if (showDetailModal) {
+      // 모달이 열릴 때 body 스크롤 비활성화
+      document.body.style.overflow = 'hidden';
+    } else {
+      // 모달이 닫힐 때 body 스크롤 복원
+      document.body.style.overflow = 'unset';
+    }
+
+    // 컴포넌트 언마운트 시 스크롤 복원
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showDetailModal]);
+
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && showDetailModal) {
+        handleCloseModal();
+      }
+    };
+
+    if (showDetailModal) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showDetailModal]);
+
   // 대본에서 제목 추출 함수
   const extractTitleFromScript = (scriptContent) => {
     if (!scriptContent) return '';
@@ -222,6 +255,12 @@ const ScriptVault = () => {
   const handleViewScript = (script) => {
     setSelectedScript(script);
     setShowDetailModal(true);
+  };
+
+  // 모달 닫기
+  const handleCloseModal = () => {
+    setShowDetailModal(false);
+    setSelectedScript(null);
   };
 
   // 현재 탭에 따른 대본 목록 가져오기
@@ -486,17 +525,18 @@ const ScriptVault = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
-                onClick={() => setShowDetailModal(false)}
+                onClick={handleCloseModal}
               >
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-5xl w-full max-h-[95vh] overflow-hidden"
+                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-5xl w-full h-[90vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
+                  onWheel={(e) => e.stopPropagation()}
                 >
-                  {/* 헤더 */}
-                  <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+                  {/* 헤더 - 고정 */}
+                  <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
@@ -531,7 +571,7 @@ const ScriptVault = () => {
                           )}
                         </div>
                         <button
-                          onClick={() => setShowDetailModal(false)}
+                          onClick={handleCloseModal}
                           className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
                         >
                           <X className="w-5 h-5 text-gray-600" />
@@ -540,17 +580,19 @@ const ScriptVault = () => {
                     </div>
                   </div>
 
-                  {/* 대본 내용 */}
-                  <div className="flex-1 overflow-y-auto bg-gray-50 p-8">
+                  {/* 대본 내용 - 스크롤 가능 영역 */}
+                  <div className="flex-1 overflow-y-auto bg-gray-50 p-8" style={{ maxHeight: 'calc(90vh - 200px)' }}>
                     <div className="max-w-4xl mx-auto">
                       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-                        {parseAndRenderScript(selectedScript.content)}
+                        <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed">
+                          {parseAndRenderScript(selectedScript.content)}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* 하단 액션 버튼 */}
-                  <div className="p-6 border-t border-gray-200 bg-gray-50">
+                  {/* 하단 액션 버튼 - 고정 */}
+                  <div className="flex-shrink-0 p-6 border-t border-gray-200 bg-gray-50">
                     <div className="flex flex-wrap gap-3 justify-center">
                       <button
                         onClick={() => {
@@ -572,14 +614,17 @@ const ScriptVault = () => {
                         인쇄하기
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm('정말로 이 대본을 삭제하시겠습니까?')) {
+                        onClick={async () => {
+                          try {
                             if (selectedScript.isAIGenerated) {
-                              removeAIGeneratedScript(selectedScript._id);
+                              await removeAIGeneratedScript(selectedScript._id);
                             } else {
-                              removeSavedScript(selectedScript._id);
+                              await removeSavedScript(selectedScript._id);
                             }
-                            setShowDetailModal(false);
+                            handleCloseModal();
+                          } catch (error) {
+                            console.error('삭제 실패:', error);
+                            alert('삭제 중 오류가 발생했습니다.');
                           }
                         }}
                         className="flex items-center px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors shadow-md"

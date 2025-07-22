@@ -67,7 +67,29 @@ connectDB().then(() => {
 });
 
 // 미들웨어 설정
-app.use(helmet()); // 보안 헤더 설정
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: [
+        "'self'",
+        "https://actscript.onrender.com",
+        "https://actscript-1.onrender.com",
+        "http://localhost:10000",
+        "http://localhost:3000"
+      ],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+})); // 보안 헤더 설정
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱

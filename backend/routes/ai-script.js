@@ -5,13 +5,27 @@ const config = require('../config/env');
 const router = express.Router();
 
 // OpenAI 클라이언트 초기화
-const openai = new OpenAI({
-  apiKey: config.OPENAI_API_KEY
-});
+let openai = null;
+
+if (config.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: config.OPENAI_API_KEY
+  });
+} else {
+  console.warn('⚠️ OPENAI_API_KEY가 설정되지 않았습니다. AI 기능이 비활성화됩니다.');
+}
 
   // 대본 생성 API
 router.post('/generate', async (req, res) => {
   try {
+    // OpenAI API 키 확인
+    if (!openai) {
+      return res.status(503).json({
+        error: 'AI 서비스를 사용할 수 없습니다.',
+        message: 'OpenAI API 키가 설정되지 않았습니다.'
+      });
+    }
+
     const { characterCount, genre, emotion, length, situation, style, location } = req.body;
 
     // 입력값 검증
@@ -360,6 +374,14 @@ ${characterDirectives}
 // 대본 리라이팅 API
 router.post('/rewrite', async (req, res) => {
   try {
+    // OpenAI API 키 확인
+    if (!openai) {
+      return res.status(503).json({
+        error: 'AI 서비스를 사용할 수 없습니다.',
+        message: 'OpenAI API 키가 설정되지 않았습니다.'
+      });
+    }
+
     const { selectedText, intensity, context, fullScript, emotion, genre } = req.body;
 
     // 입력값 검증

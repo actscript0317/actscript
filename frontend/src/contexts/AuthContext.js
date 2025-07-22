@@ -166,6 +166,29 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // AI 생성 스크립트 추가
+  const addAIGeneratedScript = useCallback((scriptData) => {
+    const newScript = {
+      _id: Date.now().toString(), // 임시 ID
+      ...scriptData,
+      isAIGenerated: true,
+      generatedAt: new Date().toISOString()
+    };
+    setAIGeneratedScripts(prev => [newScript, ...prev]);
+    toast.success('AI 생성 대본이 저장되었습니다.');
+  }, []);
+
+  // 저장된 스크립트 추가
+  const addSavedScript = useCallback((scriptData) => {
+    const newScript = {
+      _id: Date.now().toString(), // 임시 ID
+      ...scriptData,
+      savedAt: new Date().toISOString()
+    };
+    setSavedScripts(prev => [newScript, ...prev]);
+    toast.success('대본이 저장되었습니다.');
+  }, []);
+
   // AI 생성 스크립트 삭제
   const removeAIGeneratedScript = useCallback(async (scriptId) => {
     try {
@@ -216,7 +239,9 @@ export const AuthProvider = ({ children }) => {
     loadAIGeneratedScripts,
     loadSavedScripts,
     removeAIGeneratedScript,
-    removeSavedScript
+    removeSavedScript,
+    addAIGeneratedScript,
+    addSavedScript
   };
 
   return (

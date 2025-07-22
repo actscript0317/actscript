@@ -18,11 +18,12 @@ import {
   Edit3,
   ArrowRight,
   Check,
-  RotateCcw,
-  Eye,
-  Maximize2,
-  Archive
+  AlertCircle,
+  BookOpen,
+  Target,
+  Zap
 } from 'lucide-react';
+import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const AIScript = () => {
@@ -167,24 +168,18 @@ const AIScript = () => {
       const contextAfter = generatedScript.substring(selectedTextEnd, Math.min(generatedScript.length, selectedTextEnd + 200));
       const fullContext = contextBefore + "[선택된 부분: " + selectedText + "]" + contextAfter;
       
-      const response = await fetch('http://localhost:5000/api/ai-script/rewrite', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          selectedText,
-          intensity: rewriteIntensity,
-          context: fullContext,
-          fullScript: generatedScript,
-          emotion: formData.emotions.join(', '),
-          genre: formData.genre
-        })
+      const response = await api.post('/ai-script/rewrite', {
+        selectedText,
+        intensity: rewriteIntensity,
+        context: fullContext,
+        fullScript: generatedScript,
+        emotion: formData.emotions.join(', '),
+        genre: formData.genre
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(data.error || '리라이팅에 실패했습니다.');
       }
 
@@ -388,32 +383,35 @@ const AIScript = () => {
     setGeneratedScript('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/ai-script/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          characterCount: formData.characterCount,
-          genre: formData.genre,
-          emotion: formData.emotions.join(', '),
-          length: formData.length,
-          situation: formData.situation,
-          style: formData.style,
-          location: formData.location
-        })
+      const response = await api.post('/ai-script/generate', {
+        characterCount: formData.characterCount,
+        genre: formData.genre,
+        emotion: formData.emotions.join(', '),
+        length: formData.length,
+        situation: formData.situation,
+        style: formData.style,
+        location: formData.location
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data.error || '대본 생성에 실패했습니다.');
       }
 
       setGeneratedScript(data.script);
       
       // AuthContext에 AI 생성 대본 저장
-      addAIGeneratedScript(data);
+      if (addAIGeneratedScript) {
+        addAIGeneratedScript({
+          title: `${formData.genre} ${formData.emotions.join(', ')} 대본`,
+          content: data.script,
+          characterCount: formData.characterCount,
+          genre: formData.genre,
+          emotion: formData.emotions.join(', '),
+          metadata: data.metadata
+        });
+      }
       
       // 결과 영역으로 스크롤
       setTimeout(() => {
@@ -425,7 +423,22 @@ const AIScript = () => {
 
     } catch (error) {
       console.error('대본 생성 오류:', error);
-      setError(error.message || '대본 생성 중 오류가 발생했습니다.');
+      
+      let errorMessage = '대본 생성 중 오류가 발생했습니다.';
+      
+      if (error.response?.status === 503) {
+        errorMessage = 'AI 서비스를 사용할 수 없습니다. 관리자에게 문의해주세요.';
+      } else if (error.response?.status === 402) {
+        errorMessage = 'API 할당량이 부족합니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.response?.status === 429) {
+        errorMessage = 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsGenerating(false);
     }

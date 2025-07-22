@@ -21,6 +21,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // OPTIONS 요청에 대한 헤더 설정
+    if (config.method === 'options') {
+      config.headers['Access-Control-Request-Method'] = 'GET, POST, PUT, DELETE, PATCH';
+      config.headers['Access-Control-Request-Headers'] = 'Content-Type, Authorization';
+    }
     
     // 개발 환경에서만 로깅
     if (process.env.NODE_ENV === 'development') {

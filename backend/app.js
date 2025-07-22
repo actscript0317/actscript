@@ -17,38 +17,22 @@ const app = express();
 // 데이터베이스 연결
 connectDB();
 
-// CORS 설정
-const corsOptions = {
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'https://actscript-1.onrender.com',
-      'http://localhost:3000'
-    ];
-    
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS not allowed'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-Requested-With',
-    'Accept',
-    'Origin'
-  ],
-  exposedHeaders: ['Set-Cookie']
-};
+// 기본 CORS 설정
+app.use(cors());
 
-app.use(cors(corsOptions));
-
-// 추가 CORS 헤더 설정
+// 상세 CORS 설정
 app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://actscript-1.onrender.com');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
-  next();
+  
+  // preflight 요청 처리
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
 });
 
 // 보안 미들웨어

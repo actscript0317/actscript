@@ -6,12 +6,32 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://actscript.onrende
 // axios 인스턴스 생성
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 60000, // 타임아웃을 60초로 증가
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true // 쿠키 포함
+  withCredentials: true
 });
+
+// 재시도 로직을 위한 헬퍼 함수
+const withRetry = async (apiCall, retries = 3, delay = 1000) => {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await apiCall();
+    } catch (error) {
+      if (attempt === retries - 1) throw error;
+      
+      // 네트워크 오류나 타임아웃인 경우 재시도
+      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) {
+        console.log(`API 재시도 ${attempt + 1}/${retries}...`);
+        await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
+        continue;
+      }
+      
+      throw error;
+    }
+  }
+};
 
 // 요청 인터셉터
 api.interceptors.request.use(
@@ -62,6 +82,7 @@ api.interceptors.response.use(
       data: error.response?.data,
       message: error.message,
       url: error.config?.url,
+      code: error.code
     });
 
     // 401 에러 처리 (인증 실패)
@@ -80,21 +101,21 @@ api.interceptors.response.use(
 // 스크립트 API
 export const scriptAPI = {
   // AI 생성 스크립트 관련
-  getAIScripts: () => api.get('/scripts/ai'),
-  createAIScript: (data) => api.post('/scripts/ai', data),
-  updateAIScript: (id, data) => api.put(`/scripts/ai/${id}`, data),
-  deleteAIScript: (id) => api.delete(`/scripts/ai/${id}`),
+  getAIScripts: () => withRetry(() => api.get('/scripts/ai')),
+  createAIScript: (data) => withRetry(() => api.post('/scripts/ai', data)),
+  updateAIScript: (id, data) => withRetry(() => api.put(`/scripts/ai/${id}`, data)),
+  deleteAIScript: (id) => withRetry(() => api.delete(`/scripts/ai/${id}`)),
 
   // 저장된 스크립트 관련
-  getSavedScripts: () => api.get('/scripts/saved'),
-  saveScript: (data) => api.post('/scripts/save', data),
-  updateSavedScript: (id, data) => api.put(`/scripts/saved/${id}`, data),
-  deleteSavedScript: (id) => api.delete(`/scripts/saved/${id}`),
+  getSavedScripts: () => withRetry(() => api.get('/scripts/saved')),
+  saveScript: (data) => withRetry(() => api.post('/scripts/save', data)),
+  updateSavedScript: (id, data) => withRetry(() => api.put(`/scripts/saved/${id}`, data)),
+  deleteSavedScript: (id) => withRetry(() => api.delete(`/scripts/saved/${id}`)),
 
   // 기존 스크립트 API
   getAll: async (params = {}) => {
     try {
-      const response = await api.get('/scripts', { params });
+      const response = await withRetry(() => api.get('/scripts', { params }));
       return response.data;
     } catch (error) {
       console.error('Get All Scripts Error:', error);
@@ -103,7 +124,7 @@ export const scriptAPI = {
   },
   getPopular: async () => {
     try {
-      const response = await api.get('/scripts/popular');
+      const response = await withRetry(() => api.get('/scripts/popular'));
       return {
         success: true,
         data: {
@@ -122,7 +143,7 @@ export const scriptAPI = {
   },
   getLatest: async () => {
     try {
-      const response = await api.get('/scripts/latest');
+      const response = await withRetry(() => api.get('/scripts/latest'));
       return {
         success: true,
         data: {
@@ -141,7 +162,7 @@ export const scriptAPI = {
   },
   getById: async (id) => {
     try {
-      const response = await api.get(`/scripts/${id}`);
+      const response = await withRetry(() => api.get(`/scripts/${id}`));
       return response.data;
     } catch (error) {
       console.error('Get Script By Id Error:', error);
@@ -150,7 +171,7 @@ export const scriptAPI = {
   },
   incrementView: async (id) => {
     try {
-      const response = await api.patch(`/scripts/${id}/view`);
+      const response = await withRetry(() => api.patch(`/scripts/${id}/view`));
       return response.data;
     } catch (error) {
       console.error('Increment View Error:', error);
@@ -159,7 +180,7 @@ export const scriptAPI = {
   },
   create: async (data) => {
     try {
-      const response = await api.post('/scripts', data);
+      const response = await withRetry(() => api.post('/scripts', data));
       return response.data;
     } catch (error) {
       console.error('Create Script Error:', error);
@@ -168,7 +189,7 @@ export const scriptAPI = {
   },
   update: async (id, data) => {
     try {
-      const response = await api.put(`/scripts/${id}`, data);
+      const response = await withRetry(() => api.put(`/scripts/${id}`, data));
       return response.data;
     } catch (error) {
       console.error('Update Script Error:', error);
@@ -177,7 +198,7 @@ export const scriptAPI = {
   },
   delete: async (id) => {
     try {
-      const response = await api.delete(`/scripts/${id}`);
+      const response = await withRetry(() => api.delete(`/scripts/${id}`));
       return response.data;
     } catch (error) {
       console.error('Delete Script Error:', error);
@@ -190,7 +211,7 @@ export const scriptAPI = {
 export const emotionAPI = {
   getAll: async () => {
     try {
-      const response = await api.get('/emotions');
+      const response = await withRetry(() => api.get('/emotions'));
       return {
         success: true,
         data: {
@@ -209,7 +230,7 @@ export const emotionAPI = {
   },
   getById: async (id) => {
     try {
-      const response = await api.get(`/emotions/${id}`);
+      const response = await withRetry(() => api.get(`/emotions/${id}`));
       return response.data;
     } catch (error) {
       console.error('Get Emotion By Id Error:', error);
@@ -221,17 +242,17 @@ export const emotionAPI = {
 // 인증 API
 export const authAPI = {
   // 회원가입
-  register: (data) => api.post('/auth/register', data),
+  register: (data) => withRetry(() => api.post('/auth/register', data)),
   // 로그인
-  login: (data) => api.post('/auth/login', data),
+  login: (data) => withRetry(() => api.post('/auth/login', data)),
   // 로그아웃
-  logout: () => api.post('/auth/logout'),
+  logout: () => withRetry(() => api.post('/auth/logout')),
   // 현재 사용자 정보 조회
-  getMe: () => api.get('/auth/me'),
+  getMe: () => withRetry(() => api.get('/auth/me')),
   // 프로필 수정
-  updateProfile: (data) => api.put('/auth/profile', data),
+  updateProfile: (data) => withRetry(() => api.put('/auth/profile', data)),
   // 비밀번호 변경
-  changePassword: (data) => api.put('/auth/password', data),
+  changePassword: (data) => withRetry(() => api.put('/auth/password', data)),
 };
 
 export default api; 

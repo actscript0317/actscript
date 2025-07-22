@@ -49,10 +49,27 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('[인증 확인 실패]', error);
-      setAuthState(null, null);
+      // 타임아웃이나 네트워크 오류인 경우 토큰은 유지하되 로딩만 해제
+      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+        console.log('서버 연결 중... 잠시 후 다시 시도됩니다.');
+        // 토큰이 있으면 일단 유지
+        const token = localStorage.getItem('token');
+        const savedUser = localStorage.getItem('user');
+        if (token && savedUser) {
+          try {
+            setUser(JSON.parse(savedUser));
+            return true;
+          } catch (e) {
+            setAuthState(null, null);
+            return false;
+          }
+        }
+      } else {
+        setAuthState(null, null);
+      }
       return false;
     } finally {
-      setLoading(false); // 인증 확인 완료 후 로딩 상태 해제
+      setLoading(false);
     }
   }, [setAuthState]);
 
@@ -111,7 +128,12 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('AI 스크립트 로드 실패:', error);
-      toast.error('AI 스크립트를 불러오는데 실패했습니다.');
+      // 타임아웃이나 네트워크 오류인 경우 조용히 처리
+      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+        console.log('서버 연결 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.');
+      } else {
+        toast.error('AI 스크립트를 불러오는데 실패했습니다.');
+      }
       setAIGeneratedScripts([]);
     }
   }, []);
@@ -127,7 +149,12 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('저장된 스크립트 로드 실패:', error);
-      toast.error('저장된 스크립트를 불러오는데 실패했습니다.');
+      // 타임아웃이나 네트워크 오류인 경우 조용히 처리
+      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+        console.log('서버 연결 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.');
+      } else {
+        toast.error('저장된 스크립트를 불러오는데 실패했습니다.');
+      }
       setSavedScripts([]);
     }
   }, []);

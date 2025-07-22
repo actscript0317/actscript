@@ -1,7 +1,94 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Script = require('../models/Script');
+const auth = require('../middleware/auth');
 const router = express.Router();
+
+// AI 생성 스크립트 조회 (인증 필요)
+router.get('/ai', auth, async (req, res) => {
+  try {
+    // 현재는 빈 배열 반환 (추후 AI 스크립트 모델 구현 시 수정)
+    res.json({
+      success: true,
+      scripts: []
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: 'AI 스크립트 조회 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
+  }
+});
+
+// 저장된 스크립트 조회 (인증 필요)
+router.get('/saved', auth, async (req, res) => {
+  try {
+    // 현재는 빈 배열 반환 (추후 저장된 스크립트 모델 구현 시 수정)
+    res.json({
+      success: true,
+      scripts: []
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: '저장된 스크립트 조회 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
+  }
+});
+
+// AI 스크립트 생성 (인증 필요)
+router.post('/ai', auth, async (req, res) => {
+  try {
+    // 현재는 임시 응답 (추후 AI 스크립트 생성 로직 구현)
+    res.json({
+      success: true,
+      message: 'AI 스크립트가 생성되었습니다.',
+      script: { _id: 'temp_id', ...req.body }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: 'AI 스크립트 생성 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
+  }
+});
+
+// AI 스크립트 삭제 (인증 필요)
+router.delete('/ai/:id', auth, async (req, res) => {
+  try {
+    // 현재는 임시 응답
+    res.json({
+      success: true,
+      message: 'AI 스크립트가 삭제되었습니다.'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: 'AI 스크립트 삭제 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
+  }
+});
+
+// 저장된 스크립트 삭제 (인증 필요)
+router.delete('/saved/:id', auth, async (req, res) => {
+  try {
+    // 현재는 임시 응답
+    res.json({
+      success: true,
+      message: '저장된 스크립트가 삭제되었습니다.'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: '저장된 스크립트 삭제 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
+  }
+});
 
 // 모든 대본 조회 (필터링, 검색, 페이지네이션 포함)
 router.get('/', async (req, res) => {
@@ -118,9 +205,16 @@ router.get('/popular', async (req, res) => {
       .limit(6)
       .select('-__v');
     
-    res.json(scripts);
+    res.json({
+      success: true,
+      scripts: scripts
+    });
   } catch (error) {
-    res.status(500).json({ message: '인기 대본 조회 중 오류가 발생했습니다.', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: '인기 대본 조회 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
   }
 });
 
@@ -132,9 +226,16 @@ router.get('/latest', async (req, res) => {
       .limit(6)
       .select('-__v');
     
-    res.json(scripts);
+    res.json({
+      success: true,
+      scripts: scripts
+    });
   } catch (error) {
-    res.status(500).json({ message: '최신 대본 조회 중 오류가 발생했습니다.', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: '최신 대본 조회 중 오류가 발생했습니다.', 
+      error: error.message 
+    });
   }
 });
 

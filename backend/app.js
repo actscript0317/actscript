@@ -9,7 +9,7 @@ const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
 const path = require('path');
 const config = require('./config/env');
-const connectDB = require('./config/db');
+const connectDB = require('./config/database');
 const errorHandler = require('./middleware/error');
 
 const app = express();
@@ -18,10 +18,20 @@ const app = express();
 connectDB();
 
 // CORS 설정
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://actscript-1.onrender.com']
-    : 'http://localhost:3000',
+const corsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      config.CLIENT_URL,
+      'https://actscript-1.onrender.com',
+      'http://localhost:3000'
+    ];
+    
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
@@ -30,8 +40,11 @@ app.use(cors({
     'X-Requested-With',
     'Accept',
     'Origin'
-  ]
-}));
+  ],
+  exposedHeaders: ['set-cookie']
+};
+
+app.use(cors(corsOptions));
 
 // 보안 미들웨어
 app.use(helmet({

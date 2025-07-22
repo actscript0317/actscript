@@ -1,10 +1,7 @@
 import axios from 'axios';
 
 // API 기본 설정
-const API_BASE_URL = process.env.REACT_APP_API_URL ||
-  (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:10000/api'
-    : 'https://actscript-1.onrender.com/api');
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://actscript-1.onrender.com/api';
 
 // axios 인스턴스 생성
 const api = axios.create({
@@ -25,6 +22,9 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // CORS 헤더 추가
+    config.headers['Access-Control-Allow-Origin'] = process.env.REACT_APP_CLIENT_URL || 'https://actscript-1.onrender.com';
+    
     // 개발 환경에서만 로깅
     if (process.env.NODE_ENV === 'development') {
       console.log(`🚀 [API 요청] ${config.method.toUpperCase()} ${config.url}`, {

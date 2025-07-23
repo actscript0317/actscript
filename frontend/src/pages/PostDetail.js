@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Calendar, Eye, MessageCircle, Heart, Bookmark, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Eye, MessageCircle, Heart, Bookmark, Edit, Trash2, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { 
+  actorProfileAPI, 
+  actorRecruitmentAPI, 
+  modelRecruitmentAPI, 
+  communityPostAPI,
+  likeAPI,
+  bookmarkAPI 
+} from '../services/api';
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -10,156 +18,113 @@ const PostDetail = () => {
   const { isAuthenticated, user } = useAuth();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // 더미 데이터 (실제로는 API에서 가져올 예정)
-  const getDummyPost = (postId) => {
-    const dummyPosts = {
-      1: {
-        id: 1,
-        title: '소속사 오디션 정보 공유',
-        author: '정보공유',
-        category: '매니지먼트',
-        categoryColor: 'bg-blue-100 text-blue-700',
-        content: `이번 달에 있는 소속사 오디션 정보들을 정리해서 공유드립니다. 도움이 되길 바랍니다.
-
-1. A엔터테인먼트
-- 일시: 1월 25일 오후 2시
-- 대상: 20~30세 남녀
-- 준비물: 자유연기 1분
-- 장소: 강남구 테헤란로 123
-- 문의: 02-1234-5678
-
-2. B프로덕션
-- 일시: 1월 28일 오전 10시
-- 대상: 전 연령
-- 준비물: 지정 대본 (홈페이지 다운로드)
-- 장소: 서초구 서초대로 456
-- 문의: info@bproduction.com
-
-3. C엔터테인먼트
-- 일시: 2월 1일 오후 3시
-- 대상: 25~35세 여성
-- 준비물: 프로필 사진, 자유연기
-- 장소: 마포구 홍대로 789
-- 문의: casting@center.co.kr
-
-자세한 내용은 각 소속사 홈페이지를 확인하시고, 오디션 준비에 도움이 되시길 바랍니다.
-
-질문이 있으시면 댓글로 남겨주세요!`,
-        createdAt: '2024-01-11',
-        views: 445,
-        comments: 23,
-        likes: 89,
-        bookmarks: 156,
-        board: 'actor-info',
-        boardName: '연기자 정보방',
-        tags: ['오디션', '소속사', '정보공유']
-      },
-      2: {
-        id: 2,
-        title: '아이돌 뮤직비디오 출연자 모집',
-        author: '뮤직비디오팀',
-        category: '뮤직비디오',
-        categoryColor: 'bg-pink-100 text-pink-700',
-        recruitmentField: '뮤직비디오 모델',
-        applicationMethod: '이메일: mv@example.com',
-        content: `케이팝 아이돌 그룹의 뮤직비디오에 출연할 모델을 모집합니다.
-
-📍 촬영 정보
-- 촬영 일정: 2024년 2월 말 (2일간)
-- 촬영 장소: 서울 스튜디오 + 야외 로케이션
-- 뮤직비디오 장르: 팝/댄스
-
-👥 모집 조건
-- 20~30세 여성
-- 키 160cm 이상
-- 카메라 앞에서 자연스러운 분
-- 댄스 경험자 우대 (필수 아님)
-
-💰 페이 및 혜택
-- 출연료: 협의 후 결정
-- 식사 및 교통비 제공
-- 포트폴리오용 사진 제공
-
-📝 지원 방법
-- 이메일: mv@example.com
-- 제목: [뮤직비디오 모델 지원] 이름
-- 첨부: 프로필 사진, 전신 사진, 간단한 자기소개
-
-📅 지원 마감: 2월 15일까지
-
-많은 관심과 지원 부탁드립니다!`,
-        createdAt: '2024-01-15',
-        views: 342,
-        comments: 12,
-        likes: 67,
-        bookmarks: 43,
-        board: 'model-recruitment',
-        boardName: '모델/출연자 모집',
-        tags: ['뮤직비디오', '모델', '아이돌']
-      }
-    };
-
-    return dummyPosts[postId] || null;
-  };
+  const [boardType, setBoardType] = useState('');
 
   // 게시판별 뒤로가기 경로
   const getBackPath = (board) => {
     switch (board) {
       case 'actor-recruitment': return '/actor-recruitment';
       case 'model-recruitment': return '/model-recruitment';
-      case 'actor-info': return '/actor-info';
+      case 'actor-info': 
+      case 'community': return '/actor-info';
       case 'actor-profile': return '/actor-profile';
       default: return '/';
     }
   };
 
+  // 게시판별 API 호출
+  const fetchPostByType = async (postId) => {
+    const apis = [
+      { api: actorProfileAPI, type: 'actor-profile' },
+      { api: actorRecruitmentAPI, type: 'actor-recruitment' },
+      { api: modelRecruitmentAPI, type: 'model-recruitment' },
+      { api: communityPostAPI, type: 'community' }
+    ];
+
+    for (const { api, type } of apis) {
+      try {
+        console.log(`🔍 ${type} API에서 게시글 ${postId} 조회 시도`);
+        const response = await api.getById(postId);
+        
+        if (response.data.success && response.data.data) {
+          console.log(`✅ ${type}에서 게시글 발견:`, response.data.data);
+          setBoardType(type);
+          return response.data.data;
+        }
+      } catch (error) {
+        console.log(`❌ ${type} API 조회 실패:`, error.message);
+        // 404는 정상적인 상황이므로 에러로 처리하지 않음
+        continue;
+      }
+    }
+    
+    throw new Error('모든 게시판에서 게시글을 찾을 수 없습니다.');
+  };
+
   useEffect(() => {
-    // 실제로는 API 호출
     const fetchPost = async () => {
       try {
         setLoading(true);
-        const postData = getDummyPost(parseInt(id));
-        if (postData) {
-          setPost(postData);
-          // 조회수 증가 (실제로는 API 호출)
-          postData.views += 1;
-        }
+        console.log('📄 게시글 상세 조회 시작:', id);
+        
+        const postData = await fetchPostByType(id);
+        setPost(postData);
+        
       } catch (error) {
-        console.error('게시글 불러오기 실패:', error);
-        toast.error('게시글을 불러올 수 없습니다.');
+        console.error('❌ 게시글 조회 실패:', error);
+        toast.error('게시글을 불러올 수 없습니다: ' + error.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPost();
+    if (id) {
+      fetchPost();
+    }
   }, [id]);
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (!isAuthenticated) {
       toast.error('로그인이 필요합니다.');
       return;
     }
     
-    setPost(prev => ({
-      ...prev,
-      likes: prev.likes + 1
-    }));
-    toast.success('좋아요를 눌렀습니다!');
+    try {
+      const response = await likeAPI.toggle(post._id, boardType);
+      
+      if (response.data.success) {
+        setPost(prev => ({
+          ...prev,
+          likes: response.data.likeCount || (prev.likes || 0) + 1
+        }));
+        toast.success(response.data.message || '좋아요!');
+      }
+    } catch (error) {
+      console.error('좋아요 오류:', error);
+      toast.error('좋아요 처리 중 오류가 발생했습니다.');
+    }
   };
 
-  const handleBookmark = () => {
+  const handleBookmark = async () => {
     if (!isAuthenticated) {
       toast.error('로그인이 필요합니다.');
       return;
     }
     
-    setPost(prev => ({
-      ...prev,
-      bookmarks: prev.bookmarks + 1
-    }));
-    toast.success('게시글이 저장되었습니다!');
+    try {
+      const response = await bookmarkAPI.toggle(post._id, boardType);
+      
+      if (response.data.success) {
+        setPost(prev => ({
+          ...prev,
+          bookmarks: response.data.bookmarkCount || (prev.bookmarks || 0) + 1
+        }));
+        toast.success(response.data.message || '저장되었습니다!');
+      }
+    } catch (error) {
+      console.error('북마크 오류:', error);
+      toast.error('북마크 처리 중 오류가 발생했습니다.');
+    }
   };
 
   const handleEdit = () => {
@@ -167,24 +132,74 @@ const PostDetail = () => {
     toast.info('수정 기능은 준비 중입니다.');
   };
 
-  const handleDelete = () => {
-    if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
-      // 실제로는 API 호출
-      toast.success('게시글이 삭제되었습니다.');
-      navigate(getBackPath(post.board));
+  const handleDelete = async () => {
+    if (!window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      let response;
+      switch (boardType) {
+        case 'actor-profile':
+          response = await actorProfileAPI.delete(post._id);
+          break;
+        case 'actor-recruitment':
+          response = await actorRecruitmentAPI.delete(post._id);
+          break;
+        case 'model-recruitment':
+          response = await modelRecruitmentAPI.delete(post._id);
+          break;
+        case 'community':
+          response = await communityPostAPI.delete(post._id);
+          break;
+        default:
+          throw new Error('알 수 없는 게시판 타입');
+      }
+
+      if (response.data.success) {
+        toast.success('게시글이 삭제되었습니다.');
+        navigate(getBackPath(boardType));
+      } else {
+        throw new Error(response.data.message || '삭제 실패');
+      }
+    } catch (error) {
+      console.error('삭제 오류:', error);
+      toast.error('삭제 중 오류가 발생했습니다: ' + error.message);
     }
   };
 
   const handleBack = () => {
-    navigate(getBackPath(post?.board));
+    navigate(getBackPath(boardType));
   };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('ko-KR', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
+  };
+
+  const getBoardName = (type) => {
+    const names = {
+      'actor-profile': '배우 프로필',
+      'actor-recruitment': '배우 모집',
+      'model-recruitment': '모델 모집',
+      'community': '커뮤니티'
+    };
+    return names[type] || '게시판';
+  };
+
+  const getCategoryColor = (type) => {
+    const colors = {
+      'actor-profile': 'bg-purple-100 text-purple-700',
+      'actor-recruitment': 'bg-blue-100 text-blue-700',
+      'model-recruitment': 'bg-pink-100 text-pink-700',
+      'community': 'bg-green-100 text-green-700'
+    };
+    return colors[type] || 'bg-gray-100 text-gray-700';
   };
 
   if (loading) {
@@ -235,16 +250,16 @@ const PostDetail = () => {
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${post.categoryColor}`}>
-                  {post.category}
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(boardType)}`}>
+                  {post.category || getBoardName(boardType)}
                 </span>
                 <span className="text-sm text-gray-500">
-                  {post.boardName}
+                  {getBoardName(boardType)}
                 </span>
               </div>
               
               {/* 수정/삭제 버튼 (작성자만 보임) */}
-              {isAuthenticated && user?.name === post.author && (
+              {isAuthenticated && user?.id === post.userId?._id && (
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={handleEdit}
@@ -271,7 +286,7 @@ const PostDetail = () => {
             <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
               <span className="flex items-center">
                 <User className="w-4 h-4 mr-1" />
-                {post.author}
+                {post.userId?.email || post.name || '익명'}
               </span>
               <span className="flex items-center">
                 <Calendar className="w-4 h-4 mr-1" />
@@ -279,24 +294,87 @@ const PostDetail = () => {
               </span>
               <span className="flex items-center">
                 <Eye className="w-4 h-4 mr-1" />
-                {post.views}
+                {post.views || 0}
               </span>
-              <span className="flex items-center">
-                <MessageCircle className="w-4 h-4 mr-1" />
-                {post.comments}
-              </span>
+              {post.location && (
+                <span className="flex items-center">
+                  <MapPin className="w-4 h-4 mr-1" />
+                  {post.location}
+                </span>
+              )}
             </div>
 
             {/* 추가 정보 (모집 글인 경우) */}
-            {post.recruitmentField && (
+            {(boardType === 'actor-recruitment' || boardType === 'model-recruitment') && (
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <strong>모집분야:</strong> {post.recruitmentField}
-                  </div>
+                  {post.projectType && (
+                    <div>
+                      <strong>프로젝트 유형:</strong> {post.projectType}
+                    </div>
+                  )}
+                  {post.modelType && (
+                    <div>
+                      <strong>모델 유형:</strong> {post.modelType}
+                    </div>
+                  )}
                   {post.applicationMethod && (
                     <div>
                       <strong>지원방법:</strong> {post.applicationMethod}
+                    </div>
+                  )}
+                  {post.contactInfo?.email && (
+                    <div>
+                      <strong>연락처:</strong> {post.contactInfo.email}
+                    </div>
+                  )}
+                  {post.applicationDeadline && (
+                    <div>
+                      <strong>마감일:</strong> {formatDate(post.applicationDeadline)}
+                    </div>
+                  )}
+                  {post.payment?.type && (
+                    <div>
+                      <strong>보수:</strong> {post.payment.type} 
+                      {post.payment.amount && ` (${post.payment.amount.toLocaleString()}원)`}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 배우 프로필 정보 */}
+            {boardType === 'actor-profile' && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  {post.gender && (
+                    <div>
+                      <strong>성별:</strong> {post.gender}
+                    </div>
+                  )}
+                  {post.age && (
+                    <div>
+                      <strong>나이:</strong> {post.age}세
+                    </div>
+                  )}
+                  {post.experience && (
+                    <div>
+                      <strong>경력:</strong> {post.experience}
+                    </div>
+                  )}
+                  {post.height && (
+                    <div>
+                      <strong>키:</strong> {post.height}cm
+                    </div>
+                  )}
+                  {post.weight && (
+                    <div>
+                      <strong>몸무게:</strong> {post.weight}kg
+                    </div>
+                  )}
+                  {post.specialty && post.specialty.length > 0 && (
+                    <div className="md:col-span-3">
+                      <strong>전문분야:</strong> {post.specialty.join(', ')}
                     </div>
                   )}
                 </div>
@@ -314,6 +392,26 @@ const PostDetail = () => {
               </div>
             )}
           </div>
+
+          {/* 이미지 */}
+          {post.images && post.images.length > 0 && (
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold mb-4">첨부 이미지</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {post.images.map((image, index) => (
+                  <img
+                    key={index}
+                    src={image.url}
+                    alt={`첨부 이미지 ${index + 1}`}
+                    className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                    onError={(e) => {
+                      e.target.src = '/api/placeholder/300/200';
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 본문 */}
           <div className="p-6">
@@ -333,14 +431,14 @@ const PostDetail = () => {
                   className="flex items-center px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <Heart className="w-5 h-5 mr-2" />
-                  좋아요 {post.likes}
+                  좋아요 {post.likes || 0}
                 </button>
                 <button
                   onClick={handleBookmark}
                   className="flex items-center px-4 py-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                 >
                   <Bookmark className="w-5 h-5 mr-2" />
-                  저장하기 {post.bookmarks}
+                  저장하기 {post.bookmarks || 0}
                 </button>
               </div>
               

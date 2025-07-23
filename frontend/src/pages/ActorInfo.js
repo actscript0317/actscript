@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin } from 'lucide-react';
+import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -90,18 +90,24 @@ const ActorInfo = () => {
     return categoryObj ? categoryObj.label : '기타';
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('ko-KR');
-  };
-
   const handlePostClick = (post) => {
-    // 조회수 증가
-    setPosts(prev => prev.map(p => 
-      p.id === post.id ? { ...p, views: p.views + 1 } : p
-    ));
-    navigate(`/posts/${post.id}`);
+    navigate(`/posts/${post._id || post.id}`);
   };
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+  };
+
+  const handleWritePost = () => {
+    if (!isAuthenticated) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+    navigate('/posts/new?board=general');
+  };
+
+  // 좋아요 처리
   const handleLike = async (postId, e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
@@ -110,7 +116,7 @@ const ActorInfo = () => {
     }
     
     try {
-      const response = await likeAPI.toggle(postId, 'actor_info');
+      const response = await likeAPI.toggle(postId, 'community_post');
       
       if (response.data.success) {
         setUserLikes(prev => {
@@ -123,22 +129,15 @@ const ActorInfo = () => {
           return newSet;
         });
         
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, likes: response.data.likeCount }
-            : post
-        ));
-        
         toast.success(response.data.message);
-      } else {
-        toast.error(response.data.message || '좋아요 실패');
       }
     } catch (error) {
       console.error('좋아요 오류:', error);
-      toast.error('좋아요 중 오류가 발생했습니다.');
+      toast.error('좋아요 처리 중 오류가 발생했습니다.');
     }
   };
 
+  // 북마크 처리
   const handleBookmark = async (postId, e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
@@ -147,7 +146,7 @@ const ActorInfo = () => {
     }
     
     try {
-      const response = await bookmarkAPI.toggle(postId, 'actor_info');
+      const response = await bookmarkAPI.toggle(postId, 'community_post');
       
       if (response.data.success) {
         setUserBookmarks(prev => {
@@ -160,28 +159,12 @@ const ActorInfo = () => {
           return newSet;
         });
         
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, bookmarks: response.data.bookmarkCount }
-            : post
-        ));
-        
         toast.success(response.data.message);
-      } else {
-        toast.error(response.data.message || '저장 실패');
       }
     } catch (error) {
       console.error('북마크 오류:', error);
-      toast.error('저장 중 오류가 발생했습니다.');
+      toast.error('북마크 처리 중 오류가 발생했습니다.');
     }
-  };
-
-  const handleWritePost = () => {
-    if (!isAuthenticated) {
-      toast.error('로그인이 필요합니다.');
-      return;
-    }
-    navigate('/posts/new?board=actor-info');
   };
 
   return (
@@ -250,73 +233,76 @@ const ActorInfo = () => {
             ) : (
               filteredPosts.map((post) => (
                 <motion.div
-                  key={post.id}
+                  key={post._id || post.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => handlePostClick(post)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                          {getCategoryLabel(post.category)}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                        {post.category || '자유게시판'}
+                      </span>
+                      {post.postType && post.postType !== '일반' && (
+                        <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                          {post.postType}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors">
+                      {post.title}
+                    </h3>
+                    
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                      {post.content}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span className="flex items-center">
+                          <Users className="w-4 h-4 mr-1" />
+                          {post.userId?.email || '익명'}
+                        </span>
+                        <span className="flex items-center">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {formatDate(post.createdAt)}
+                        </span>
+                        <span className="flex items-center">
+                          <Eye className="w-4 h-4 mr-1" />
+                          {post.views || 0}
+                        </span>
+                        <span className="flex items-center">
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          {post.commentCount || 0}
                         </span>
                       </div>
-                      
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors">
-                        {post.title}
-                      </h3>
-                      
-                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                        {post.content}
-                      </p>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span className="flex items-center">
-                            <Users className="w-4 h-4 mr-1" />
-                            {post.author}
-                          </span>
-                          <span className="flex items-center">
-                            <MapPin className="w-4 h-4 mr-1" />
-                            {formatDate(post.createdAt)}
-                          </span>
-                          <span className="flex items-center">
-                            <Eye className="w-4 h-4 mr-1" />
-                            {post.views}
-                          </span>
-                          <span className="flex items-center">
-                            <Users className="w-4 h-4 mr-1" />
-                            {post.comments}
-                          </span>
-                        </div>
 
-                        {/* 좋아요, 저장 버튼 */}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => handleLike(post.id, e)}
-                            className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                              userLikes.has(post.id) 
-                                ? 'bg-red-100 text-red-600' 
-                                : 'text-red-500 hover:bg-red-50'
-                            }`}
-                          >
-                            <Heart className={`w-4 h-4 mr-1 ${userLikes.has(post.id) ? 'fill-current' : ''}`} />
-                            {post.likes}
-                          </button>
-                          <button
-                            onClick={(e) => handleBookmark(post.id, e)}
-                            className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                              userBookmarks.has(post.id) 
-                                ? 'bg-blue-100 text-blue-600' 
-                                : 'text-blue-500 hover:bg-blue-50'
-                            }`}
-                          >
-                            <Bookmark className={`w-4 h-4 mr-1 ${userBookmarks.has(post.id) ? 'fill-current' : ''}`} />
-                            {post.bookmarks}
-                          </button>
-                        </div>
+                      {/* 좋아요, 저장 버튼 */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => handleLike(post._id || post.id, e)}
+                          className={`flex items-center px-2 py-1 rounded transition-colors ${
+                            userLikes.has(post._id || post.id)
+                              ? 'bg-red-100 text-red-600'
+                              : 'text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          <Heart className="w-4 h-4 mr-1" />
+                          {post.likeCount || 0}
+                        </button>
+                        <button
+                          onClick={(e) => handleBookmark(post._id || post.id, e)}
+                          className={`flex items-center px-2 py-1 rounded transition-colors ${
+                            userBookmarks.has(post._id || post.id)
+                              ? 'bg-blue-100 text-blue-600'
+                              : 'text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          <Bookmark className="w-4 h-4 mr-1" />
+                          {post.bookmarks || 0}
+                        </button>
                       </div>
                     </div>
                   </div>

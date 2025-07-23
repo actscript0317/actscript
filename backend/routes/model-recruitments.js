@@ -154,6 +154,9 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       userId: req.user?.id
     });
 
+    // 원본 데이터 로깅
+    console.log('📋 원본 요청 데이터:', JSON.stringify(req.body, null, 2));
+
     const recruitmentData = {
       ...req.body,
       userId: req.user.id
@@ -169,12 +172,24 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
     if (!recruitmentData.applicationMethod) {
       recruitmentData.applicationMethod = '이메일';
     }
+    if (!recruitmentData.category) {
+      recruitmentData.category = '화보촬영'; // ModelRecruitment 스키마의 enum 첫 번째 값
+    }
 
     // 지원 마감일 기본값 설정 (30일 후)
     if (!recruitmentData.applicationDeadline) {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 30);
       recruitmentData.applicationDeadline = futureDate.toISOString();
+    } else if (typeof recruitmentData.applicationDeadline === 'string') {
+      try {
+        recruitmentData.applicationDeadline = new Date(recruitmentData.applicationDeadline).toISOString();
+      } catch (e) {
+        console.log('날짜 변환 실패, 기본값 설정');
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 30);
+        recruitmentData.applicationDeadline = futureDate.toISOString();
+      }
     }
 
     // 이미지 처리
@@ -232,6 +247,9 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
     if (!recruitmentData.payment.type) {
       recruitmentData.payment.type = '협의';
     }
+    if (recruitmentData.payment.amount) {
+      recruitmentData.payment.amount = parseInt(recruitmentData.payment.amount);
+    }
 
     if (req.body.contactInfo && typeof req.body.contactInfo === 'string') {
       try {
@@ -267,9 +285,41 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       recruitmentData.tags = req.body.tags;
     }
 
-    console.log('🔄 최종 모집공고 데이터:', recruitmentData);
+    console.log('🔄 최종 모집공고 데이터:', JSON.stringify(recruitmentData, null, 2));
+
+    // 스키마 검증 전 필수 필드 체크
+    const requiredFields = ['title', 'content', 'category', 'modelType', 'location', 'applicationMethod', 'applicationDeadline'];
+    const missingFields = requiredFields.filter(field => !recruitmentData[field]);
+    
+    if (missingFields.length > 0) {
+      console.error('❌ 필수 필드 누락:', missingFields);
+      return res.status(400).json({
+        success: false,
+        message: `필수 필드가 누락되었습니다: ${missingFields.join(', ')}`,
+        missingFields,
+        data: recruitmentData
+      });
+    }
 
     const recruitment = new ModelRecruitment(recruitmentData);
+
+    // save 전에 validation 체크
+    const validationError = recruitment.validateSync();
+    if (validationError) {
+      console.error('❌ Mongoose 유효성 검사 실패:', validationError);
+      const validationErrors = Object.values(validationError.errors).map(err => ({
+        field: err.path,
+        message: err.message,
+        value: err.value
+      }));
+      return res.status(400).json({
+        success: false,
+        message: '유효성 검사 실패',
+        errors: validationErrors,
+        data: recruitmentData
+      });
+    }
+
     await recruitment.save();
 
     const populatedRecruitment = await ModelRecruitment.findById(recruitment._id)
@@ -287,22 +337,28 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       message: error.message,
       name: error.name,
       errors: error.errors,
-      stack: error.stack
+      stack: error.stack.split('\n').slice(0, 5).join('\n')
     });
     
     // Mongoose validation 에러 처리
     if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => err.message);
+      const validationErrors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message,
+        value: err.value
+      }));
       return res.status(400).json({ 
         success: false, 
-        message: '유효성 검사 실패: ' + validationErrors.join(', '),
-        errors: validationErrors
+        message: '유효성 검사 실패',
+        errors: validationErrors,
+        fullError: error.message
       });
     }
     
     res.status(400).json({ 
       success: false, 
-      message: error.message || '모집공고 생성에 실패했습니다.' 
+      message: error.message || '모집공고 생성에 실패했습니다.',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

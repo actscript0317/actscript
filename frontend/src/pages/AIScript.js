@@ -16,10 +16,6 @@ import {
   Film,
   ArrowRight,
   Check,
-  AlertCircle,
-  BookOpen,
-  Target,
-  Zap,
   Maximize2,
   Archive,
   RotateCcw,
@@ -29,7 +25,7 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const AIScript = () => {
-  const { addAIGeneratedScript, addSavedScript } = useAuth();
+  const { addSavedScript } = useAuth();
   const navigate = useNavigate();
   
   // 폼 상태 관리
@@ -309,35 +305,7 @@ const AIScript = () => {
     });
   };
 
-  // 대본에서 제목 추출 함수
-  const extractTitleFromScript = (scriptContent) => {
-    if (!scriptContent) return '제목 없음';
-    
-    const lines = scriptContent.split('\n');
-    
-    // 제목을 찾는 여러 패턴 시도
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      
-      // "제목:" 또는 "**제목:**" 패턴
-      if (trimmedLine.match(/^\*\*제목:\*\*/i)) {
-        let title = trimmedLine.replace(/^\*\*제목:\*\*\s*/i, '').trim();
-        // 따옴표 제거
-        title = title.replace(/^[""]/, '').replace(/[""]$/, '').trim();
-        if (title && title.length > 0) return title;
-      }
-      
-      if (trimmedLine.match(/^제목:/i)) {
-        let title = trimmedLine.replace(/^제목:\s*/i, '').trim();
-        // 따옴표 제거
-        title = title.replace(/^[""]/, '').replace(/[""]$/, '').trim();
-        if (title && title.length > 0) return title;
-      }
-    }
-    
-    // 제목이 없으면 빈 문자열 반환
-    return '';
-  };
+
 
   const closeRewriteModal = () => {
     setShowRewriteModal(false);
@@ -691,7 +659,7 @@ const AIScript = () => {
                   
                   <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center text-blue-700">
-                      <Edit3 className="w-4 h-4 mr-2" />
+                      <RefreshCw className="w-4 h-4 mr-2" />
                       <span className="text-sm font-medium">✨ 리라이팅 기능: 수정하고 싶은 대사나 문장을 드래그로 선택하면 AI가 더 나은 표현으로 바꿔줍니다 (최소 5자 이상)</span>
                     </div>
                   </div>
@@ -794,7 +762,7 @@ const AIScript = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
-                          <Edit3 className="w-6 h-6 text-white" />
+                          <RefreshCw className="w-6 h-6 text-white" />
                         </div>
                         <div>
                           <h2 className="text-2xl font-bold text-gray-900">대본 리라이팅</h2>
@@ -1048,7 +1016,7 @@ const AIScript = () => {
                         }}
                         className="flex items-center px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
-                        <Edit3 className="w-5 h-5 mr-2" />
+                        <RefreshCw className="w-5 h-5 mr-2" />
                         리라이팅하기
                       </button>
                       <button

@@ -260,33 +260,7 @@ AI: ... 그럴 수도 있겠네요.`
   }
 ];
 
-// 더미 감정 데이터
-const dummyEmotions = [
-  { _id: '1', name: '그리움', description: '그리워하는 마음' },
-  { _id: '2', name: '사랑', description: '사랑하는 마음' },
-  { _id: '3', name: '설렘', description: '설레는 마음' },
-  { _id: '4', name: '슬픔', description: '슬픈 마음' },
-  { _id: '5', name: '절망', description: '절망적인 마음' },
-  { _id: '6', name: '희망', description: '희망적인 마음' },
-  { _id: '7', name: '기쁨', description: '기쁜 마음' },
-  { _id: '8', name: '다짐', description: '다짐하는 마음' },
-  { _id: '9', name: '분노', description: '화나는 마음' },
-  { _id: '10', name: '배신감', description: '배신당한 마음' },
-  { _id: '11', name: '아쉬움', description: '아쉬운 마음' },
-  { _id: '12', name: '감사', description: '감사한 마음' },
-  { _id: '13', name: '따뜻함', description: '따뜻한 마음' },
-  { _id: '14', name: '당황', description: '당황하는 마음' },
-  { _id: '15', name: '유머', description: '유머러스한 마음' },
-  { _id: '16', name: '재치', description: '재치있는 마음' },
-  { _id: '17', name: '호기심', description: '호기심 많은 마음' },
-  { _id: '18', name: '경이', description: '경이로운 마음' },
-  { _id: '19', name: '미래', description: '미래에 대한 마음' },
-  { _id: '20', name: '긴장', description: '긴장하는 마음' },
-  { _id: '21', name: '집중', description: '집중하는 마음' },
-  { _id: '22', name: '결의', description: '결의에 찬 마음' },
-  { _id: '23', name: '신비', description: '신비로운 마음' },
-  { _id: '24', name: '힘', description: '힘에 찬 마음' }
-];
+
 
 // 필터 옵션 정의
 const filterOptions = {

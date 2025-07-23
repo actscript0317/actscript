@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 
 const Navbar = () => {

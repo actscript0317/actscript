@@ -4,7 +4,6 @@ import { Users, Eye, Calendar, Heart, User, Mic, GraduationCap, Star, Bookmark, 
 import { scriptAPI, emotionAPI } from '../services/api';
 
 const Home = () => {
-  const [popularScripts, setPopularScripts] = useState([]);
   const [latestScripts, setLatestScripts] = useState([]);
   const [emotions, setEmotions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -115,13 +114,6 @@ const Home = () => {
         setError(null);
 
         // 각 API 호출을 개별적으로 처리
-        try {
-          const popularRes = await scriptAPI.getPopular();
-          setPopularScripts(popularRes.data?.scripts || []);
-        } catch (error) {
-          console.error('인기 대본 로딩 실패:', error);
-        }
-
         try {
           const latestRes = await scriptAPI.getLatest();
           setLatestScripts(latestRes.data?.scripts || []);
@@ -249,85 +241,35 @@ const Home = () => {
               {categories.map((category) => {
                 const IconComponent = category.icon;
                 return (
-                  <div
+                  <Link
                     key={category.id}
-                    onClick={() => handleCategoryClick(category.query)}
-                    className="group cursor-pointer"
+                    to={`/scripts?${category.query}`}
+                    className="group relative bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   >
-                    <div className="relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 h-64">
-                      {/* 배경 이미지 */}
-                      <div 
-                        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                        style={{ backgroundImage: `url(${category.image})` }}
-                      ></div>
-                      
-                      {/* 그라디언트 오버레이 */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} opacity-80 group-hover:opacity-70 transition-opacity duration-300`}></div>
-                      
-                      {/* 어두운 오버레이 (텍스트 가독성) */}
-                      <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-                      
-                      {/* 컨텐츠 */}
-                      <div className="relative z-10 p-6 h-full flex flex-col justify-between text-white">
-                        {/* 상단: 아이콘 */}
-                        <div className="mb-3">
-                          <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full bg-white bg-opacity-20 backdrop-blur-sm ${category.iconColor}`}>
-                            <IconComponent className="w-6 h-6" />
-                </div>
-              </div>
-              
-                        {/* 하단: 텍스트 */}
-                        <div>
-                          <h3 className="text-xl font-bold mb-2 group-hover:text-yellow-100 transition-colors">
-                            {category.title}
-                          </h3>
-                          <p className="text-white text-opacity-90 text-sm leading-relaxed">
-                            {category.description}
-                          </p>
-                </div>
-              </div>
-              
-                      {/* 호버 효과 */}
-                      <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="w-6 h-6 bg-white bg-opacity-20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
+                    <div className={`h-48 bg-gradient-to-br ${category.gradient} relative overflow-hidden`}>
+                      <div className="absolute inset-0 bg-black/20"></div>
+                      <div className="relative h-full flex flex-col items-center justify-center text-white p-6">
+                        <IconComponent className={`w-12 h-12 mb-4 ${category.iconColor}`} />
+                        <h3 className="text-xl font-bold mb-2">{category.title}</h3>
+                        <p className="text-sm opacity-90 text-center">{category.description}</p>
                       </div>
-                </div>
-              </div>
+                    </div>
+                  </Link>
                 );
               })}
             </div>
           </section>
 
-          {/* 인기 대본 섹션 */}
+          {/* 인기 글 TOP 5 섹션 */}
           <section>
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">인기 대본</h2>
+              <h2 className="text-3xl font-bold text-gray-800 mb-4">인기 글 TOP 5</h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                많은 사용자들이 좋아하는 인기 대본들을 확인해보세요
+                가장 많은 관심을 받고 있는 글들을 확인해보세요
               </p>
-                </div>
-                
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {popularScripts.slice(0, 6).map((script) => (
-                <ScriptCardHome key={script._id} script={script} />
-              ))}
-              </div>
-
-            <div className="text-center">
-                  <Link
-                to="/scripts?sort=popular"
-                className="inline-flex items-center px-6 py-3 bg-emerald-500 text-white font-medium rounded-lg hover:bg-emerald-600 transition-colors"
-                  >
-                인기 대본 더보기
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                  </Link>
             </div>
+            
+            <PopularPostsSection />
           </section>
 
 
@@ -358,18 +300,6 @@ const Home = () => {
             </div>
           </section>
 
-          {/* 인기 글 섹션 */}
-          <section>
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">인기 글 TOP 5</h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                가장 많은 관심을 받고 있는 글들을 확인해보세요
-              </p>
-            </div>
-            
-            <PopularPostsSection />
-          </section>
-
           {/* CTA 섹션 */}
           <section className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-2xl p-8 lg:p-12 text-center">
             <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">
@@ -385,144 +315,6 @@ const Home = () => {
             </Link>
           </section>
 
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ScriptListItem 컴포넌트
-const ScriptListItem = ({ script }) => {
-  return (
-    <Link
-      to={`/scripts/${script._id}`}
-      className="script-item group"
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 group-hover:text-emerald-600 mb-2">
-            {script.title}
-          </h3>
-          <p className="text-sm text-secondary mb-3 line-clamp-2">
-            {script.situation}
-          </p>
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center">
-              <Eye className="w-3 h-3 mr-1" />
-              {script.views || 0}
-            </span>
-            <span className="flex items-center">
-              <Calendar className="w-3 h-3 mr-1" />
-              {new Date(script.createdAt).toLocaleDateString()}
-            </span>
-          </div>
-        </div>
-        {script.emotion && (
-          <span className="emotion-tag ml-4">
-            {script.emotion.name}
-          </span>
-        )}
-      </div>
-    </Link>
-  );
-};
-
-// ScriptCardHome 컴포넌트
-const ScriptCardHome = ({ script }) => {
-  // 좋아요 수 가져오기
-  const getLikeCount = (scriptId) => {
-    const likeCounts = JSON.parse(localStorage.getItem('scriptLikeCounts') || '{}');
-    return likeCounts[scriptId] || 0;
-  };
-
-  // 저장 수 가져오기
-  const getSaveCount = (scriptId) => {
-    const saveCounts = JSON.parse(localStorage.getItem('scriptSaveCounts') || '{}');
-    return saveCounts[scriptId] || 0;
-  };
-
-  // 카테고리 태그 색상
-  const getTagColor = (type) => {
-    const colors = {
-      gender: 'bg-pink-100 text-pink-800',
-      scriptType: 'bg-blue-100 text-blue-800',
-      mood: 'bg-purple-100 text-purple-800',
-      purpose: 'bg-green-100 text-green-800'
-    };
-    return colors[type] || 'bg-gray-100 text-gray-800';
-  };
-
-  return (
-    <div className="group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-emerald-100 hover:border-emerald-200 hover:scale-105 transform">
-      {/* 카드 헤더 */}
-      <div className="p-6 pb-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3 group-hover:text-emerald-600 transition-colors duration-300">
-          {script.title}
-        </h3>
-        
-        {/* 카테고리 태그들 */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {script.gender && (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTagColor('gender')}`}>
-              {script.gender}
-            </span>
-          )}
-          {script.scriptType && (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTagColor('scriptType')}`}>
-              {script.scriptType}
-            </span>
-          )}
-          {script.mood && (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTagColor('mood')}`}>
-              {script.mood}
-            </span>
-          )}
-        </div>
-        
-        {/* 요약문 */}
-        <p className="text-gray-600 text-sm leading-relaxed mb-4">
-          {script.situation && script.situation.length > 80 
-            ? `${script.situation.substring(0, 80)}...` 
-            : script.situation || '상황 설명이 없습니다.'}
-        </p>
-        
-        {/* 통계 정보 */}
-        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-          <div className="flex items-center space-x-4">
-            <span className="flex items-center">
-              <Eye className="w-4 h-4 mr-1" />
-              {script.views || 0}
-            </span>
-            <span className="flex items-center">
-              <Heart className="w-4 h-4 mr-1 text-red-500" />
-              {getLikeCount(script._id)}
-            </span>
-            <span className="flex items-center">
-              <Bookmark className="w-4 h-4 mr-1 text-emerald-500" />
-              {getSaveCount(script._id)}
-            </span>
-            <span className="flex items-center">
-              <Users className="w-4 h-4 mr-1" />
-              {script.characterCount}명
-            </span>
-          </div>
-          <span>{new Date(script.createdAt).toLocaleDateString('ko-KR')}</span>
-        </div>
-      </div>
-      
-      {/* 호버 효과와 버튼 */}
-      <div className="relative">
-        {/* 호버 시 어두워지는 오버레이 */}
-        <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-        
-        {/* 버튼 영역 */}
-        <div className="p-6 pt-0">
-          <Link
-            to={`/scripts/${script._id}`}
-            className="block w-full bg-gray-100 text-gray-700 text-center py-3 rounded-lg font-medium transition-all duration-300 group-hover:bg-emerald-500 group-hover:text-white group-hover:shadow-lg transform group-hover:-translate-y-0.5"
-          >
-            자세히 보기
-          </Link>
         </div>
       </div>
     </div>
@@ -634,88 +426,67 @@ const PopularPostsSection = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
-        <div className="flex items-center">
-          <TrendingUp className="w-6 h-6 text-white mr-2" />
-          <h3 className="text-xl font-bold text-white">인기 글 랭킹</h3>
-        </div>
-      </div>
-      
-      <div className="divide-y divide-gray-200">
-        {popularPosts.map((post) => (
-          <Link
-            key={post.id}
-            to={getBoardPath(post.board)}
-            className="block p-6 hover:bg-gray-50 transition-colors group"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-4 flex-1">
-                {/* 순위 배지 */}
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full ${getRankBg(post.rank)} flex items-center justify-center`}>
-                  <span className="text-white font-bold text-sm">{post.rank}</span>
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${post.categoryColor}`}>
-                      {post.category}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {post.boardName}
-                    </span>
-                  </div>
-                  
-                  <h4 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors mb-2 line-clamp-1">
-                    {post.title}
-                  </h4>
-                  
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span className="flex items-center">
-                      <User className="w-4 h-4 mr-1" />
-                      {post.author}
-                    </span>
-                    <span className="flex items-center">
-                      <Eye className="w-4 h-4 mr-1" />
-                      {post.views}
-                    </span>
-                    <span className="flex items-center">
-                      <MessageCircle className="w-4 h-4 mr-1" />
-                      {post.comments}
-                    </span>
-                  </div>
-                </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      {popularPosts.map((post) => (
+        <Link
+          key={post.id}
+          to={getBoardPath(post.board)}
+          className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+        >
+          {/* 카드 헤더 */}
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className={`w-8 h-8 rounded-full ${getRankBg(post.rank)} flex items-center justify-center`}>
+                <span className="text-white font-bold text-sm">{post.rank}</span>
               </div>
-              
-              {/* 인기도 지표 */}
-              <div className="flex flex-col items-end space-y-1">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center text-red-500">
-                    <Heart className="w-4 h-4 mr-1" />
-                    <span className="font-medium">{post.likes}</span>
-                  </div>
-                  <div className="flex items-center text-blue-500">
-                    <Bookmark className="w-4 h-4 mr-1" />
-                    <span className="font-medium">{post.bookmarks}</span>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-400">
-                  인기도: {post.likes + post.bookmarks}
-                </div>
+              <TrendingUp className="w-5 h-5 text-white" />
+            </div>
+          </div>
+          
+          {/* 카드 내용 */}
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${post.categoryColor}`}>
+                {post.category}
+              </span>
+            </div>
+            
+            <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors mb-2 line-clamp-2">
+              {post.title}
+            </h3>
+            
+            <p className="text-xs text-gray-500 mb-3">
+              {post.boardName}
+            </p>
+            
+            <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+              <span className="flex items-center">
+                <User className="w-3 h-3 mr-1" />
+                {post.author}
+              </span>
+              <span className="flex items-center">
+                <Eye className="w-3 h-3 mr-1" />
+                {post.views}
+              </span>
+            </div>
+            
+            {/* 인기도 지표 */}
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              <div className="flex items-center text-red-500">
+                <Heart className="w-4 h-4 mr-1" />
+                <span className="font-medium text-sm">{post.likes}</span>
+              </div>
+              <div className="flex items-center text-blue-500">
+                <Bookmark className="w-4 h-4 mr-1" />
+                <span className="font-medium text-sm">{post.bookmarks}</span>
+              </div>
+              <div className="text-xs text-gray-400">
+                인기도 {post.likes + post.bookmarks}
               </div>
             </div>
-          </Link>
-        ))}
-      </div>
-      
-      <div className="bg-gray-50 px-6 py-4 text-center">
-        <Link
-          to="/actor-recruitment"
-          className="text-purple-600 hover:text-purple-700 font-medium text-sm transition-colors"
-        >
-          더 많은 인기 글 보기 →
+          </div>
         </Link>
-      </div>
+      ))}
     </div>
   );
 };

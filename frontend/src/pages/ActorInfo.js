@@ -2,21 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Plus, Calendar, User, Eye, MessageCircle, BookOpen, Heart, Bookmark } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import PostModal from '../components/PostModal';
-import WritePostModal from '../components/WritePostModal';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const ActorInfo = () => {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [filters, setFilters] = useState({
     category: 'all'
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [showWriteModal, setShowWriteModal] = useState(false);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [showPostModal, setShowPostModal] = useState(false);
 
   // 더미 데이터 (좋아요, 저장 수 추가)
   const dummyPosts = [
@@ -132,8 +129,7 @@ const ActorInfo = () => {
     setPosts(prev => prev.map(p => 
       p.id === post.id ? { ...p, views: p.views + 1 } : p
     ));
-    setSelectedPost(post);
-    setShowPostModal(true);
+    navigate(`/posts/${post.id}`);
   };
 
   const handleLike = (postId, e) => {
@@ -166,25 +162,12 @@ const ActorInfo = () => {
     toast.success('게시글이 저장되었습니다!');
   };
 
-  const handleWritePost = (formData) => {
+  const handleWritePost = () => {
     if (!isAuthenticated) {
       toast.error('로그인이 필요합니다.');
       return;
     }
-
-    const newPost = {
-      id: Date.now(),
-      ...formData,
-      author: '사용자', // 실제로는 로그인한 사용자 이름
-      createdAt: new Date().toISOString(),
-      views: 0,
-      comments: 0,
-      likes: 0,
-      bookmarks: 0
-    };
-
-    setPosts(prev => [newPost, ...prev]);
-    toast.success('게시글이 작성되었습니다!');
+    navigate('/posts/new?board=actor-info');
   };
 
   return (
@@ -227,7 +210,7 @@ const ActorInfo = () => {
             {/* 글쓰기 버튼 */}
             {isAuthenticated && (
               <button
-                onClick={() => setShowWriteModal(true)}
+                onClick={handleWritePost}
                 className="flex items-center px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               >
                 <Plus className="w-5 h-5 mr-2" />
@@ -328,22 +311,6 @@ const ActorInfo = () => {
             </p>
           </div>
         )}
-
-        {/* 모달들 */}
-        <PostModal
-          isOpen={showPostModal}
-          onClose={() => setShowPostModal(false)}
-          post={selectedPost}
-          categoryLabel={selectedPost ? getCategoryLabel(selectedPost.category) : ''}
-        />
-
-        <WritePostModal
-          isOpen={showWriteModal}
-          onClose={() => setShowWriteModal(false)}
-          onSubmit={handleWritePost}
-          categories={categories}
-          postType="general"
-        />
       </div>
     </div>
   );

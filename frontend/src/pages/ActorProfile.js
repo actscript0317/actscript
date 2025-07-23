@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, User, Calendar, MapPin } from 'lucide-react';
+import { Search, Filter, User, Calendar, MapPin, Plus } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const ActorProfile = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [profiles, setProfiles] = useState([]);
   const [filteredProfiles, setFilteredProfiles] = useState([]);
   const [filters, setFilters] = useState({
@@ -100,6 +105,22 @@ const ActorProfile = () => {
     return '40대 이상';
   };
 
+  // 프로필 카테고리 (프로필은 일반적으로 카테고리가 필요 없지만, 글쓰기를 위해 추가)
+  const categories = [
+    { value: 'profile', label: '프로필 등록' },
+    { value: 'introduction', label: '자기소개' },
+    { value: 'experience', label: '경력 소개' },
+    { value: 'collaboration', label: '협업 문의' }
+  ];
+
+  const handleWritePost = () => {
+    if (!isAuthenticated) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+    navigate('/posts/new?board=actor-profile');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -154,6 +175,17 @@ const ActorProfile = () => {
                 총 {filteredProfiles.length}명
               </span>
             </div>
+
+            {/* 프로필 등록 버튼 */}
+            {isAuthenticated && (
+              <button
+                onClick={handleWritePost}
+                className="flex items-center px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                프로필 등록
+              </button>
+            )}
           </div>
         </div>
 

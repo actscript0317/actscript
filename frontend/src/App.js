@@ -20,6 +20,9 @@ import ActorProfile from './pages/ActorProfile';
 import ActorRecruitment from './pages/ActorRecruitment';
 import ModelRecruitment from './pages/ModelRecruitment';
 import ActorInfo from './pages/ActorInfo';
+// 새로운 게시글 관련 페이지들
+import CreatePost from './pages/CreatePost';
+import PostDetail from './pages/PostDetail';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -41,6 +44,9 @@ function App() {
               <Route path="/model-recruitment" element={<ModelRecruitment />} />
               <Route path="/actor-info" element={<ActorInfo />} />
               
+              {/* 게시글 관련 페이지 */}
+              <Route path="/posts/:id" element={<PostDetail />} />
+              
               {/* 인증이 필요한 사용자만 접근 가능한 라우트 */}
               <Route path="/add-script" element={
                 <PrivateRoute>
@@ -60,6 +66,11 @@ function App() {
               <Route path="/mypage" element={
                 <PrivateRoute>
                   <MyPage />
+                </PrivateRoute>
+              } />
+              <Route path="/posts/new" element={
+                <PrivateRoute>
+                  <CreatePost />
                 </PrivateRoute>
               } />
 

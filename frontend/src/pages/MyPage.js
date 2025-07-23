@@ -14,6 +14,69 @@ const MyPage = () => {
     removeAIGeneratedScript
   } = useAuth();
 
+  // 저장한 글 더미 데이터 (실제로는 localStorage나 API에서 가져올 예정)
+  const getSavedPosts = () => {
+    return [
+      {
+        id: 1,
+        title: '소속사 오디션 정보 공유',
+        category: '매니지먼트',
+        categoryColor: 'bg-blue-100 text-blue-700',
+        content: '이번 달에 있는 소속사 오디션 정보들을 정리해서 공유드립니다. 도움이 되길 바랍니다.',
+        author: '정보공유',
+        likes: 89,
+        bookmarks: 156,
+        board: 'actor-info',
+        boardName: '연기자 정보방',
+        savedAt: '2024-01-20'
+      },
+      {
+        id: 2,
+        title: '강남 연기 스터디 그룹 멤버 모집',
+        category: '스터디 그룹',
+        categoryColor: 'bg-blue-100 text-blue-700',
+        content: '매주 토요일 강남에서 모이는 연기 스터디 그룹입니다. 함께 대본 연습하고 피드백 나눠요!',
+        author: '연기사랑',
+        likes: 42,
+        bookmarks: 28,
+        board: 'actor-info',
+        boardName: '연기자 정보방',
+        savedAt: '2024-01-18'
+      },
+      {
+        id: 3,
+        title: '화장품 광고 모델 모집',
+        category: '광고/홍보',
+        categoryColor: 'bg-pink-100 text-pink-700',
+        content: '새로운 화장품 브랜드의 광고 모델을 모집합니다. 깔끔한 이미지의 모델을 찾고 있습니다.',
+        author: '광고대행사',
+        likes: 34,
+        bookmarks: 28,
+        board: 'model-recruitment',
+        boardName: '모델/출연자 모집',
+        savedAt: '2024-01-15'
+      }
+    ];
+  };
+
+  // 게시판 경로 가져오기
+  const getBoardPath = (board) => {
+    const paths = {
+      'actor-recruitment': '/actor-recruitment',
+      'model-recruitment': '/model-recruitment',
+      'actor-info': '/actor-info',
+      'actor-profile': '/actor-profile'
+    };
+    return paths[board] || '/';
+  };
+
+  // 저장한 글 삭제
+  const removeSavedPost = (postId) => {
+    // 실제로는 localStorage나 API를 통해 삭제 처리
+    console.log('삭제할 게시글 ID:', postId);
+    // TODO: 실제 삭제 로직 구현
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -94,43 +157,68 @@ const MyPage = () => {
             {/* 대본 섹션들 */}
             <div className="lg:col-span-2 space-y-8">
               
-              {/* 저장한 대본 섹션 */}
+              {/* 저장한 글 섹션 */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                   <Bookmark className="w-5 h-5 mr-2 text-emerald-500" />
-                  저장한 대본 ({savedScripts.length})
+                  저장한 글 ({getSavedPosts().length})
                 </h2>
                 
-                {savedScripts.length === 0 ? (
+                {getSavedPosts().length === 0 ? (
                   <div className="text-center py-12">
                     <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">아직 저장한 대본이 없습니다.</p>
+                    <p className="text-gray-500 mb-4">아직 저장한 글이 없습니다.</p>
                     <Link 
-                      to="/scripts" 
+                      to="/actor-recruitment" 
                       className="text-emerald-600 hover:text-emerald-700 font-medium"
                     >
-                      대본 둘러보기 →
+                      게시판 둘러보기 →
                     </Link>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {savedScripts.map((script) => (
-                      <div key={script._id} className="border border-gray-200 rounded-lg p-4">
+                    {getSavedPosts().map((post) => (
+                      <div key={post.id} className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 transition-colors">
                         <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="text-lg font-semibold">{script.title}</h3>
-                            <p className="text-sm text-gray-600 mt-1">
-                              저장일: {new Date(script.savedAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div>
-                            <button
-                              onClick={() => removeSavedScript(script._id)}
-                              className="text-red-600 hover:text-red-700"
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${post.categoryColor}`}>
+                                {post.category}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {post.boardName}
+                              </span>
+                            </div>
+                            <Link 
+                              to={getBoardPath(post.board)}
+                              className="block"
                             >
-                              삭제
-                            </button>
+                              <h3 className="text-lg font-semibold text-gray-900 hover:text-emerald-600 transition-colors cursor-pointer">
+                                {post.title}
+                              </h3>
+                              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                {post.content}
+                              </p>
+                              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                <span>작성자: {post.author}</span>
+                                <span>저장일: {new Date(post.savedAt).toLocaleDateString()}</span>
+                                <span className="flex items-center">
+                                  <Heart className="w-3 h-3 mr-1 text-red-500" />
+                                  {post.likes}
+                                </span>
+                                <span className="flex items-center">
+                                  <Bookmark className="w-3 h-3 mr-1 text-blue-500" />
+                                  {post.bookmarks}
+                                </span>
+                              </div>
+                            </Link>
                           </div>
+                          <button
+                            onClick={() => removeSavedPost(post.id)}
+                            className="text-red-600 hover:text-red-700 text-sm ml-4"
+                          >
+                            삭제
+                          </button>
                         </div>
                       </div>
                     ))}

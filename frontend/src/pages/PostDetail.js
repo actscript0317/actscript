@@ -20,6 +20,18 @@ const PostDetail = () => {
   const [loading, setLoading] = useState(true);
   const [boardType, setBoardType] = useState('');
 
+  // boardType을 백엔드 postType enum으로 변환
+  const mapBoardTypeToPostType = (boardType) => {
+    const mapping = {
+      'actor-profile': 'actor_profile',
+      'actor-recruitment': 'actor_recruitment',
+      'model-recruitment': 'model_recruitment',
+      'community': 'community_post',
+      'actor-info': 'actor_info'
+    };
+    return mapping[boardType] || boardType;
+  };
+
   // 게시판별 뒤로가기 경로
   const getBackPath = (board) => {
     switch (board) {
@@ -90,12 +102,14 @@ const PostDetail = () => {
     }
     
     try {
+      const postType = mapBoardTypeToPostType(boardType);
       console.log('🔍 좋아요 API 호출:', {
         postId: post._id,
-        boardType: boardType
+        boardType: boardType,
+        postType: postType
       });
       
-      const response = await likeAPI.toggle(post._id, boardType);
+      const response = await likeAPI.toggle(post._id, postType);
       console.log('✅ 좋아요 API 응답:', response.data);
       
       if (response.data.success) {
@@ -123,12 +137,14 @@ const PostDetail = () => {
     }
     
     try {
+      const postType = mapBoardTypeToPostType(boardType);
       console.log('🔍 북마크 API 호출:', {
         postId: post._id,
-        boardType: boardType
+        boardType: boardType,
+        postType: postType
       });
       
-      const response = await bookmarkAPI.toggle(post._id, boardType);
+      const response = await bookmarkAPI.toggle(post._id, postType);
       console.log('✅ 북마크 API 응답:', response.data);
       
       if (response.data.success) {

@@ -49,15 +49,18 @@ router.get('/', async (req, res) => {
       location,
       experience,
       paymentType,
-      status = '모집중',
+      status,
       search,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
 
+    console.log('🔍 배우 모집 조회 요청:', { page, limit, category, projectType, location, experience, paymentType, status, search });
+
     // 필터 조건 구성
     const filter = {};
     
+    // status가 명시적으로 전달된 경우에만 필터링
     if (status && status !== 'all') filter.status = status;
     if (category && category !== 'all') filter.category = category;
     if (projectType && projectType !== 'all') filter.projectType = projectType;
@@ -73,6 +76,8 @@ router.get('/', async (req, res) => {
         { tags: { $in: [new RegExp(search, 'i')] } }
       ];
     }
+
+    console.log('📊 실제 필터 조건:', filter);
 
     // 정렬 조건
     const sort = {};
@@ -93,6 +98,8 @@ router.get('/', async (req, res) => {
       .lean();
 
     const total = await ActorRecruitment.countDocuments(filter);
+
+    console.log('📥 배우 모집 조회 결과:', { count: recruitments.length, total });
 
     res.json({
       success: true,

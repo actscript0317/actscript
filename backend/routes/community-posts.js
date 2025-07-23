@@ -52,8 +52,10 @@ router.get('/', async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
-    // 필터 조건 구성
-    const filter = { status: '활성' };
+    console.log('🔍 커뮤니티 게시글 조회 요청:', { page, limit, category, postType, location, search });
+
+    // 필터 조건 구성 - status 필터 제거
+    const filter = {};
     
     if (category && category !== 'all') filter.category = category;
     if (postType && postType !== 'all') filter.postType = postType;
@@ -61,8 +63,14 @@ router.get('/', async (req, res) => {
 
     // 검색 조건
     if (search) {
-      filter.$text = { $search: search };
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { content: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } }
+      ];
     }
+
+    console.log('📊 실제 필터 조건:', filter);
 
     // 정렬 조건
     const sort = {};
@@ -84,6 +92,8 @@ router.get('/', async (req, res) => {
       .lean();
 
     const total = await CommunityPost.countDocuments(filter);
+
+    console.log('📥 커뮤니티 게시글 조회 결과:', { count: posts.length, total });
 
     res.json({
       success: true,

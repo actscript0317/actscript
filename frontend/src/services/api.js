@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 // axios 인스턴스 생성
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // 타임아웃을 60초로 증가
+  timeout: 30000, // 타임아웃을 30초로 단축
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,7 +14,7 @@ const api = axios.create({
 });
 
 // 재시도 로직을 위한 헬퍼 함수
-const withRetry = async (apiCall, retries = 3, delay = 1000) => {
+const withRetry = async (apiCall, retries = 2, delay = 1000) => {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       return await apiCall();

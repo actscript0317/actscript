@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  const [loading, setLoading] = useState(false); // 초기 로딩을 false로 변경
+  const [loading, setLoading] = useState(true); // 초기에는 true로 시작
   const [error, setError] = useState(null);
   const [aiGeneratedScripts, setAIGeneratedScripts] = useState([]);
   const [savedScripts, setSavedScripts] = useState([]);
@@ -20,7 +20,6 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      setLoading(false); // 로그인 성공 시 즉시 로딩 해제
     } else {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -29,7 +28,7 @@ export const AuthProvider = ({ children }) => {
       setAIGeneratedScripts([]);
       setSavedScripts([]);
     }
-    // 강제 리렌더링을 위한 상태 업데이트
+    setLoading(false);
     setError(null);
   }, []);
 
@@ -205,14 +204,18 @@ export const AuthProvider = ({ children }) => {
       try {
         const userData = JSON.parse(savedUser);
         setUser(userData);
-        // 백그라운드에서 토큰 유효성 검사
-        setTimeout(() => {
-          checkAuth();
-        }, 100);
+        setLoading(false);
+        // 백그라운드에서 토큰 유효성 검사 (비동기, 빠른 로딩을 위해)
+        checkAuth().catch(() => {
+          // 토큰이 만료된 경우 조용히 로그아웃
+          setAuthState(null, null);
+        });
       } catch (error) {
         console.error('저장된 사용자 데이터 파싱 오류:', error);
         setAuthState(null, null);
       }
+    } else {
+      setLoading(false);
     }
   }, [checkAuth, setAuthState]);
 

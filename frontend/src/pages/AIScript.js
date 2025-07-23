@@ -1015,15 +1015,15 @@ const AIScript = () => {
 
                   {/* 하단 액션 버튼 */}
                   <div className="p-6 border-t border-gray-200 bg-gray-50">
-                    <div className="flex flex-wrap gap-3 justify-center">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(generatedScript);
                           toast.success('대본이 클립보드에 복사되었습니다!');
                         }}
-                        className="flex items-center px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
-                        <Copy className="w-5 h-5 mr-2" />
+                        <Copy className="w-4 h-4 mr-2" />
                         복사하기
                       </button>
                       <button
@@ -1049,9 +1049,9 @@ const AIScript = () => {
                             toast.error('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
                           }
                         }}
-                        className="flex items-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
-                        <Save className="w-5 h-5 mr-2" />
+                        <Save className="w-4 h-4 mr-2" />
                         저장하기
                       </button>
                       <button
@@ -1059,26 +1059,41 @@ const AIScript = () => {
                           setShowDetailModal(false);
                           setShowRewriteModal(true);
                         }}
-                        className="flex items-center px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
-                        <RefreshCw className="w-5 h-5 mr-2" />
-                        리라이팅하기
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        리라이팅
                       </button>
                       <button
                         onClick={() => navigate('/script-vault')}
-                        className="flex items-center px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
-                        <Archive className="w-5 h-5 mr-2" />
-                        대본함 가기
+                        <Archive className="w-4 h-4 mr-2" />
+                        대본함
                       </button>
+                    </div>
+                    
+                    {/* 추가 버튼들 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mt-4">
                       <button
                         onClick={() => window.print()}
-                        className="flex items-center px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-4 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
                         인쇄하기
+                      </button>
+                      <button
+                        onClick={() => {
+                          setGeneratedScript('');
+                          setGeneratedScriptId(null);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="flex items-center justify-center px-4 py-3 bg-slate-500 hover:bg-slate-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        새로 생성
                       </button>
                     </div>
                   </div>

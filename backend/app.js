@@ -57,8 +57,12 @@ if (process.env.NODE_ENV === 'production') {
   // 정적 파일 제공
   app.use(express.static(path.join(__dirname, '../frontend/build')));
 
-  // 모든 요청을 React 앱으로 전달
-  app.get('*', (req, res) => {
+  // API가 아닌 모든 요청을 React 앱으로 전달
+  app.get('*', (req, res, next) => {
+    // API 경로는 제외
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
     res.sendFile(path.resolve(__dirname, '../frontend/build', 'index.html'));
   });
 }

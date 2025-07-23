@@ -20,12 +20,14 @@ const aiScriptSchema = new mongoose.Schema({
     required: true
   },
   emotions: [{
-    type: String,
-    required: true
+    type: String
   }],
   length: {
     type: String,
     required: true
+  },
+  gender: {
+    type: String
   },
   situation: {
     type: String

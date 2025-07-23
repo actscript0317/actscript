@@ -51,13 +51,19 @@ const extractTitleFromScript = (scriptContent) => {
   // 대본 생성 API
 router.post('/generate', protect, async (req, res) => {
   try {
+    console.log('🎭 AI 대본 생성 요청 시작');
+    console.log('📝 요청 데이터:', req.body);
+    
     // OpenAI API 키 확인
     if (!openai) {
+      console.log('❌ OpenAI API 키가 설정되지 않음');
       return res.status(503).json({
         error: 'AI 서비스를 사용할 수 없습니다.',
         message: 'OpenAI API 키가 설정되지 않았습니다.'
       });
     }
+    
+    console.log('✅ OpenAI 클라이언트 초기화 완료');
 
     const { characterCount, genre, length, location, gender } = req.body;
 
@@ -104,7 +110,7 @@ router.post('/generate', protect, async (req, res) => {
 
       
     // 등장인물별 지시사항
-    const characterDirectives = {
+    const characterDirectivesMap = {
       '1': `독백 전용 작성 가이드:
 - 감정의 흐름과 변화가 뚜렷하게 드러나도록 구성 (예: 침착→불안→분노 / 밝음→흔들림→무너짐)
 - 자기 고백형 서사로 내면의 솔직한 이야기를 담기
@@ -113,7 +119,9 @@ router.post('/generate', protect, async (req, res) => {
 - 10대 후반~20대 초반이 공감할 수 있는 주제 우선 고려 (가족 문제, 꿈에 대한 불안, 자존감, 친구 관계, 외로움, 실패 등)`,
       '2-3': 'Structure natural dialogue flow between 2-3 characters.',
       '4+': 'Write to show interactions among 4 or more characters.'
-    }[characterCount] || 'Structure dialogue appropriate for the number of characters.';
+    };
+    
+    const characterDirectives = characterDirectivesMap[characterCount] || 'Structure dialogue appropriate for the number of characters.';
 
     // 장소별 지시사항
     const locationDirective = (() => {
@@ -201,6 +209,7 @@ ${characterDirectives}
 연기자가 감정에 깊이 몰입할 수 있고, 실제 연기 현장에서 바로 활용 가능한 전문적인 독백을 완성해주세요.`;
 
     // OpenAI API 호출
+    console.log('🚀 OpenAI API 호출 시작');
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -216,14 +225,17 @@ ${characterDirectives}
       max_tokens: 2000,
       temperature: 0.7
     });
+    
+    console.log('✅ OpenAI API 응답 완료');
 
     const generatedScript = completion.choices[0].message.content;
 
     // 제목 추출 (없으면 기본 제목 생성)
     const extractedTitle = extractTitleFromScript(generatedScript);
-    const title = extractedTitle || `${genre} ${emotion} 대본`;
+    const title = extractedTitle || `${genre} ${genderText} 독백`;
 
     // MongoDB에 저장
+    console.log('💾 MongoDB에 대본 저장 시작');
     const newScript = new AIScript({
       userId: req.user._id,
       title: title,
@@ -231,6 +243,7 @@ ${characterDirectives}
       characterCount,
       genre,
       length,
+      gender,
       location: location || '',
       metadata: {
         model: "gpt-4o",
@@ -241,6 +254,7 @@ ${characterDirectives}
     });
 
     const savedScript = await newScript.save();
+    console.log('✅ MongoDB 저장 완료, ID:', savedScript._id);
 
     res.json({
       success: true,
@@ -250,14 +264,22 @@ ${characterDirectives}
       metadata: {
         characterCount,
         genre,
-        emotion,
+        gender: genderText,
         length: lengthText,
+        location: locationText,
         generatedAt: new Date().toISOString()
       }
     });
 
   } catch (error) {
-    console.error('AI 대본 생성 오류:', error);
+    console.error('❌ AI 대본 생성 오류 상세:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      type: error.type,
+      status: error.status,
+      response: error.response?.data
+    });
     
     // OpenAI API 오류 처리
     if (error.code === 'insufficient_quota') {
@@ -283,7 +305,10 @@ ${characterDirectives}
 
     res.status(500).json({
       error: '대본 생성 중 오류가 발생했습니다.',
-      message: '잠시 후 다시 시도해주세요.'
+      message: '잠시 후 다시 시도해주세요.',
+      ...(process.env.NODE_ENV !== 'production' && { 
+        debug: error.message 
+      })
     });
   }
 });

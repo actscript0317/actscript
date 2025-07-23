@@ -42,8 +42,8 @@ app.use(helmet({
       fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'", "blob:"], // blob: 추가
-      frameSrc: ["'none'"],
-    },
+      frameSrc: ["'none'"]
+    }
   },
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }

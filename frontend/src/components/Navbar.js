@@ -176,6 +176,51 @@ const Navbar = () => {
           >
             대본 목록
           </Link>
+          
+          {/* 저는 배우입니다 모바일 메뉴 */}
+          <div className="pl-3 pr-4 py-2">
+            <div className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              저는 배우입니다
+            </div>
+            <div className="space-y-1">
+              <Link
+                to="/actor-profile"
+                className="block pl-3 pr-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                onClick={() => setIsOpen(false)}
+              >
+                배우 프로필
+              </Link>
+              <Link
+                to="/actor-recruitment"
+                className="block pl-3 pr-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                onClick={() => setIsOpen(false)}
+              >
+                배우 모집
+              </Link>
+              <Link
+                to="/model-recruitment"
+                className="block pl-3 pr-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                onClick={() => setIsOpen(false)}
+              >
+                모델 모집
+              </Link>
+              <Link
+                to="/actor-info"
+                className="block pl-3 pr-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                onClick={() => setIsOpen(false)}
+              >
+                커뮤니티
+              </Link>
+              <Link
+                to="/create-post"
+                className="block pl-3 pr-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                onClick={() => setIsOpen(false)}
+              >
+                게시글 작성
+              </Link>
+            </div>
+          </div>
+
           {!loading && isAuthenticated && (
             <>
               <Link

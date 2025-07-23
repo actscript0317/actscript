@@ -118,6 +118,9 @@ app.use('/api/actor-profiles', actorProfileRoutes);
 app.use('/api/actor-recruitments', actorRecruitmentRoutes);
 app.use('/api/community-posts', communityPostRoutes);
 app.use('/api/model-recruitments', modelRecruitmentRoutes);
+app.use('/api/likes', likeRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
+
 
 // 응답 로깅 미들웨어
 app.use((req, res, next) => {

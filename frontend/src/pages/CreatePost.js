@@ -3,6 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { 
+  communityPostAPI, 
+  actorProfileAPI, 
+  actorRecruitmentAPI, 
+  modelRecruitmentAPI 
+} from '../services/api';
 
 const CreatePost = () => {
   const navigate = useNavigate();
@@ -226,7 +232,9 @@ const CreatePost = () => {
     e.target.value = ''; // 같은 파일 재선택 가능하도록
   };
 
-  const handleSubmit = (e) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!isAuthenticated) {
@@ -246,24 +254,82 @@ const CreatePost = () => {
       return;
     }
 
-    // 게시글 저장 로직 (실제로는 API 호출)
-    const newPost = {
-      id: Date.now(),
-      ...formData,
-      author: '사용자', // 실제로는 로그인한 사용자 이름
-      createdAt: new Date().toISOString(),
-      views: 0,
-      comments: 0,
-      likes: 0,
-      bookmarks: 0,
-      boardType
-    };
+    setIsSubmitting(true);
 
-    console.log('새 게시글:', newPost);
-    toast.success('게시글이 작성되었습니다!');
-    
-    // 해당 게시판으로 이동
-    navigate(getBackPath(boardType));
+    try {
+      // FormData 객체 생성
+      const submitData = new FormData();
+      
+      // 기본 데이터 추가
+      submitData.append('title', formData.title);
+      submitData.append('content', formData.content);
+      submitData.append('category', formData.category);
+      
+      if (formData.tags) {
+        submitData.append('tags', JSON.stringify(formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)));
+      }
+
+      // 이미지 파일 추가
+      images.forEach((image, index) => {
+        submitData.append('images', image.file);
+      });
+
+      let response;
+
+      // 게시판 타입에 따라 다른 API 호출
+      switch (boardType) {
+        case 'actor-profile':
+          // 배우 프로필 생성
+          submitData.append('name', formData.recruitmentField || '배우');
+          submitData.append('gender', '무관');
+          submitData.append('experience', '무관');
+          submitData.append('location', '서울');
+          response = await actorProfileAPI.create(submitData);
+          break;
+
+        case 'actor-recruitment':
+          // 배우 모집공고 생성
+          submitData.append('projectType', '상업');
+          submitData.append('location', '서울');
+          submitData.append('applicationDeadline', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()); // 30일 후
+          submitData.append('applicationMethod', formData.applicationMethod || '이메일');
+          submitData.append('payment', JSON.stringify({ type: '협의', details: '협의 후 결정' }));
+          submitData.append('contactInfo', JSON.stringify({ email: 'contact@example.com' }));
+          response = await actorRecruitmentAPI.create(submitData);
+          break;
+
+        case 'model-recruitment':
+          // 모델 모집공고 생성
+          submitData.append('modelType', '패션모델');
+          submitData.append('location', '서울');
+          submitData.append('applicationDeadline', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+          submitData.append('applicationMethod', formData.applicationMethod || '이메일');
+          submitData.append('requirements', JSON.stringify({ gender: '무관', experience: '무관' }));
+          submitData.append('payment', JSON.stringify({ type: '협의', details: '협의 후 결정' }));
+          submitData.append('contactInfo', JSON.stringify({ email: 'contact@example.com' }));
+          response = await modelRecruitmentAPI.create(submitData);
+          break;
+
+        default:
+          // 일반 커뮤니티 게시글
+          submitData.append('postType', '일반');
+          response = await communityPostAPI.create(submitData);
+          break;
+      }
+
+      if (response.data.success) {
+        toast.success('게시글이 성공적으로 작성되었습니다!');
+        navigate(getBackPath(boardType));
+      } else {
+        throw new Error(response.data.message || '게시글 작성에 실패했습니다.');
+      }
+
+    } catch (error) {
+      console.error('게시글 작성 오류:', error);
+      toast.error(error.response?.data?.message || error.message || '게시글 작성 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleBack = () => {
@@ -497,10 +563,11 @@ const CreatePost = () => {
               </button>
               <button
                 type="submit"
-                className="flex items-center px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                disabled={isSubmitting}
+                className="flex items-center px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4 mr-2" />
-                작성하기
+                {isSubmitting ? '작성 중...' : '작성하기'}
               </button>
             </div>
           </form>

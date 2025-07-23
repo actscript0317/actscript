@@ -15,6 +15,10 @@ const scriptRoutes = require('./routes/scripts');
 const emotionRoutes = require('./routes/emotions');
 const authRoutes = require('./routes/auth');
 const aiScriptRoutes = require('./routes/ai-script');
+const actorProfileRoutes = require('./routes/actor-profiles');
+const actorRecruitmentRoutes = require('./routes/actor-recruitments');
+const communityPostRoutes = require('./routes/community-posts');
+const modelRecruitmentRoutes = require('./routes/model-recruitments');
 
 const app = express();
 const PORT = config.PORT;
@@ -110,6 +114,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/emotions', emotionRoutes);
 app.use('/api/ai-script', aiScriptRoutes);
+app.use('/api/actor-profiles', actorProfileRoutes);
+app.use('/api/actor-recruitments', actorRecruitmentRoutes);
+app.use('/api/community-posts', communityPostRoutes);
+app.use('/api/model-recruitments', modelRecruitmentRoutes);
 
 // 응답 로깅 미들웨어
 app.use((req, res, next) => {

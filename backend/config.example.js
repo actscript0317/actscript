@@ -4,7 +4,7 @@ module.exports = {
   NODE_ENV: 'production',
 
   // 데이터베이스
-  MONGODB_URI: 'your_mongodb_uri_here',
+  MONGODB_URI: 'mongodb+srv://mcstudio0317:51145114ee@cluster0.esputxc.mongodb.net/actscript?retryWrites=true&w=majority&appName=Cluster0',
 
   // JWT 설정
   JWT_SECRET: 'your_jwt_secret_here',

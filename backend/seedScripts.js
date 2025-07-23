@@ -5,7 +5,7 @@ require('dotenv').config();
 // MongoDB 연결
 const connectDB = async () => {
   try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/acting_scripts';
+    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://mcstudio0317:51145114ee@cluster0.esputxc.mongodb.net/actscript?retryWrites=true&w=majority&appName=Cluster0';
     await mongoose.connect(mongoURI);
     console.log('MongoDB 연결 성공');
   } catch (error) {

@@ -12,7 +12,7 @@ const Bookmark = require('./models/Bookmark');
 async function testCollections() {
   try {
     // MongoDB 연결
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/acting-scripts');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://mcstudio0317:51145114ee@cluster0.esputxc.mongodb.net/actscript?retryWrites=true&w=majority&appName=Cluster0');
     console.log('✅ MongoDB 연결 성공');
 
     // 기존 컬렉션 확인

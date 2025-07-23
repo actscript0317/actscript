@@ -213,12 +213,12 @@ const MyPage = () => {
                               </div>
                             </Link>
                           </div>
-                          <button
+                            <button
                             onClick={() => removeSavedPost(post.id)}
                             className="text-red-600 hover:text-red-700 text-sm ml-4"
-                          >
-                            삭제
-                          </button>
+                            >
+                              삭제
+                            </button>
                         </div>
                       </div>
                     ))}

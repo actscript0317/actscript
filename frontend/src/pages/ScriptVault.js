@@ -32,6 +32,8 @@ const ScriptVault = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
+  const [sortBy, setSortBy] = useState('createdAt'); // 'createdAt', 'likes', 'views'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc', 'desc'
 
   // 저장한 글 데이터 (더미)
   const getSavedPosts = () => {
@@ -358,6 +360,35 @@ const ScriptVault = () => {
       filtered = filtered.filter(script => script.genre === filterGenre);
     }
     
+    // 정렬 (AI 대본이 아닌 경우에만)
+    if (activeTab !== 'ai') {
+      filtered.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch (sortBy) {
+          case 'likes':
+            aValue = a.likes || 0;
+            bValue = b.likes || 0;
+            break;
+          case 'views':
+            aValue = a.views || 0;
+            bValue = b.views || 0;
+            break;
+          case 'createdAt':
+          default:
+            aValue = new Date(a.createdAt);
+            bValue = new Date(b.createdAt);
+            break;
+        }
+        
+        if (sortOrder === 'desc') {
+          return bValue > aValue ? 1 : -1;
+        } else {
+          return aValue > bValue ? 1 : -1;
+        }
+      });
+    }
+    
     return filtered;
   };
 
@@ -501,65 +532,114 @@ const ScriptVault = () => {
           >
             {/* 탭 */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <div className="flex bg-gray-100 p-1 rounded-lg max-w-md">
-                  <button
-                    onClick={() => setActiveTab('ai')}
-                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
-                      activeTab === 'ai'
-                        ? 'bg-white text-purple-600 shadow-md'
-                        : 'text-gray-600 hover:text-purple-600'
-                    }`}
-                  >
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    AI 생성 대본 ({aiGeneratedScripts.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('saved')}
-                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
-                      activeTab === 'saved'
-                        ? 'bg-white text-blue-600 shadow-md'
-                        : 'text-gray-600 hover:text-blue-600'
-                    }`}
-                  >
-                    <Bookmark className="w-5 h-5 mr-2" />
-                    저장한 글 ({getSavedPosts().length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('written')}
-                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
-                      activeTab === 'written'
-                        ? 'bg-white text-green-600 shadow-md'
-                        : 'text-gray-600 hover:text-green-600'
-                    }`}
-                  >
-                    <Edit3 className="w-5 h-5 mr-2" />
-                    내가 작성한 글 ({getMyPosts().length})
-                  </button>
-                </div>
-
-              {/* 검색 및 필터 */}
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="대본 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <select
-                  value={filterGenre}
-                  onChange={(e) => setFilterGenre(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full max-w-4xl">
+                <button
+                  onClick={() => setActiveTab('ai')}
+                  className={`flex items-center px-3 sm:px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
+                    activeTab === 'ai'
+                      ? 'bg-white text-purple-600 shadow-md'
+                      : 'text-gray-600 hover:text-purple-600'
+                  }`}
                 >
-                  <option value="">전체 장르</option>
-                  {getGenreOptions().map(genre => (
-                    <option key={genre} value={genre}>{genre}</option>
-                  ))}
-                </select>
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">AI 생성 대본</span>
+                  <span className="sm:hidden">AI 대본</span>
+                  <span className="ml-1">({aiGeneratedScripts.length})</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('saved')}
+                  className={`flex items-center px-3 sm:px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
+                    activeTab === 'saved'
+                      ? 'bg-white text-blue-600 shadow-md'
+                      : 'text-gray-600 hover:text-blue-600'
+                  }`}
+                >
+                  <Bookmark className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">저장한 글</span>
+                  <span className="sm:hidden">저장글</span>
+                  <span className="ml-1">({getSavedPosts().length})</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('written')}
+                  className={`flex items-center px-3 sm:px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
+                    activeTab === 'written'
+                      ? 'bg-white text-green-600 shadow-md'
+                      : 'text-gray-600 hover:text-green-600'
+                  }`}
+                >
+                  <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">내가 작성한 글</span>
+                  <span className="sm:hidden">작성글</span>
+                  <span className="ml-1">({getMyPosts().length})</span>
+                </button>
+              </div>
+
+              {/* 탭별 필터 */}
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                {activeTab === 'ai' ? (
+                  // AI 대본용 필터 (기존)
+                  <>
+                    {/* 검색 */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="대본 검색..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent w-full sm:w-64"
+                      />
+                    </div>
+
+                    {/* 장르 필터 */}
+                    <select
+                      value={filterGenre}
+                      onChange={(e) => setFilterGenre(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                    >
+                      <option value="">전체 장르</option>
+                      {getGenreOptions().map(genre => (
+                        <option key={genre} value={genre}>{genre}</option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  // 저장한 글/내가 작성한 글용 필터
+                  <>
+                    {/* 검색 */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="글 검색..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-64"
+                      />
+                    </div>
+
+                    {/* 정렬 기준 */}
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    >
+                      <option value="createdAt">작성일순</option>
+                      <option value="likes">좋아요순</option>
+                      <option value="views">조회수순</option>
+                    </select>
+
+                    {/* 정렬 순서 */}
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    >
+                      <option value="desc">높은순</option>
+                      <option value="asc">낮은순</option>
+                    </select>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

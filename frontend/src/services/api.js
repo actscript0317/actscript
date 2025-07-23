@@ -252,4 +252,26 @@ export const authAPI = {
   changePassword: (data) => withRetry(() => api.put('/auth/password', data)),
 };
 
+// AI 스크립트 API
+export const aiScriptAPI = {
+  generate: (data) => api.post('/ai-script/generate', data),
+  getMyScripts: () => api.get('/ai-script/my-scripts'),
+  getScript: (id) => api.get(`/ai-script/${id}`),
+  deleteScript: (id) => api.delete(`/ai-script/${id}`)
+};
+
+// 좋아요 API
+export const likeAPI = {
+  toggle: (postId, postType) => api.post('/likes/toggle', { postId, postType }),
+  getStatus: (postId, postType) => api.get(`/likes/status/${postId}/${postType}`),
+  getCount: (postId, postType) => api.get(`/likes/count/${postId}/${postType}`)
+};
+
+// 북마크 API
+export const bookmarkAPI = {
+  toggle: (postId, postType) => api.post('/bookmarks/toggle', { postId, postType }),
+  getStatus: (postId, postType) => api.get(`/bookmarks/status/${postId}/${postType}`),
+  getMyBookmarks: (params) => api.get('/bookmarks/my-bookmarks', { params })
+};
+
 export default api; 

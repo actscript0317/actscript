@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Plus, Calendar, User, Eye, MessageCircle, Heart, Bookmark } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { likeAPI, bookmarkAPI } from '../services/api';
 
 const ActorRecruitment = () => {
   const { isAuthenticated } = useAuth();
@@ -14,8 +15,8 @@ const ActorRecruitment = () => {
     category: 'all'
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [userLikes, setUserLikes] = useState(new Set()); // 사용자가 좋아요한 게시글 ID들
-  const [userBookmarks, setUserBookmarks] = useState(new Set()); // 사용자가 저장한 게시글 ID들
+  const [userLikes, setUserLikes] = useState(new Set());
+  const [userBookmarks, setUserBookmarks] = useState(new Set());
 
   // 더미 데이터 (좋아요, 저장 수 추가)
   const dummyPosts = [
@@ -127,71 +128,77 @@ const ActorRecruitment = () => {
     navigate(`/posts/${post.id}`);
   };
 
-  const handleLike = (postId, e) => {
+  const handleLike = async (postId, e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
       toast.error('로그인이 필요합니다.');
       return;
     }
     
-    const isLiked = userLikes.has(postId);
-    
-    if (isLiked) {
-      // 좋아요 취소
-      setUserLikes(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(postId);
-        return newSet;
-      });
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, likes: post.likes - 1 }
-          : post
-      ));
-      toast.success('좋아요를 취소했습니다.');
-    } else {
-      // 좋아요 추가
-      setUserLikes(prev => new Set([...prev, postId]));
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, likes: post.likes + 1 }
-          : post
-      ));
-      toast.success('좋아요를 눌렸습니다!');
+    try {
+      const response = await likeAPI.toggle(postId, 'actor_recruitment');
+      
+      if (response.data.success) {
+        setUserLikes(prev => {
+          const newSet = new Set(prev);
+          if (response.data.isLiked) {
+            newSet.add(postId);
+          } else {
+            newSet.delete(postId);
+          }
+          return newSet;
+        });
+        
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, likes: response.data.likeCount }
+            : post
+        ));
+        
+        toast.success(response.data.message);
+      } else {
+        toast.error(response.data.message || '좋아요 실패');
+      }
+    } catch (error) {
+      console.error('좋아요 오류:', error);
+      toast.error('좋아요 중 오류가 발생했습니다.');
     }
   };
 
-  const handleBookmark = (postId, e) => {
+  const handleBookmark = async (postId, e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
       toast.error('로그인이 필요합니다.');
       return;
     }
     
-    const isBookmarked = userBookmarks.has(postId);
-    
-    if (isBookmarked) {
-      // 저장 취소
-      setUserBookmarks(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(postId);
-        return newSet;
-      });
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, bookmarks: post.bookmarks - 1 }
-          : post
-      ));
-      toast.success('저장을 취소했습니다.');
-    } else {
-      // 저장 추가
-      setUserBookmarks(prev => new Set([...prev, postId]));
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, bookmarks: post.bookmarks + 1 }
-          : post
-      ));
-      toast.success('게시글이 저장되었습니다!');
+    try {
+      const response = await bookmarkAPI.toggle(postId, 'actor_recruitment');
+      
+      if (response.data.success) {
+        setUserBookmarks(prev => {
+          const newSet = new Set(prev);
+          if (response.data.isBookmarked) {
+            newSet.add(postId);
+          } else {
+            newSet.delete(postId);
+          }
+          return newSet;
+        });
+        
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, bookmarks: response.data.bookmarkCount }
+            : post
+        ));
+        
+        toast.success(response.data.message);
+      } else {
+        toast.error(response.data.message || '저장 실패');
+      }
+    } catch (error) {
+      console.error('북마크 오류:', error);
+      toast.error('저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -290,11 +297,11 @@ const ActorRecruitment = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="flex items-center">
-                          <User className="w-4 h-4 mr-1" />
+                          <Users className="w-4 h-4 mr-1" />
                           {post.author}
                         </span>
                         <span className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-1" />
+                          <MapPin className="w-4 h-4 mr-1" />
                           {formatDate(post.createdAt)}
                         </span>
                         <span className="flex items-center">
@@ -302,7 +309,7 @@ const ActorRecruitment = () => {
                           {post.views}
                         </span>
                         <span className="flex items-center">
-                          <MessageCircle className="w-4 h-4 mr-1" />
+                          <Users className="w-4 h-4 mr-1" />
                           {post.comments}
                         </span>
                       </div>
@@ -343,7 +350,7 @@ const ActorRecruitment = () => {
         {/* 게시글이 없는 경우 */}
         {filteredPosts.length === 0 && (
           <div className="text-center py-12">
-            <MessageCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               검색 조건에 맞는 게시글이 없습니다
             </h3>

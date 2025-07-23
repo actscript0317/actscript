@@ -11,8 +11,8 @@ let openai = null;
 
 if (config.OPENAI_API_KEY) {
   openai = new OpenAI({
-    apiKey: config.OPENAI_API_KEY
-  });
+  apiKey: config.OPENAI_API_KEY
+});
 } else {
   console.warn('⚠️ OPENAI_API_KEY가 설정되지 않았습니다. AI 기능이 비활성화됩니다.');
 }
@@ -106,9 +106,9 @@ router.post('/generate', protect, async (req, res) => {
       '판타지': 'Incorporate magical elements, fantastical settings, and imaginative conflicts.',
       'SF': 'Base the story on futuristic or scientific concepts, with logical consistency.',
       '시대극': 'Use historically appropriate language and cultural context.',
-    }[genre] || 'Keep the tone consistent with the selected genre.';  
+    }[genre] || 'Keep the tone consistent with the selected genre.';
 
-      
+
     // 등장인물별 지시사항
     const characterDirectivesMap = {
       '1': `독백 전용 작성 가이드:

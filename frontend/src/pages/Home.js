@@ -242,7 +242,7 @@ const PopularPostsSection = () => {
           to={getBoardPath(post.board)}
           className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
         >
-          {/* 카드 헤더 */}
+      {/* 카드 헤더 */}
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-3">
             <div className="flex items-center justify-between">
               <div className={`w-8 h-8 rounded-full ${getRankBg(post.rank)} flex items-center justify-center`}>
@@ -257,42 +257,42 @@ const PopularPostsSection = () => {
             <div className="flex items-center gap-2 mb-3">
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${post.categoryColor}`}>
                 {post.category}
-              </span>
-            </div>
-            
+            </span>
+        </div>
+        
             <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors mb-2 line-clamp-2">
               {post.title}
             </h3>
             
             <p className="text-xs text-gray-500 mb-3">
               {post.boardName}
-            </p>
-            
+        </p>
+        
             <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-              <span className="flex items-center">
+            <span className="flex items-center">
                 <User className="w-3 h-3 mr-1" />
                 {post.author}
-              </span>
-              <span className="flex items-center">
+            </span>
+            <span className="flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
                 {post.views}
-              </span>
-            </div>
+            </span>
+          </div>
             
             {/* 인기도 지표 */}
             <div className="flex items-center justify-between pt-3 border-t border-gray-100">
               <div className="flex items-center text-red-500">
                 <Heart className="w-4 h-4 mr-1" />
                 <span className="font-medium text-sm">{post.likes}</span>
-              </div>
+        </div>
               <div className="flex items-center text-blue-500">
                 <Bookmark className="w-4 h-4 mr-1" />
                 <span className="font-medium text-sm">{post.bookmarks}</span>
-              </div>
+      </div>
               <div className="text-xs text-gray-400">
                 인기도 {post.likes + post.bookmarks}
-              </div>
-            </div>
+        </div>
+      </div>
           </div>
         </Link>
       ))}

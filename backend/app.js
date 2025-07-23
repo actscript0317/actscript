@@ -51,11 +51,22 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/scripts', require('./routes/scripts'));
 app.use('/api/emotions', require('./routes/emotions'));
 app.use('/api/ai-script', require('./routes/ai-script'));
+app.use('/api/likes', require('./routes/likes'));
+app.use('/api/bookmarks', require('./routes/bookmarks'));
 
 // 프로덕션 환경에서 정적 파일 제공
 if (process.env.NODE_ENV === 'production') {
-  // 정적 파일 제공
   app.use(express.static(path.join(__dirname, '../frontend/build')));
+  
+  // API가 아닌 모든 요청에 대해 React 앱 제공 (SPA 라우팅 지원)
+  app.get('*', (req, res) => {
+    // API 경로가 아닌 경우에만 React 앱 제공
+    if (!req.path.startsWith('/api/')) {
+      res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+    } else {
+      res.status(404).json({ message: 'API 엔드포인트를 찾을 수 없습니다.' });
+    }
+  });
 }
 
 // 에러 핸들러

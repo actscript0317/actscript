@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Plus, Calendar, User, Eye, MessageCircle, Heart, Bookmark } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { likeAPI, bookmarkAPI } from '../services/api';
 
 const ModelRecruitment = () => {
   const { isAuthenticated } = useAuth();
@@ -127,67 +128,77 @@ const ModelRecruitment = () => {
     navigate(`/posts/${post.id}`);
   };
 
-  const handleLike = (postId, e) => {
+  const handleLike = async (postId, e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
       toast.error('로그인이 필요합니다.');
       return;
     }
     
-    const isLiked = userLikes.has(postId);
-    
-    if (isLiked) {
-      setUserLikes(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(postId);
-        return newSet;
-      });
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, likes: post.likes - 1 }
-          : post
-      ));
-      toast.success('좋아요를 취소했습니다.');
-    } else {
-      setUserLikes(prev => new Set([...prev, postId]));
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, likes: post.likes + 1 }
-          : post
-      ));
-      toast.success('좋아요를 눌렸습니다!');
+    try {
+      const response = await likeAPI.toggle(postId, 'model_recruitment');
+      
+      if (response.data.success) {
+        setUserLikes(prev => {
+          const newSet = new Set(prev);
+          if (response.data.isLiked) {
+            newSet.add(postId);
+          } else {
+            newSet.delete(postId);
+          }
+          return newSet;
+        });
+        
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, likes: response.data.likeCount }
+            : post
+        ));
+        
+        toast.success(response.data.message);
+      } else {
+        toast.error(response.data.message || '좋아요 실패');
+      }
+    } catch (error) {
+      console.error('좋아요 오류:', error);
+      toast.error('좋아요 중 오류가 발생했습니다.');
     }
   };
 
-  const handleBookmark = (postId, e) => {
+  const handleBookmark = async (postId, e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
       toast.error('로그인이 필요합니다.');
       return;
     }
     
-    const isBookmarked = userBookmarks.has(postId);
-    
-    if (isBookmarked) {
-      setUserBookmarks(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(postId);
-        return newSet;
-      });
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, bookmarks: post.bookmarks - 1 }
-          : post
-      ));
-      toast.success('저장을 취소했습니다.');
-    } else {
-      setUserBookmarks(prev => new Set([...prev, postId]));
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, bookmarks: post.bookmarks + 1 }
-          : post
-      ));
-      toast.success('게시글이 저장되었습니다!');
+    try {
+      const response = await bookmarkAPI.toggle(postId, 'model_recruitment');
+      
+      if (response.data.success) {
+        setUserBookmarks(prev => {
+          const newSet = new Set(prev);
+          if (response.data.isBookmarked) {
+            newSet.add(postId);
+          } else {
+            newSet.delete(postId);
+          }
+          return newSet;
+        });
+        
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, bookmarks: response.data.bookmarkCount }
+            : post
+        ));
+        
+        toast.success(response.data.message);
+      } else {
+        toast.error(response.data.message || '저장 실패');
+      }
+    } catch (error) {
+      console.error('북마크 오류:', error);
+      toast.error('저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -286,7 +297,7 @@ const ModelRecruitment = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="flex items-center">
-                          <User className="w-4 h-4 mr-1" />
+                          <Users className="w-4 h-4 mr-1" />
                           {post.author}
                         </span>
                         <span className="flex items-center">
@@ -298,8 +309,8 @@ const ModelRecruitment = () => {
                           {post.views}
                         </span>
                         <span className="flex items-center">
-                          <MessageCircle className="w-4 h-4 mr-1" />
-                          {post.comments}
+                          <MapPin className="w-4 h-4 mr-1" />
+                          {post.location}
                         </span>
                       </div>
 
@@ -339,7 +350,7 @@ const ModelRecruitment = () => {
         {/* 게시글이 없는 경우 */}
         {filteredPosts.length === 0 && (
           <div className="text-center py-12">
-            <MessageCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <MapPin className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               검색 조건에 맞는 게시글이 없습니다
             </h3>

@@ -324,7 +324,7 @@ router.post('/rewrite', async (req, res) => {
       });
     }
 
-    const { selectedText, intensity, context, fullScript, emotion, genre } = req.body;
+    const { selectedText, intensity, context, fullScript, genre, gender } = req.body;
 
     // 입력값 검증
     if (!selectedText || !intensity) {
@@ -340,7 +340,7 @@ router.post('/rewrite', async (req, res) => {
         name: '가볍게 수정',
         instruction: '원래 의미와 감정을 유지하면서 자연스러운 표현으로 약간만 수정해주세요. 전체적인 뉘앙스는 그대로 두고 어색한 부분이나 더 자연스러운 표현만 다듬어주세요.'
       },
-      'emotion': {
+      'emotional': {
         name: '감정 강조',
         instruction: '감정 표현을 더욱 강화하고 깊이있게 만들어주세요. 인물의 내면 감정이 더 생생하게 드러나도록 하되, 과장되지 않고 현실적으로 표현해주세요.'
       },
@@ -354,7 +354,7 @@ router.post('/rewrite', async (req, res) => {
     if (!selectedIntensity) {
       return res.status(400).json({
         error: '올바른 리라이팅 강도를 선택해주세요.',
-        available: ['light', 'emotion', 'full']
+        available: ['light', 'emotional', 'full']
       });
     }
 
@@ -421,7 +421,7 @@ ${selectedIntensity.instruction}
       metadata: {
         intensity,
         genre,
-        emotion,
+        gender,
         rewrittenAt: new Date().toISOString()
       }
     });

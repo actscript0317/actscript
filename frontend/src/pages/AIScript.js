@@ -64,7 +64,7 @@ const AIScript = () => {
   ];
 
   const genres = [
-    '로맨스', '코미디', '스릴러', '드라마', '액션', 
+    '로맨스', '코미디', '비극', '스릴러', '드라마', '액션', 
     '공포', '판타지', 'SF', '미스터리', '시대극'
   ];
 
@@ -157,8 +157,8 @@ const AIScript = () => {
         intensity: rewriteIntensity,
         context: fullContext,
         fullScript: generatedScript,
-        emotion: formData.emotions.join(', '),
-        genre: formData.genre
+        genre: formData.genre,
+        gender: formData.gender
       });
 
       const data = response.data;
@@ -686,9 +686,14 @@ const AIScript = () => {
                       <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
                         {formData.genre}
                       </span>
-                      <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full">
-                        {formData.emotions.join(', ')}
+                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                        {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
                       </span>
+                      {formData.location && (
+                        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
+                          {formData.location}
+                        </span>
+                      )}
                     </div>
                   </div>
                   
@@ -840,7 +845,7 @@ const AIScript = () => {
                             desc: '자연스러운 표현으로 약간만 다듬기' 
                           },
                           { 
-                            value: 'emotion', 
+                            value: 'emotional', 
                             title: '❤️ 감정 강조', 
                             desc: '감정 표현을 더욱 강화하고 깊이있게' 
                           },
@@ -980,9 +985,14 @@ const AIScript = () => {
                           <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
                             {formData.genre}
                           </span>
-                          <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full">
-                            {formData.emotions.join(', ')}
+                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                            {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
                           </span>
+                          {formData.location && (
+                            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
+                              {formData.location}
+                            </span>
+                          )}
                         </div>
                         <button
                           onClick={() => setShowDetailModal(false)}

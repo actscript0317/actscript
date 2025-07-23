@@ -4,112 +4,84 @@ import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin } f
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { likeAPI, bookmarkAPI } from '../services/api';
+import { modelRecruitmentAPI, likeAPI, bookmarkAPI } from '../services/api';
 
 const ModelRecruitment = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     category: 'all'
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [userLikes, setUserLikes] = useState(new Set());
   const [userBookmarks, setUserBookmarks] = useState(new Set());
-
-  // 더미 데이터 (좋아요, 저장 수 추가)
-  const dummyPosts = [
-    {
-      id: 1,
-      title: '아이돌 뮤직비디오 출연자 모집',
-      author: '뮤직비디오팀',
-      category: 'music-video',
-      content: '케이팝 아이돌 그룹의 뮤직비디오에 출연할 모델을 모집합니다. 20대 여성 우대\n\n촬영 일정: 2024년 2월 말\n촬영 장소: 서울 스튜디오\n\n조건:\n- 20~30세 여성\n- 키 160cm 이상\n- 카메라 앞에서 자연스러운 분\n\n페이: 협의',
-      recruitmentField: '뮤직비디오 모델',
-      applicationMethod: '이메일: mv@example.com',
-      createdAt: '2024-01-15',
-      views: 342,
-      comments: 12,
-      likes: 67,
-      bookmarks: 43
-    },
-    {
-      id: 2,
-      title: '화장품 광고 모델 모집',
-      author: '광고대행사',
-      category: 'advertisement',
-      content: '새로운 화장품 브랜드의 광고 모델을 모집합니다. 깔끔한 이미지의 모델을 찾고 있습니다.\n\n브랜드: 프리미엄 스킨케어\n촬영: 스튜디오 + 야외\n\n요구사항:\n- 25~35세\n- 깔끔하고 세련된 이미지\n- 광고 촬영 경험 우대',
-      recruitmentField: '광고 모델',
-      applicationMethod: '연락처: 010-9876-5432',
-      createdAt: '2024-01-14',
-      views: 189,
-      comments: 7,
-      likes: 34,
-      bookmarks: 28
-    },
-    {
-      id: 3,
-      title: '패션 화보 촬영 모델 모집',
-      author: '포토그래퍼',
-      category: 'photoshoot',
-      content: '봄 시즌 패션 화보 촬영에 참여할 모델을 모집합니다. 포트폴리오 제공 가능합니다.',
-      recruitmentField: '화보 모델',
-      applicationMethod: '인스타그램: @photographer_kim',
-      createdAt: '2024-01-13',
-      views: 156,
-      comments: 9,
-      likes: 22,
-      bookmarks: 18
-    },
-    {
-      id: 4,
-      title: '유튜브 콘텐츠 출연자 모집',
-      author: '유튜버',
-      category: 'youtube',
-      content: '요리 유튜브 채널의 게스트로 출연할 분을 모집합니다. 밝고 활발한 성격 환영',
-      recruitmentField: '유튜브 게스트',
-      applicationMethod: '카카오톡: @cooking_channel',
-      createdAt: '2024-01-12',
-      views: 98,
-      comments: 4,
-      likes: 15,
-      bookmarks: 12
-    }
-  ];
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const categories = [
     { value: 'all', label: '전체' },
-    { value: 'music-video', label: '뮤직비디오' },
-    { value: 'advertisement', label: '광고/홍보' },
-    { value: 'photoshoot', label: '화보촬영' },
-    { value: 'youtube', label: '유튜브' },
-    { value: 'etc', label: '기타' }
+    { value: '화보촬영', label: '화보촬영' },
+    { value: '광고촬영', label: '광고촬영' },
+    { value: '패션쇼', label: '패션쇼' },
+    { value: '이벤트', label: '이벤트' },
+    { value: '행사진행', label: '행사진행' },
+    { value: '방송출연', label: '방송출연' },
+    { value: '유튜브', label: '유튜브' },
+    { value: '라이브방송', label: '라이브방송' },
+    { value: '기타', label: '기타' }
   ];
 
   useEffect(() => {
-    setPosts(dummyPosts);
-    setFilteredPosts(dummyPosts);
-  }, []);
+    const fetchRecruitments = async () => {
+      try {
+        setLoading(true);
+        
+        const params = {
+          page: currentPage,
+          limit: 12,
+          ...filters,
+          search: searchTerm
+        };
+        
+        // 'all' 값들은 제거
+        Object.keys(params).forEach(key => {
+          if (params[key] === 'all' || params[key] === '') {
+            delete params[key];
+          }
+        });
 
-  useEffect(() => {
-    let filtered = posts;
+        console.log('🔍 모델 모집공고 조회 시작:', params);
+        const response = await modelRecruitmentAPI.getAll(params);
+        console.log('📥 모델 모집공고 조회 응답:', response.data);
+        
+        if (response.data.success) {
+          setPosts(response.data.data || []);
+          setFilteredPosts(response.data.data || []);
+          setTotalPages(response.data.pagination?.pages || 1);
+        } else {
+          throw new Error(response.data.message || '모집공고 조회 실패');
+        }
+      } catch (error) {
+        console.error('❌ 모델 모집공고 조회 오류:', error);
+        
+        // 에러 발생 시 빈 배열로 설정
+        setPosts([]);
+        setFilteredPosts([]);
+        
+        // 개발 환경에서만 에러 토스트 표시
+        if (process.env.NODE_ENV === 'development') {
+          toast.error('모집공고를 불러오는데 실패했습니다: ' + error.message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // 카테고리 필터
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(post => post.category === filters.category);
-    }
-
-    // 검색어 필터
-    if (searchTerm) {
-      filtered = filtered.filter(post =>
-        post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.content.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredPosts(filtered);
-  }, [posts, filters, searchTerm]);
+    fetchRecruitments();
+  }, [currentPage, filters, searchTerm]);
 
   const getCategoryLabel = (category) => {
     const categoryObj = categories.find(cat => cat.value === category);
@@ -117,15 +89,12 @@ const ModelRecruitment = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('ko-KR');
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
   };
 
   const handlePostClick = (post) => {
-    // 조회수 증가
-    setPosts(prev => prev.map(p => 
-      p.id === post.id ? { ...p, views: p.views + 1 } : p
-    ));
-    navigate(`/posts/${post.id}`);
+    navigate(`/posts/${post._id || post.id}`);
   };
 
   const handleLike = async (postId, e) => {
@@ -149,19 +118,11 @@ const ModelRecruitment = () => {
           return newSet;
         });
         
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, likes: response.data.likeCount }
-            : post
-        ));
-        
         toast.success(response.data.message);
-      } else {
-        toast.error(response.data.message || '좋아요 실패');
       }
     } catch (error) {
       console.error('좋아요 오류:', error);
-      toast.error('좋아요 중 오류가 발생했습니다.');
+      toast.error('좋아요 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -186,19 +147,11 @@ const ModelRecruitment = () => {
           return newSet;
         });
         
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, bookmarks: response.data.bookmarkCount }
-            : post
-        ));
-        
         toast.success(response.data.message);
-      } else {
-        toast.error(response.data.message || '저장 실패');
       }
     } catch (error) {
       console.error('북마크 오류:', error);
-      toast.error('저장 중 오류가 발생했습니다.');
+      toast.error('북마크 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -263,22 +216,32 @@ const ModelRecruitment = () => {
         {/* 게시글 목록 */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="divide-y divide-gray-200">
-            {filteredPosts.map((post) => (
-              <motion.div
-                key={post.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
-                onClick={() => handlePostClick(post)}
-              >
-                <div className="flex items-start justify-between">
+            {loading ? (
+              <div className="p-6 text-center">로딩 중...</div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="p-6 text-center">
+                <MapPin className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  검색 조건에 맞는 게시글이 없습니다
+                </h3>
+                <p className="text-gray-500">다른 검색 조건을 시도해보세요.</p>
+              </div>
+            ) : (
+              filteredPosts.map((post) => (
+                <motion.div
+                  key={post._id || post.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => handlePostClick(post)}
+                >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm font-medium">
-                        {getCategoryLabel(post.category)}
+                        {post.category || '기타'}
                       </span>
                       <span className="text-sm text-gray-500">
-                        모집분야: {post.recruitmentField}
+                        {post.modelType || '패션모델'}
                       </span>
                     </div>
                     
@@ -291,14 +254,15 @@ const ModelRecruitment = () => {
                     </p>
                     
                     <div className="text-sm text-gray-500 mb-3">
-                      <strong>지원방법:</strong> {post.applicationMethod}
+                      <strong>지원방법:</strong> {post.applicationMethod || '이메일'}
+                      {post.contactInfo?.email && ` (${post.contactInfo.email})`}
                     </div>
                     
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="flex items-center">
                           <Users className="w-4 h-4 mr-1" />
-                          {post.author}
+                          {post.userId?.email || '익명'}
                         </span>
                         <span className="flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
@@ -306,55 +270,67 @@ const ModelRecruitment = () => {
                         </span>
                         <span className="flex items-center">
                           <Eye className="w-4 h-4 mr-1" />
-                          {post.views}
+                          {post.views || 0}
                         </span>
                         <span className="flex items-center">
                           <MapPin className="w-4 h-4 mr-1" />
-                          {post.location}
+                          {post.location || '서울'}
                         </span>
                       </div>
 
                       {/* 좋아요, 저장 버튼 */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex gap-2">
                         <button
-                          onClick={(e) => handleLike(post.id, e)}
-                          className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                            userLikes.has(post.id) 
-                              ? 'bg-red-100 text-red-600' 
-                              : 'text-red-500 hover:bg-red-50'
+                          onClick={(e) => handleLike(post._id || post.id, e)}
+                          className={`flex items-center px-2 py-1 rounded transition-colors ${
+                            userLikes.has(post._id || post.id)
+                              ? 'bg-red-100 text-red-600'
+                              : 'text-gray-500 hover:bg-gray-100'
                           }`}
                         >
-                          <Heart className={`w-4 h-4 mr-1 ${userLikes.has(post.id) ? 'fill-current' : ''}`} />
-                          {post.likes}
+                          <Heart className="w-4 h-4 mr-1" />
+                          {post.likes || 0}
                         </button>
                         <button
-                          onClick={(e) => handleBookmark(post.id, e)}
-                          className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                            userBookmarks.has(post.id) 
-                              ? 'bg-blue-100 text-blue-600' 
-                              : 'text-blue-500 hover:bg-blue-50'
+                          onClick={(e) => handleBookmark(post._id || post.id, e)}
+                          className={`flex items-center px-2 py-1 rounded transition-colors ${
+                            userBookmarks.has(post._id || post.id)
+                              ? 'bg-blue-100 text-blue-600'
+                              : 'text-gray-500 hover:bg-gray-100'
                           }`}
                         >
-                          <Bookmark className={`w-4 h-4 mr-1 ${userBookmarks.has(post.id) ? 'fill-current' : ''}`} />
-                          {post.bookmarks}
+                          <Bookmark className="w-4 h-4 mr-1" />
+                          {post.bookmarks || 0}
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* 게시글이 없는 경우 */}
-        {filteredPosts.length === 0 && (
-          <div className="text-center py-12">
-            <MapPin className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              검색 조건에 맞는 게시글이 없습니다
-            </h3>
-            <p className="text-gray-500">다른 검색 조건을 시도해보세요.</p>
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center py-8">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 border border-gray-300 rounded-lg mr-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              이전
+            </button>
+            <span className="px-4 py-2 border border-gray-300 rounded-lg">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 border border-gray-300 rounded-lg ml-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              다음
+            </button>
           </div>
         )}
 

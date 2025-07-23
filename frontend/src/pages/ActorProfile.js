@@ -44,18 +44,28 @@ const ActorProfile = () => {
           }
         });
 
+        console.log('🔍 프로필 조회 시작:', params);
         const response = await actorProfileAPI.getAll(params);
+        console.log('📥 프로필 조회 응답:', response.data);
         
         if (response.data.success) {
-          setProfiles(response.data.data);
-          setFilteredProfiles(response.data.data);
+          setProfiles(response.data.data || []);
+          setFilteredProfiles(response.data.data || []);
           setTotalPages(response.data.pagination?.pages || 1);
+        } else {
+          throw new Error(response.data.message || '프로필 조회 실패');
         }
       } catch (error) {
-        console.error('프로필 조회 오류:', error);
-        toast.error('프로필을 불러오는데 실패했습니다.');
+        console.error('❌ 프로필 조회 오류:', error);
+        
+        // 에러 발생 시 빈 배열로 설정하여 "작성된 프로필이 없습니다" 메시지 표시
         setProfiles([]);
         setFilteredProfiles([]);
+        
+        // 개발 환경에서만 에러 토스트 표시
+        if (process.env.NODE_ENV === 'development') {
+          toast.error('프로필을 불러오는데 실패했습니다: ' + error.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -165,6 +175,11 @@ const ActorProfile = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters]);
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -276,20 +291,38 @@ const ActorProfile = () => {
           </div>
         </div>
 
-        {/* 프로필 카드 목록 */}
+        {/* 프로필 그리드 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {loading ? (
-            <div className="col-span-full text-center py-12">
-              <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500">프로필을 불러오는 중입니다...</p>
-            </div>
+            // 로딩 스켈레톤
+            Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse">
+                <div className="h-64 bg-gray-200"></div>
+                <div className="p-4">
+                  <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              </div>
+            ))
           ) : filteredProfiles.length === 0 ? (
             <div className="col-span-full text-center py-12">
-              <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                검색 조건에 맞는 프로필이 없습니다
+              <User className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+              <h3 className="text-xl font-medium text-gray-900 mb-2">
+                등록된 배우 프로필이 없습니다
               </h3>
-              <p className="text-gray-500">다른 검색 조건을 시도해보세요.</p>
+              <p className="text-gray-500 mb-6">
+                첫 번째 배우 프로필을 등록해보세요!
+              </p>
+              {isAuthenticated && (
+                <button
+                  onClick={handleWritePost}
+                  className="inline-flex items-center px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  프로필 등록하기
+                </button>
+              )}
             </div>
           ) : (
             filteredProfiles.map((profile) => (
@@ -332,55 +365,48 @@ const ActorProfile = () => {
                 </div>
 
                 {/* 프로필 정보 */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-bold text-lg text-gray-900 mb-1">{profile.name}</h3>
-                      <div className="flex items-center text-sm text-gray-500 space-x-3">
-                        <span>{profile.age}세</span>
-                        <span>{profile.gender}</span>
-                        <span>{profile.location}</span>
-                      </div>
-                    </div>
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {profile.name || '이름 미입력'}
+                    </h3>
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                      {profile.experience || '신인'}
+                    </span>
                   </div>
-
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                    {profile.content || profile.title}
+                  
+                  <p className="text-sm text-gray-600 mb-2">
+                    {profile.gender || '기타'} • {profile.age ? `${profile.age}세` : '나이 미입력'} • {profile.location || '서울'}
                   </p>
-
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                    <div className="flex items-center space-x-3">
-                      <span className="flex items-center">
-                        <Eye className="w-3 h-3 mr-1" />
-                        {profile.views || 0}
-                      </span>
-                      <span className="flex items-center">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {new Date(profile.createdAt).toLocaleDateString('ko-KR')}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-wrap gap-1">
-                      {profile.specialty && profile.specialty.slice(0, 2).map((skill, index) => (
-                        <span key={index} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                          {skill}
+                  
+                  {profile.specialty && profile.specialty.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {profile.specialty.slice(0, 3).map((spec, index) => (
+                        <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                          {spec}
                         </span>
                       ))}
+                      {profile.specialty.length > 3 && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                          +{profile.specialty.length - 3}
+                        </span>
+                      )}
                     </div>
-                    
-                    <button
-                      onClick={(e) => handleLike(profile._id, e)}
-                      className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                        userLikes.has(profile._id)
-                          ? 'bg-red-100 text-red-600'
-                          : 'text-red-500 hover:bg-red-50'
-                      }`}
-                    >
-                      <Heart className={`w-4 h-4 mr-1 ${userLikes.has(profile._id) ? 'fill-current' : ''}`} />
-                      <span className="text-xs">좋아요</span>
-                    </button>
+                  )}
+
+                  <p className="text-gray-600 text-sm line-clamp-2 mb-3">
+                    {profile.content || profile.title || '소개글이 없습니다.'}
+                  </p>
+                  
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <span className="flex items-center">
+                      <Eye className="w-4 h-4 mr-1" />
+                      {profile.views || 0}
+                    </span>
+                    <span className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      {formatDate(profile.createdAt)}
+                    </span>
                   </div>
                 </div>
               </motion.div>

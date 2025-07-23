@@ -4,119 +4,86 @@ import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin } f
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { likeAPI, bookmarkAPI } from '../services/api';
+import { communityPostAPI, likeAPI, bookmarkAPI } from '../services/api';
 
 const ActorInfo = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     category: 'all'
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [userLikes, setUserLikes] = useState(new Set());
   const [userBookmarks, setUserBookmarks] = useState(new Set());
-
-  // 더미 데이터 (좋아요, 저장 수 추가)
-  const dummyPosts = [
-    {
-      id: 1,
-      title: '강남 연기 스터디 그룹 멤버 모집',
-      author: '연기사랑',
-      category: 'study-group',
-      content: '매주 토요일 강남에서 모이는 연기 스터디 그룹입니다. 함께 대본 연습하고 피드백 나눠요!\n\n모임 시간: 매주 토요일 오후 2시\n장소: 강남역 근처 연습실\n\n활동 내용:\n- 대본 리딩 및 연습\n- 상호 피드백\n- 연기 기법 공유\n- 월 1회 작은 발표회\n\n현재 6명이 활동하고 있으며, 2~3명 더 모집합니다.',
-      createdAt: '2024-01-15',
-      views: 234,
-      comments: 15,
-      likes: 42,
-      bookmarks: 28
-    },
-    {
-      id: 2,
-      title: '홍대 근처 저렴한 연습실 정보 공유',
-      author: '연습생',
-      category: 'practice-room',
-      content: '홍대 근처에 시간당 5천원으로 이용 가능한 연습실 발견했어요. 관심있으신 분들께 정보 공유합니다.\n\n위치: 홍대입구역 9번 출구 도보 3분\n가격: 시간당 5,000원\n시설: 거울, 음향시설, 에어컨 완비\n예약: 전화 또는 현장 방문\n\n개인 연습이나 소규모 그룹 연습에 좋습니다.',
-      createdAt: '2024-01-14',
-      views: 178,
-      comments: 8,
-      likes: 35,
-      bookmarks: 67
-    },
-    {
-      id: 3,
-      title: '추천하는 연기 레슨 선생님 있나요?',
-      author: '신인배우',
-      category: 'acting-lesson',
-      content: '연기 레슨을 받고 싶은데 좋은 선생님 추천해주세요. 서울 지역이면 어디든 괜찮습니다.\n\n희망 조건:\n- 개인 레슨 선호\n- 기초부터 차근차근 가르쳐주시는 분\n- 월 50만원 이하 예산\n\n연기 경험이 전혀 없는 초보입니다. 많은 조언 부탁드려요!',
-      createdAt: '2024-01-13',
-      views: 156,
-      comments: 12,
-      likes: 18,
-      bookmarks: 24
-    },
-    {
-      id: 4,
-      title: '프로필 촬영 스튜디오 후기',
-      author: '포토리뷰어',
-      category: 'profile-photo',
-      content: '압구정에 있는 프로필 촬영 스튜디오 다녀왔어요. 가격대비 만족스러웠습니다. 후기 남깁니다.\n\n스튜디오명: 액터스 스튜디오\n가격: 기본 패키지 15만원 (보정 포함)\n촬영 시간: 약 1시간\n\n장점:\n- 사진 퀄리티 좋음\n- 포즈 디렉션 친절\n- 빠른 보정 (3일 내)\n\n추천합니다!',
-      createdAt: '2024-01-12',
-      views: 89,
-      comments: 5,
-      likes: 26,
-      bookmarks: 45
-    },
-    {
-      id: 5,
-      title: '소속사 오디션 정보 공유',
-      author: '정보공유',
-      category: 'management',
-      content: '이번 달에 있는 소속사 오디션 정보들을 정리해서 공유드립니다. 도움이 되길 바랍니다.\n\n1. A엔터테인먼트\n- 일시: 1월 25일\n- 대상: 20~30세\n- 준비물: 자유연기 1분\n\n2. B프로덕션\n- 일시: 1월 28일\n- 대상: 전 연령\n- 준비물: 지정 대본\n\n자세한 내용은 각 소속사 홈페이지 확인하세요.',
-      createdAt: '2024-01-11',
-      views: 445,
-      comments: 23,
-      likes: 89,
-      bookmarks: 156
-    }
-  ];
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const categories = [
     { value: 'all', label: '전체' },
-    { value: 'study-group', label: '스터디 그룹' },
-    { value: 'practice-room', label: '연습실' },
-    { value: 'acting-lesson', label: '연기레슨' },
-    { value: 'profile-photo', label: '프로필 촬영' },
-    { value: 'management', label: '매니지먼트' },
-    { value: 'personal-shoot', label: '개인촬영' },
-    { value: 'production-team', label: '제작팀' },
-    { value: 'etc', label: '기타' }
+    { value: '오디션 정보', label: '오디션 정보' },
+    { value: '연기 팁', label: '연기 팁' },
+    { value: '업계 소식', label: '업계 소식' },
+    { value: '스터디 모집', label: '스터디 모집' },
+    { value: '장비 대여', label: '장비 대여' },
+    { value: '질문/답변', label: '질문/답변' },
+    { value: '후기/리뷰', label: '후기/리뷰' },
+    { value: '네트워킹', label: '네트워킹' },
+    { value: '교육/강의', label: '교육/강의' },
+    { value: '자유게시판', label: '자유게시판' },
+    { value: '기타', label: '기타' }
   ];
 
   useEffect(() => {
-    setPosts(dummyPosts);
-    setFilteredPosts(dummyPosts);
-  }, []);
+    const fetchPosts = async () => {
+      try {
+        setLoading(true);
+        
+        const params = {
+          page: currentPage,
+          limit: 12,
+          ...filters,
+          search: searchTerm
+        };
+        
+        // 'all' 값들은 제거
+        Object.keys(params).forEach(key => {
+          if (params[key] === 'all' || params[key] === '') {
+            delete params[key];
+          }
+        });
 
-  useEffect(() => {
-    let filtered = posts;
+        console.log('🔍 커뮤니티 게시글 조회 시작:', params);
+        const response = await communityPostAPI.getAll(params);
+        console.log('📥 커뮤니티 게시글 조회 응답:', response.data);
+        
+        if (response.data.success) {
+          setPosts(response.data.data || []);
+          setFilteredPosts(response.data.data || []);
+          setTotalPages(response.data.pagination?.pages || 1);
+        } else {
+          throw new Error(response.data.message || '커뮤니티 게시글 조회 실패');
+        }
+      } catch (error) {
+        console.error('❌ 커뮤니티 게시글 조회 오류:', error);
+        
+        // 에러 발생 시 빈 배열로 설정
+        setPosts([]);
+        setFilteredPosts([]);
+        
+        // 개발 환경에서만 에러 토스트 표시
+        if (process.env.NODE_ENV === 'development') {
+          toast.error('커뮤니티 게시글을 불러오는데 실패했습니다: ' + error.message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // 카테고리 필터
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(post => post.category === filters.category);
-    }
-
-    // 검색어 필터
-    if (searchTerm) {
-      filtered = filtered.filter(post =>
-        post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.content.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredPosts(filtered);
-  }, [posts, filters, searchTerm]);
+    fetchPosts();
+  }, [currentPage, filters, searchTerm]);
 
   const getCategoryLabel = (category) => {
     const categoryObj = categories.find(cat => cat.value === category);
@@ -270,91 +237,115 @@ const ActorInfo = () => {
         {/* 게시글 목록 */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="divide-y divide-gray-200">
-            {filteredPosts.map((post) => (
-              <motion.div
-                key={post.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
-                onClick={() => handlePostClick(post)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                        {getCategoryLabel(post.category)}
-                      </span>
-                    </div>
-                    
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors">
-                      {post.title}
-                    </h3>
-                    
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                      {post.content}
-                    </p>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span className="flex items-center">
-                          <Users className="w-4 h-4 mr-1" />
-                          {post.author}
-                        </span>
-                        <span className="flex items-center">
-                          <MapPin className="w-4 h-4 mr-1" />
-                          {formatDate(post.createdAt)}
-                        </span>
-                        <span className="flex items-center">
-                          <Eye className="w-4 h-4 mr-1" />
-                          {post.views}
-                        </span>
-                        <span className="flex items-center">
-                          <Users className="w-4 h-4 mr-1" />
-                          {post.comments}
+            {loading ? (
+              <div className="p-6 text-center">로딩 중...</div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="p-6 text-center">
+                <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  검색 조건에 맞는 게시글이 없습니다
+                </h3>
+                <p className="text-gray-500">다른 검색 조건을 시도해보세요.</p>
+              </div>
+            ) : (
+              filteredPosts.map((post) => (
+                <motion.div
+                  key={post.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => handlePostClick(post)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                          {getCategoryLabel(post.category)}
                         </span>
                       </div>
+                      
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors">
+                        {post.title}
+                      </h3>
+                      
+                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                        {post.content}
+                      </p>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span className="flex items-center">
+                            <Users className="w-4 h-4 mr-1" />
+                            {post.author}
+                          </span>
+                          <span className="flex items-center">
+                            <MapPin className="w-4 h-4 mr-1" />
+                            {formatDate(post.createdAt)}
+                          </span>
+                          <span className="flex items-center">
+                            <Eye className="w-4 h-4 mr-1" />
+                            {post.views}
+                          </span>
+                          <span className="flex items-center">
+                            <Users className="w-4 h-4 mr-1" />
+                            {post.comments}
+                          </span>
+                        </div>
 
-                      {/* 좋아요, 저장 버튼 */}
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => handleLike(post.id, e)}
-                          className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                            userLikes.has(post.id) 
-                              ? 'bg-red-100 text-red-600' 
-                              : 'text-red-500 hover:bg-red-50'
-                          }`}
-                        >
-                          <Heart className={`w-4 h-4 mr-1 ${userLikes.has(post.id) ? 'fill-current' : ''}`} />
-                          {post.likes}
-                        </button>
-                        <button
-                          onClick={(e) => handleBookmark(post.id, e)}
-                          className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                            userBookmarks.has(post.id) 
-                              ? 'bg-blue-100 text-blue-600' 
-                              : 'text-blue-500 hover:bg-blue-50'
-                          }`}
-                        >
-                          <Bookmark className={`w-4 h-4 mr-1 ${userBookmarks.has(post.id) ? 'fill-current' : ''}`} />
-                          {post.bookmarks}
-                        </button>
+                        {/* 좋아요, 저장 버튼 */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleLike(post.id, e)}
+                            className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
+                              userLikes.has(post.id) 
+                                ? 'bg-red-100 text-red-600' 
+                                : 'text-red-500 hover:bg-red-50'
+                            }`}
+                          >
+                            <Heart className={`w-4 h-4 mr-1 ${userLikes.has(post.id) ? 'fill-current' : ''}`} />
+                            {post.likes}
+                          </button>
+                          <button
+                            onClick={(e) => handleBookmark(post.id, e)}
+                            className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
+                              userBookmarks.has(post.id) 
+                                ? 'bg-blue-100 text-blue-600' 
+                                : 'text-blue-500 hover:bg-blue-50'
+                            }`}
+                          >
+                            <Bookmark className={`w-4 h-4 mr-1 ${userBookmarks.has(post.id) ? 'fill-current' : ''}`} />
+                            {post.bookmarks}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* 게시글이 없는 경우 */}
-        {filteredPosts.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              검색 조건에 맞는 게시글이 없습니다
-            </h3>
-            <p className="text-gray-500">다른 검색 조건을 시도해보세요.</p>
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center py-8">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              이전
+            </button>
+            <span className="mx-2 text-gray-700">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              다음
+            </button>
           </div>
         )}
 

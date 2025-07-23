@@ -157,7 +157,10 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       userId: req.user.id
     };
 
-    // 기본값 설정
+    // 필수 필드 기본값 강제 설정
+    if (!recruitmentData.category) {
+      recruitmentData.category = '영화'; // ActorRecruitment 스키마의 enum 첫 번째 값
+    }
     if (!recruitmentData.projectType) {
       recruitmentData.projectType = '상업';
     }
@@ -173,6 +176,9 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 30);
       recruitmentData.applicationDeadline = futureDate.toISOString();
+    } else if (typeof recruitmentData.applicationDeadline === 'string') {
+      // 문자열인 경우 Date 객체로 변환
+      recruitmentData.applicationDeadline = new Date(recruitmentData.applicationDeadline).toISOString();
     }
 
     // 이미지 처리
@@ -212,12 +218,15 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       }
     }
     
-    // payment 기본값 설정
-    if (!recruitmentData.payment) {
+    // payment 객체 기본값 강제 설정
+    if (!recruitmentData.payment || typeof recruitmentData.payment !== 'object') {
       recruitmentData.payment = {};
     }
     if (!recruitmentData.payment.type) {
-      recruitmentData.payment.type = '협의';
+      recruitmentData.payment.type = '협의'; // ActorRecruitment 스키마의 enum 값
+    }
+    if (recruitmentData.payment.amount) {
+      recruitmentData.payment.amount = parseInt(recruitmentData.payment.amount);
     }
 
     if (req.body.contactInfo && typeof req.body.contactInfo === 'string') {
@@ -243,6 +252,11 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       }
     } else if (Array.isArray(req.body.tags)) {
       recruitmentData.tags = req.body.tags;
+    }
+
+    // experience 기본값 설정
+    if (!recruitmentData.experience) {
+      recruitmentData.experience = '무관';
     }
 
     console.log('🔄 최종 모집공고 데이터:', recruitmentData);

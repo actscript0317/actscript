@@ -4,130 +4,109 @@ import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin } f
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { likeAPI, bookmarkAPI } from '../services/api';
+import { actorRecruitmentAPI, likeAPI, bookmarkAPI } from '../services/api';
 
 const ActorRecruitment = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     category: 'all'
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [userLikes, setUserLikes] = useState(new Set());
   const [userBookmarks, setUserBookmarks] = useState(new Set());
-
-  // 더미 데이터 (좋아요, 저장 수 추가)
-  const dummyPosts = [
-    {
-      id: 1,
-      title: '장편 독립영화 주연 배우 모집',
-      author: '김감독',
-      category: 'indie-feature',
-      content: '청춘을 주제로 한 독립영화의 주연 배우를 모집합니다. 20대 초반 여성 배우를 찾고 있습니다.\n\n촬영 기간: 2024년 3월 ~ 5월\n촬영 장소: 서울, 경기 일대\n\n요구사항:\n- 20~25세 여성\n- 연기 경험 우대\n- 장기간 촬영 가능한 분\n\n많은 관심과 지원 부탁드립니다.',
-      recruitmentField: '주연 배우',
-      applicationMethod: '이메일: casting@example.com',
-      createdAt: '2024-01-15',
-      views: 127,
-      comments: 8,
-      likes: 23,
-      bookmarks: 15
-    },
-    {
-      id: 2,
-      title: '웹드라마 조연 배우 모집 (남성)',
-      author: '박PD',
-      category: 'web-drama',
-      content: '로맨스 웹드라마의 남자 조연 배우를 모집합니다. 연기 경험이 있으신 분을 우대합니다.\n\n역할: 남자 주인공의 베스트 프렌드\n촬영 일정: 주말 위주\n\n우대사항:\n- 연기 경험\n- 밝고 활발한 성격\n- 서울 거주자',
-      recruitmentField: '조연 배우',
-      applicationMethod: '연락처: 010-1234-5678',
-      createdAt: '2024-01-14',
-      views: 89,
-      comments: 5,
-      likes: 12,
-      bookmarks: 8
-    },
-    {
-      id: 3,
-      title: 'OTT 드라마 엑스트라 모집',
-      author: '이작가',
-      category: 'ott-drama',
-      content: '대형 OTT 플랫폼 드라마의 엑스트라를 모집합니다. 다양한 연령대 환영합니다.',
-      recruitmentField: '엑스트라',
-      applicationMethod: '카카오톡: @casting123',
-      createdAt: '2024-01-13',
-      views: 256,
-      comments: 15,
-      likes: 45,
-      bookmarks: 32
-    },
-    {
-      id: 4,
-      title: '단편영화 주연 배우 모집 (40대 남성)',
-      author: '최감독',
-      category: 'short-film',
-      content: '가족을 주제로 한 단편영화의 아버지 역할을 맡을 배우를 찾습니다.',
-      recruitmentField: '주연 배우',
-      applicationMethod: '이메일: shortfilm@example.com',
-      createdAt: '2024-01-12',
-      views: 67,
-      comments: 3,
-      likes: 8,
-      bookmarks: 5
-    }
-  ];
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const categories = [
     { value: 'all', label: '전체' },
-    { value: 'commercial-feature', label: '장편 상업영화' },
-    { value: 'indie-feature', label: '장편 독립영화' },
-    { value: 'short-film', label: '단편영화' },
-    { value: 'ott-drama', label: 'OTT/TV 드라마' },
-    { value: 'web-drama', label: '웹드라마' }
+    { value: '영화', label: '영화' },
+    { value: '드라마', label: '드라마' },
+    { value: '연극', label: '연극' },
+    { value: '뮤지컬', label: '뮤지컬' },
+    { value: '광고', label: '광고' },
+    { value: '웹드라마', label: '웹드라마' },
+    { value: '단편영화', label: '단편영화' },
+    { value: '뮤직비디오', label: '뮤직비디오' },
+    { value: '기타', label: '기타' }
   ];
 
   useEffect(() => {
-    setPosts(dummyPosts);
-    setFilteredPosts(dummyPosts);
-  }, []);
+    const fetchRecruitments = async () => {
+      try {
+        setLoading(true);
+        
+        const params = {
+          page: currentPage,
+          limit: 12,
+          ...filters,
+          search: searchTerm
+        };
+        
+        // 'all' 값들은 제거
+        Object.keys(params).forEach(key => {
+          if (params[key] === 'all' || params[key] === '') {
+            delete params[key];
+          }
+        });
 
-  useEffect(() => {
-    let filtered = posts;
+        console.log('🔍 모집공고 조회 시작:', params);
+        const response = await actorRecruitmentAPI.getAll(params);
+        console.log('📥 모집공고 조회 응답:', response.data);
+        
+        if (response.data.success) {
+          setPosts(response.data.data || []);
+          setFilteredPosts(response.data.data || []);
+          setTotalPages(response.data.pagination?.pages || 1);
+        } else {
+          throw new Error(response.data.message || '모집공고 조회 실패');
+        }
+      } catch (error) {
+        console.error('❌ 모집공고 조회 오류:', error);
+        
+        // 에러 발생 시 빈 배열로 설정
+        setPosts([]);
+        setFilteredPosts([]);
+        
+        // 개발 환경에서만 에러 토스트 표시
+        if (process.env.NODE_ENV === 'development') {
+          toast.error('모집공고를 불러오는데 실패했습니다: ' + error.message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // 카테고리 필터
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(post => post.category === filters.category);
-    }
-
-    // 검색어 필터
-    if (searchTerm) {
-      filtered = filtered.filter(post =>
-        post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.content.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredPosts(filtered);
-  }, [posts, filters, searchTerm]);
+    fetchRecruitments();
+  }, [currentPage, filters, searchTerm]);
 
   const getCategoryLabel = (category) => {
     const categoryObj = categories.find(cat => cat.value === category);
     return categoryObj ? categoryObj.label : '기타';
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('ko-KR');
-  };
-
   const handlePostClick = (post) => {
-    // 조회수 증가
-    setPosts(prev => prev.map(p => 
-      p.id === post.id ? { ...p, views: p.views + 1 } : p
-    ));
-    navigate(`/posts/${post.id}`);
+    // 조회수 증가는 백엔드에서 자동 처리
+    navigate(`/posts/${post._id || post.id}`);
   };
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+  };
+
+  const handleWritePost = () => {
+    if (!isAuthenticated) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+    navigate('/posts/new?board=actor-recruitment');
+  };
+
+  // 좋아요 처리
   const handleLike = async (postId, e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
@@ -149,22 +128,15 @@ const ActorRecruitment = () => {
           return newSet;
         });
         
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, likes: response.data.likeCount }
-            : post
-        ));
-        
         toast.success(response.data.message);
-      } else {
-        toast.error(response.data.message || '좋아요 실패');
       }
     } catch (error) {
       console.error('좋아요 오류:', error);
-      toast.error('좋아요 중 오류가 발생했습니다.');
+      toast.error('좋아요 처리 중 오류가 발생했습니다.');
     }
   };
 
+  // 북마크 처리
   const handleBookmark = async (postId, e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
@@ -186,28 +158,12 @@ const ActorRecruitment = () => {
           return newSet;
         });
         
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, bookmarks: response.data.bookmarkCount }
-            : post
-        ));
-        
         toast.success(response.data.message);
-      } else {
-        toast.error(response.data.message || '저장 실패');
       }
     } catch (error) {
       console.error('북마크 오류:', error);
-      toast.error('저장 중 오류가 발생했습니다.');
+      toast.error('북마크 처리 중 오류가 발생했습니다.');
     }
-  };
-
-  const handleWritePost = () => {
-    if (!isAuthenticated) {
-      toast.error('로그인이 필요합니다.');
-      return;
-    }
-    navigate('/posts/new?board=actor-recruitment');
   };
 
   return (
@@ -263,22 +219,35 @@ const ActorRecruitment = () => {
         {/* 게시글 목록 */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="divide-y divide-gray-200">
-            {filteredPosts.map((post) => (
-              <motion.div
-                key={post.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
-                onClick={() => handlePostClick(post)}
-              >
-                <div className="flex items-start justify-between">
+            {loading ? (
+              <div className="p-6 text-center text-gray-500">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                모집공고를 불러오는 중입니다...
+              </div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  작성된 모집공고가 없습니다
+                </h3>
+                <p className="text-gray-500">첫 번째 모집공고를 작성해보세요!</p>
+              </div>
+            ) : (
+              filteredPosts.map((post) => (
+                <motion.div
+                  key={post._id || post.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => handlePostClick(post)}
+                >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-                        {getCategoryLabel(post.category)}
+                        {post.category || '기타'}
                       </span>
                       <span className="text-sm text-gray-500">
-                        모집분야: {post.recruitmentField}
+                        {post.projectType || '상업'}
                       </span>
                     </div>
                     
@@ -291,70 +260,83 @@ const ActorRecruitment = () => {
                     </p>
                     
                     <div className="text-sm text-gray-500 mb-3">
-                      <strong>지원방법:</strong> {post.applicationMethod}
+                      <strong>지원방법:</strong> {post.applicationMethod || '이메일'}
+                      {post.contactInfo?.email && ` (${post.contactInfo.email})`}
                     </div>
                     
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="flex items-center">
                           <Users className="w-4 h-4 mr-1" />
-                          {post.author}
+                          {post.userId?.email || '익명'}
                         </span>
                         <span className="flex items-center">
-                          <MapPin className="w-4 h-4 mr-1" />
+                          <Calendar className="w-4 h-4 mr-1" />
                           {formatDate(post.createdAt)}
                         </span>
                         <span className="flex items-center">
                           <Eye className="w-4 h-4 mr-1" />
-                          {post.views}
+                          {post.views || 0}
                         </span>
                         <span className="flex items-center">
-                          <Users className="w-4 h-4 mr-1" />
-                          {post.comments}
+                          <MapPin className="w-4 h-4 mr-1" />
+                          {post.location || '서울'}
                         </span>
                       </div>
 
                       {/* 좋아요, 저장 버튼 */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex gap-2">
                         <button
-                          onClick={(e) => handleLike(post.id, e)}
-                          className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                            userLikes.has(post.id) 
-                              ? 'bg-red-100 text-red-600' 
-                              : 'text-red-500 hover:bg-red-50'
+                          onClick={(e) => handleLike(post._id || post.id, e)}
+                          className={`flex items-center px-2 py-1 rounded transition-colors ${
+                            userLikes.has(post._id || post.id)
+                              ? 'bg-red-100 text-red-600'
+                              : 'text-gray-500 hover:bg-gray-100'
                           }`}
                         >
-                          <Heart className={`w-4 h-4 mr-1 ${userLikes.has(post.id) ? 'fill-current' : ''}`} />
-                          {post.likes}
+                          <Heart className="w-4 h-4 mr-1" />
+                          {post.likes || 0}
                         </button>
                         <button
-                          onClick={(e) => handleBookmark(post.id, e)}
-                          className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
-                            userBookmarks.has(post.id) 
-                              ? 'bg-blue-100 text-blue-600' 
-                              : 'text-blue-500 hover:bg-blue-50'
+                          onClick={(e) => handleBookmark(post._id || post.id, e)}
+                          className={`flex items-center px-2 py-1 rounded transition-colors ${
+                            userBookmarks.has(post._id || post.id)
+                              ? 'bg-blue-100 text-blue-600'
+                              : 'text-gray-500 hover:bg-gray-100'
                           }`}
                         >
-                          <Bookmark className={`w-4 h-4 mr-1 ${userBookmarks.has(post.id) ? 'fill-current' : ''}`} />
-                          {post.bookmarks}
+                          <Bookmark className="w-4 h-4 mr-1" />
+                          {post.bookmarks || 0}
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* 게시글이 없는 경우 */}
-        {filteredPosts.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              검색 조건에 맞는 게시글이 없습니다
-            </h3>
-            <p className="text-gray-500">다른 검색 조건을 시도해보세요.</p>
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center py-8">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              이전
+            </button>
+            <span className="mx-4 text-gray-700">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              다음
+            </button>
           </div>
         )}
 

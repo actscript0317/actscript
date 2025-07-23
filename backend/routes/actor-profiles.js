@@ -143,6 +143,12 @@ router.get('/:id', async (req, res) => {
 // 프로필 생성
 router.post('/', auth, upload.array('images', 7), async (req, res) => {
   try {
+    console.log('📥 프로필 생성 요청 데이터:', {
+      body: req.body,
+      filesCount: req.files?.length || 0,
+      userId: req.user?.id
+    });
+
     const profileData = {
       ...req.body,
       userId: req.user.id
@@ -164,11 +170,15 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
         : [req.body.specialty];
     }
 
+    console.log('🔄 최종 프로필 데이터:', profileData);
+
     const profile = new ActorProfile(profileData);
     await profile.save();
 
     const populatedProfile = await ActorProfile.findById(profile._id)
       .populate('userId', 'email');
+
+    console.log('✅ 프로필 생성 성공:', populatedProfile._id);
 
     res.status(201).json({
       success: true,
@@ -176,7 +186,23 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
       message: '프로필이 성공적으로 생성되었습니다.'
     });
   } catch (error) {
-    console.error('프로필 생성 오류:', error);
+    console.error('❌ 프로필 생성 오류:', {
+      message: error.message,
+      name: error.name,
+      errors: error.errors,
+      stack: error.stack
+    });
+    
+    // Mongoose validation 에러 처리
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        success: false, 
+        message: '유효성 검사 실패: ' + validationErrors.join(', '),
+        errors: validationErrors
+      });
+    }
+    
     res.status(400).json({ 
       success: false, 
       message: error.message || '프로필 생성에 실패했습니다.' 

@@ -84,7 +84,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"], // blob: 추가
       connectSrc: [
         "'self'",
         "https://actscript.onrender.com",
@@ -94,7 +94,7 @@ app.use(helmet({
       ],
       fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
+      mediaSrc: ["'self'", "blob:"], // blob: 추가
       frameSrc: ["'none'"],
     },
   },

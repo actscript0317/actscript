@@ -281,8 +281,8 @@ const CreatePost = () => {
         case 'actor-profile':
           // 배우 프로필 생성
           submitData.append('name', formData.recruitmentField || '배우');
-          submitData.append('gender', '무관');
-          submitData.append('experience', '무관');
+          submitData.append('gender', '기타'); // enum: ['남성', '여성', '기타']
+          submitData.append('experience', '신인'); // enum: ['신인', '1-2년', '3-5년', '5년 이상']
           submitData.append('location', '서울');
           response = await actorProfileAPI.create(submitData);
           break;

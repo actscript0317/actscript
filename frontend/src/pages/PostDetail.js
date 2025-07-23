@@ -90,7 +90,13 @@ const PostDetail = () => {
     }
     
     try {
+      console.log('🔍 좋아요 API 호출:', {
+        postId: post._id,
+        boardType: boardType
+      });
+      
       const response = await likeAPI.toggle(post._id, boardType);
+      console.log('✅ 좋아요 API 응답:', response.data);
       
       if (response.data.success) {
         setPost(prev => ({
@@ -100,8 +106,13 @@ const PostDetail = () => {
         toast.success(response.data.message || '좋아요!');
       }
     } catch (error) {
-      console.error('좋아요 오류:', error);
-      toast.error('좋아요 처리 중 오류가 발생했습니다.');
+      console.error('❌ 좋아요 오류 상세:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      toast.error('좋아요 처리 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -112,7 +123,13 @@ const PostDetail = () => {
     }
     
     try {
+      console.log('🔍 북마크 API 호출:', {
+        postId: post._id,
+        boardType: boardType
+      });
+      
       const response = await bookmarkAPI.toggle(post._id, boardType);
+      console.log('✅ 북마크 API 응답:', response.data);
       
       if (response.data.success) {
         setPost(prev => ({
@@ -122,8 +139,13 @@ const PostDetail = () => {
         toast.success(response.data.message || '저장되었습니다!');
       }
     } catch (error) {
-      console.error('북마크 오류:', error);
-      toast.error('북마크 처리 중 오류가 발생했습니다.');
+      console.error('❌ 북마크 오류 상세:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      toast.error('북마크 처리 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message));
     }
   };
 

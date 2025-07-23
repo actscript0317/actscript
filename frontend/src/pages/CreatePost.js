@@ -87,30 +87,41 @@ const CreatePost = () => {
     switch (board) {
       case 'actor-recruitment':
         return [
-          { value: 'commercial-feature', label: '장편 상업영화' },
-          { value: 'indie-feature', label: '장편 독립영화' },
-          { value: 'short-film', label: '단편영화' },
-          { value: 'ott-drama', label: 'OTT/TV 드라마' },
-          { value: 'web-drama', label: '웹드라마' }
+          { value: '영화', label: '영화' },
+          { value: '드라마', label: '드라마' },
+          { value: '연극', label: '연극' },
+          { value: '뮤지컬', label: '뮤지컬' },
+          { value: '광고', label: '광고' },
+          { value: '웹드라마', label: '웹드라마' },
+          { value: '단편영화', label: '단편영화' },
+          { value: '뮤직비디오', label: '뮤직비디오' },
+          { value: '기타', label: '기타' }
         ];
       case 'model-recruitment':
         return [
-          { value: 'music-video', label: '뮤직비디오' },
-          { value: 'advertisement', label: '광고/홍보' },
-          { value: 'photoshoot', label: '화보촬영' },
-          { value: 'youtube', label: '유튜브' },
-          { value: 'etc', label: '기타' }
+          { value: '화보촬영', label: '화보촬영' },
+          { value: '광고촬영', label: '광고촬영' },
+          { value: '패션쇼', label: '패션쇼' },
+          { value: '이벤트', label: '이벤트' },
+          { value: '행사진행', label: '행사진행' },
+          { value: '방송출연', label: '방송출연' },
+          { value: '유튜브', label: '유튜브' },
+          { value: '라이브방송', label: '라이브방송' },
+          { value: '기타', label: '기타' }
         ];
       case 'actor-info':
         return [
-          { value: 'study-group', label: '스터디 그룹' },
-          { value: 'practice-room', label: '연습실' },
-          { value: 'acting-lesson', label: '연기레슨' },
-          { value: 'profile-photo', label: '프로필 촬영' },
-          { value: 'management', label: '매니지먼트' },
-          { value: 'personal-shoot', label: '개인촬영' },
-          { value: 'production-team', label: '제작팀' },
-          { value: 'etc', label: '기타' }
+          { value: '오디션 정보', label: '오디션 정보' },
+          { value: '연기 팁', label: '연기 팁' },
+          { value: '업계 소식', label: '업계 소식' },
+          { value: '스터디 모집', label: '스터디 모집' },
+          { value: '장비 대여', label: '장비 대여' },
+          { value: '질문/답변', label: '질문/답변' },
+          { value: '후기/리뷰', label: '후기/리뷰' },
+          { value: '네트워킹', label: '네트워킹' },
+          { value: '교육/강의', label: '교육/강의' },
+          { value: '자유게시판', label: '자유게시판' },
+          { value: '기타', label: '기타' }
         ];
       case 'actor-profile':
         return [
@@ -120,7 +131,12 @@ const CreatePost = () => {
           { value: 'collaboration', label: '협업 문의' }
         ];
       default:
-        return [{ value: 'general', label: '일반' }];
+        return [
+          { value: '자유', label: '자유게시판' },
+          { value: '질문', label: '질문' },
+          { value: '정보', label: '정보공유' },
+          { value: '기타', label: '기타' }
+        ];
     }
   };
 
@@ -1423,6 +1439,9 @@ const CreatePost = () => {
                         applicationMethod: '이메일',
                         paymentType: '협의',
                         contactEmail: 'test@example.com'
+                      }),
+                      ...(isCommunityPost && {
+                        postType: '일반'
                       })
                     }));
                     toast.success('테스트 데이터가 설정되었습니다!');

@@ -148,6 +148,14 @@ router.post('/', auth, upload.array('images', 10), async (req, res) => {
       userId: req.user.id
     };
 
+    // 기본값 설정
+    if (!postData.postType) {
+      postData.postType = '일반';
+    }
+    if (!postData.category) {
+      postData.category = '자유';
+    }
+
     // 이미지 처리
     if (req.files && req.files.length > 0) {
       postData.images = req.files.map(file => ({
@@ -157,29 +165,56 @@ router.post('/', auth, upload.array('images', 10), async (req, res) => {
       }));
     }
 
-    // JSON 문자열 파싱
-    if (req.body.tags) {
-      postData.tags = Array.isArray(req.body.tags) 
-        ? req.body.tags 
-        : JSON.parse(req.body.tags);
+    // JSON 문자열 파싱 및 기본값 처리
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      try {
+        postData.tags = JSON.parse(req.body.tags);
+      } catch (e) {
+        console.log('tags 파싱 실패, 빈 배열로 설정');
+        postData.tags = [];
+      }
+    } else if (Array.isArray(req.body.tags)) {
+      postData.tags = req.body.tags;
     }
-    if (req.body.keywords) {
-      postData.keywords = Array.isArray(req.body.keywords) 
-        ? req.body.keywords 
-        : JSON.parse(req.body.keywords);
+
+    if (req.body.keywords && typeof req.body.keywords === 'string') {
+      try {
+        postData.keywords = JSON.parse(req.body.keywords);
+      } catch (e) {
+        console.log('keywords 파싱 실패, 빈 배열로 설정');
+        postData.keywords = [];
+      }
+    } else if (Array.isArray(req.body.keywords)) {
+      postData.keywords = req.body.keywords;
     }
-    if (req.body.recruitment) {
-      postData.recruitment = JSON.parse(req.body.recruitment);
+
+    if (req.body.recruitment && typeof req.body.recruitment === 'string') {
+      try {
+        postData.recruitment = JSON.parse(req.body.recruitment);
+      } catch (e) {
+        console.log('recruitment 파싱 실패, 빈 객체로 설정');
+        postData.recruitment = {};
+      }
     }
-    if (req.body.event) {
-      postData.event = JSON.parse(req.body.event);
+
+    if (req.body.event && typeof req.body.event === 'string') {
+      try {
+        postData.event = JSON.parse(req.body.event);
+      } catch (e) {
+        console.log('event 파싱 실패, 빈 객체로 설정');
+        postData.event = {};
+      }
     }
+
+    console.log('🔄 최종 게시글 데이터:', postData);
 
     const post = new CommunityPost(postData);
     await post.save();
 
     const populatedPost = await CommunityPost.findById(post._id)
       .populate('userId', 'email');
+
+    console.log('✅ 커뮤니티 게시글 생성 성공:', populatedPost._id);
 
     res.status(201).json({
       success: true,

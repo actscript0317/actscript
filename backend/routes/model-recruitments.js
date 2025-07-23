@@ -159,6 +159,24 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       userId: req.user.id
     };
 
+    // 기본값 설정
+    if (!recruitmentData.modelType) {
+      recruitmentData.modelType = '패션모델';
+    }
+    if (!recruitmentData.location) {
+      recruitmentData.location = '서울';
+    }
+    if (!recruitmentData.applicationMethod) {
+      recruitmentData.applicationMethod = '이메일';
+    }
+
+    // 지원 마감일 기본값 설정 (30일 후)
+    if (!recruitmentData.applicationDeadline) {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 30);
+      recruitmentData.applicationDeadline = futureDate.toISOString();
+    }
+
     // 이미지 처리
     if (req.files && req.files.length > 0) {
       recruitmentData.images = req.files.map(file => ({
@@ -168,33 +186,96 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       }));
     }
 
-    // JSON 문자열 파싱
-    if (req.body.requirements) {
-      recruitmentData.requirements = JSON.parse(req.body.requirements);
+    // JSON 문자열 파싱 및 기본값 처리
+    if (req.body.requirements && typeof req.body.requirements === 'string') {
+      try {
+        recruitmentData.requirements = JSON.parse(req.body.requirements);
+      } catch (e) {
+        console.log('requirements 파싱 실패, 기본값 설정');
+        recruitmentData.requirements = {};
+      }
     }
-    if (req.body.workPeriod) {
-      recruitmentData.workPeriod = JSON.parse(req.body.workPeriod);
+    
+    // requirements 기본값 설정
+    if (!recruitmentData.requirements) {
+      recruitmentData.requirements = {};
     }
-    if (req.body.payment) {
-      recruitmentData.payment = JSON.parse(req.body.payment);
+    if (!recruitmentData.requirements.gender) {
+      recruitmentData.requirements.gender = '무관';
     }
-    if (req.body.contactInfo) {
-      recruitmentData.contactInfo = JSON.parse(req.body.contactInfo);
+    if (!recruitmentData.requirements.experience) {
+      recruitmentData.requirements.experience = '무관';
     }
-    if (req.body.portfolioRequirements) {
-      recruitmentData.portfolioRequirements = JSON.parse(req.body.portfolioRequirements);
+
+    if (req.body.workPeriod && typeof req.body.workPeriod === 'string') {
+      try {
+        recruitmentData.workPeriod = JSON.parse(req.body.workPeriod);
+      } catch (e) {
+        console.log('workPeriod 파싱 실패, 빈 객체로 설정');
+        recruitmentData.workPeriod = {};
+      }
     }
-    if (req.body.tags) {
-      recruitmentData.tags = Array.isArray(req.body.tags) 
-        ? req.body.tags 
-        : JSON.parse(req.body.tags);
+
+    if (req.body.payment && typeof req.body.payment === 'string') {
+      try {
+        recruitmentData.payment = JSON.parse(req.body.payment);
+      } catch (e) {
+        console.log('payment 파싱 실패, 기본값 설정');
+        recruitmentData.payment = {};
+      }
     }
+    
+    // payment 기본값 설정
+    if (!recruitmentData.payment) {
+      recruitmentData.payment = {};
+    }
+    if (!recruitmentData.payment.type) {
+      recruitmentData.payment.type = '협의';
+    }
+
+    if (req.body.contactInfo && typeof req.body.contactInfo === 'string') {
+      try {
+        recruitmentData.contactInfo = JSON.parse(req.body.contactInfo);
+      } catch (e) {
+        console.log('contactInfo 파싱 실패, 기본 이메일 설정');
+        recruitmentData.contactInfo = { email: 'contact@example.com' };
+      }
+    }
+    
+    // contactInfo 기본값 설정 
+    if (!recruitmentData.contactInfo || Object.keys(recruitmentData.contactInfo).length === 0) {
+      recruitmentData.contactInfo = { email: 'contact@example.com' };
+    }
+
+    if (req.body.portfolioRequirements && typeof req.body.portfolioRequirements === 'string') {
+      try {
+        recruitmentData.portfolioRequirements = JSON.parse(req.body.portfolioRequirements);
+      } catch (e) {
+        console.log('portfolioRequirements 파싱 실패, 기본값 설정');
+        recruitmentData.portfolioRequirements = { photos: true };
+      }
+    }
+
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      try {
+        recruitmentData.tags = JSON.parse(req.body.tags);
+      } catch (e) {
+        console.log('tags 파싱 실패, 빈 배열로 설정');
+        recruitmentData.tags = [];
+      }
+    } else if (Array.isArray(req.body.tags)) {
+      recruitmentData.tags = req.body.tags;
+    }
+
+    console.log('🔄 최종 모집공고 데이터:', recruitmentData);
 
     const recruitment = new ModelRecruitment(recruitmentData);
     await recruitment.save();
 
     const populatedRecruitment = await ModelRecruitment.findById(recruitment._id)
       .populate('userId', 'email');
+
+    console.log('✅ 모델 모집공고 생성 성공:', populatedRecruitment._id);
 
     res.status(201).json({
       success: true,

@@ -154,6 +154,53 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
       userId: req.user.id
     };
 
+    // JSON 문자열 파싱
+    if (req.body.contact && typeof req.body.contact === 'string') {
+      try {
+        profileData.contact = JSON.parse(req.body.contact);
+      } catch (e) {
+        console.log('contact 파싱 실패, 빈 객체로 설정');
+        profileData.contact = {};
+      }
+    }
+
+    if (req.body.specialty && typeof req.body.specialty === 'string') {
+      try {
+        profileData.specialty = JSON.parse(req.body.specialty);
+      } catch (e) {
+        console.log('specialty 파싱 실패, 빈 배열로 설정');
+        profileData.specialty = [];
+      }
+    }
+
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      try {
+        profileData.tags = JSON.parse(req.body.tags);
+      } catch (e) {
+        console.log('tags 파싱 실패, 빈 배열로 설정');
+        profileData.tags = [];
+      }
+    }
+
+    // 기본값 설정
+    if (!profileData.name || profileData.name.trim() === '') {
+      profileData.name = '이름 미입력';
+    }
+    if (!profileData.gender) {
+      profileData.gender = '기타';
+    }
+    if (!profileData.experience) {
+      profileData.experience = '신인';
+    }
+    if (!profileData.location) {
+      profileData.location = '서울';
+    }
+
+    // 숫자 필드 변환
+    if (profileData.age) profileData.age = parseInt(profileData.age);
+    if (profileData.height) profileData.height = parseInt(profileData.height);
+    if (profileData.weight) profileData.weight = parseInt(profileData.weight);
+
     // 이미지 처리
     if (req.files && req.files.length > 0) {
       profileData.images = req.files.map(file => ({
@@ -161,13 +208,6 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
         filename: file.filename,
         size: file.size
       }));
-    }
-
-    // specialty 배열 처리
-    if (req.body.specialty) {
-      profileData.specialty = Array.isArray(req.body.specialty) 
-        ? req.body.specialty 
-        : [req.body.specialty];
     }
 
     console.log('🔄 최종 프로필 데이터:', profileData);

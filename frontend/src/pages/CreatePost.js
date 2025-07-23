@@ -193,7 +193,12 @@ const CreatePost = () => {
         canvas.toBlob(resolve, file.type, quality);
       };
 
-      img.src = URL.createObjectURL(file);
+      // CSP 문제를 피하기 위해 data URL 사용
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     });
   };
 
@@ -229,12 +234,18 @@ const CreatePost = () => {
       const processedImages = await Promise.all(
         validFiles.map(async (file) => {
           const resizedBlob = await resizeImage(file);
-          const url = URL.createObjectURL(resizedBlob);
+          
+          // CSP 문제를 피하기 위해 data URL 사용
+          const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(resizedBlob);
+          });
           
           return {
             id: Date.now() + Math.random(),
             file: resizedBlob,
-            url,
+            url: dataUrl, // blob URL 대신 data URL 사용
             name: file.name,
             size: resizedBlob.size
           };
@@ -306,21 +317,46 @@ const CreatePost = () => {
       return;
     }
 
-    // 게시판별 추가 검증
+    // 게시판별 최소 필수 검증 (임시로 완화)
     if (isActorProfile) {
-      if (!formData.name.trim() || !formData.gender || !formData.experience || !formData.location) {
-        toast.error('이름, 성별, 경력, 활동지역을 모두 입력해주세요.');
-        return;
+      if (!formData.name.trim()) {
+        // 기본값 설정
+        formData.name = formData.name.trim() || '이름 미입력';
+        formData.gender = formData.gender || '기타';
+        formData.experience = formData.experience || '신인';
+        formData.location = formData.location || '서울';
       }
     } else if (isActorRecruitment) {
-      if (!formData.projectType || !formData.location || !formData.deadline || !formData.applicationMethod || !formData.paymentType || !formData.contactEmail) {
-        toast.error('프로젝트 유형, 촬영지역, 마감일, 지원방법, 보수유형, 연락처 이메일을 모두 입력해주세요.');
+      if (!formData.contactEmail && !formData.applicationMethod) {
+        toast.error('연락처 이메일 또는 지원방법 중 하나는 필수입니다.');
         return;
       }
+      // 기본값 설정
+      formData.projectType = formData.projectType || '상업';
+      formData.location = formData.location || '서울';
+      formData.applicationMethod = formData.applicationMethod || '이메일';
+      formData.paymentType = formData.paymentType || '협의';
+      // deadline이 없으면 30일 후로 설정
+      if (!formData.deadline) {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 30);
+        formData.deadline = futureDate.toISOString().split('T')[0];
+      }
     } else if (isModelRecruitment) {
-      if (!formData.modelType || !formData.location || !formData.deadline || !formData.applicationMethod || !formData.paymentType || !formData.contactEmail) {
-        toast.error('모델 유형, 촬영지역, 마감일, 지원방법, 보수유형, 연락처 이메일을 모두 입력해주세요.');
+      if (!formData.contactEmail && !formData.applicationMethod) {
+        toast.error('연락처 이메일 또는 지원방법 중 하나는 필수입니다.');
         return;
+      }
+      // 기본값 설정
+      formData.modelType = formData.modelType || '패션모델';
+      formData.location = formData.location || '서울';
+      formData.applicationMethod = formData.applicationMethod || '이메일';
+      formData.paymentType = formData.paymentType || '협의';
+      // deadline이 없으면 30일 후로 설정
+      if (!formData.deadline) {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 30);
+        formData.deadline = futureDate.toISOString().split('T')[0];
       }
     }
 
@@ -342,6 +378,15 @@ const CreatePost = () => {
       // 이미지 파일 추가
       images.forEach((image, index) => {
         submitData.append('images', image.file);
+      });
+
+      // 디버깅: 전송할 데이터 확인
+      console.log('📤 전송할 데이터:', {
+        boardType,
+        formData: Object.fromEntries(
+          Object.entries(formData).filter(([key, value]) => value !== '' && value !== null && value !== undefined)
+        ),
+        imageCount: images.length
       });
 
       let response;
@@ -397,8 +442,9 @@ const CreatePost = () => {
           const recruitmentContactInfo = {};
           if (formData.contactEmail) recruitmentContactInfo.email = formData.contactEmail;
           if (formData.contactPhone) recruitmentContactInfo.phone = formData.contactPhone;
+          // 연락처가 하나도 없으면 기본 이메일 설정
           if (Object.keys(recruitmentContactInfo).length === 0) {
-            recruitmentContactInfo.email = 'contact@example.com';
+            recruitmentContactInfo.email = 'recruitment@example.com';
           }
           submitData.append('contactInfo', JSON.stringify(recruitmentContactInfo));
           response = await actorRecruitmentAPI.create(submitData);
@@ -446,8 +492,9 @@ const CreatePost = () => {
           const modelContactInfo = {};
           if (formData.contactEmail) modelContactInfo.email = formData.contactEmail;
           if (formData.contactPhone) modelContactInfo.phone = formData.contactPhone;
+          // 연락처가 하나도 없으면 기본 이메일 설정
           if (Object.keys(modelContactInfo).length === 0) {
-            modelContactInfo.email = 'contact@example.com';
+            modelContactInfo.email = 'model@example.com';
           }
           submitData.append('contactInfo', JSON.stringify(modelContactInfo));
           response = await modelRecruitmentAPI.create(submitData);
@@ -468,8 +515,21 @@ const CreatePost = () => {
       }
 
     } catch (error) {
-      console.error('게시글 작성 오류:', error);
-      toast.error(error.response?.data?.message || error.message || '게시글 작성 중 오류가 발생했습니다.');
+      console.error('❌ 게시글 작성 오류:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config,
+        boardType: boardType
+      });
+      
+      // 서버 응답 에러 메시지 표시
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors?.join(', ') ||
+                          error.message || 
+                          '게시글 작성 중 오류가 발생했습니다.';
+      
+      toast.error(`[${boardType}] ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -1334,6 +1394,44 @@ const CreatePost = () => {
               >
                 취소
               </button>
+              {process.env.NODE_ENV === 'development' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    // 테스트용 기본 데이터 설정
+                    setFormData(prev => ({
+                      ...prev,
+                      title: `테스트 게시글 ${Date.now()}`,
+                      content: '테스트용 내용입니다.',
+                      category: categories[0]?.value || '기타',
+                      ...(isActorProfile && {
+                        name: '테스트 배우',
+                        gender: '기타',
+                        experience: '신인',
+                        location: '서울'
+                      }),
+                      ...(isActorRecruitment && {
+                        projectType: '상업',
+                        location: '서울',
+                        applicationMethod: '이메일',
+                        paymentType: '협의',
+                        contactEmail: 'test@example.com'
+                      }),
+                      ...(isModelRecruitment && {
+                        modelType: '패션모델',
+                        location: '서울',
+                        applicationMethod: '이메일',
+                        paymentType: '협의',
+                        contactEmail: 'test@example.com'
+                      })
+                    }));
+                    toast.success('테스트 데이터가 설정되었습니다!');
+                  }}
+                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+                >
+                  🧪 테스트 데이터
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={isSubmitting}

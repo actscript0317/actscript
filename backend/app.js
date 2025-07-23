@@ -26,6 +26,25 @@ app.use(cors({
 
 // 보안 미들웨어
 app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"], // blob: 추가
+      connectSrc: [
+        "'self'",
+        "https://actscript.onrender.com",
+        "https://actscript-1.onrender.com",
+        "http://localhost:10000",
+        "http://localhost:3000"
+      ],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'", "blob:"], // blob: 추가
+      frameSrc: ["'none'"],
+    },
+  },
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));

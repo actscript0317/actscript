@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -20,6 +20,12 @@ const CreatePost = () => {
     applicationMethod: '',
     tags: ''
   });
+  
+  const [images, setImages] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const MAX_IMAGES = 7;
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
   // 게시판별 카테고리 설정
   const getCategoriesByBoard = (board) => {
@@ -94,6 +100,130 @@ const CreatePost = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // 이미지 크기 조정 및 압축 함수
+  const resizeImage = (file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        // 비율 계산
+        let { width, height } = img;
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = width * ratio;
+          height = height * ratio;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // 이미지 그리기
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // 압축된 이미지를 Blob으로 변환
+        canvas.toBlob(resolve, file.type, quality);
+      };
+
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // 파일 유효성 검사
+  const validateFile = (file) => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('JPG, PNG, WEBP 형식의 이미지만 업로드 가능합니다.');
+      return false;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('파일 크기는 5MB 이하여야 합니다.');
+      return false;
+    }
+
+    return true;
+  };
+
+  // 이미지 업로드 처리
+  const handleImageUpload = async (files) => {
+    const fileArray = Array.from(files);
+    
+    if (images.length + fileArray.length > MAX_IMAGES) {
+      toast.error(`최대 ${MAX_IMAGES}장까지 업로드 가능합니다.`);
+      return;
+    }
+
+    const validFiles = fileArray.filter(validateFile);
+    
+    if (validFiles.length === 0) return;
+
+    try {
+      const processedImages = await Promise.all(
+        validFiles.map(async (file) => {
+          const resizedBlob = await resizeImage(file);
+          const url = URL.createObjectURL(resizedBlob);
+          
+          return {
+            id: Date.now() + Math.random(),
+            file: resizedBlob,
+            url,
+            name: file.name,
+            size: resizedBlob.size
+          };
+        })
+      );
+
+      setImages(prev => [...prev, ...processedImages]);
+      toast.success(`${processedImages.length}장의 이미지가 업로드되었습니다.`);
+    } catch (error) {
+      console.error('이미지 처리 실패:', error);
+      toast.error('이미지 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 이미지 제거
+  const removeImage = (imageId) => {
+    setImages(prev => {
+      const updated = prev.filter(img => img.id !== imageId);
+      // URL 메모리 해제
+      const removed = prev.find(img => img.id === imageId);
+      if (removed) {
+        URL.revokeObjectURL(removed.url);
+      }
+      return updated;
+    });
+  };
+
+  // 드래그 이벤트 핸들러
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    handleImageUpload(files);
+  };
+
+  // 파일 선택
+  const handleFileSelect = (e) => {
+    handleImageUpload(e.target.files);
+    e.target.value = ''; // 같은 파일 재선택 가능하도록
   };
 
   const handleSubmit = (e) => {
@@ -279,6 +409,82 @@ const CreatePost = () => {
                 placeholder="태그를 쉼표로 구분하여 입력하세요"
               />
             </div>
+
+            {/* 이미지 업로드 영역 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                이미지 업로드 (최대 {MAX_IMAGES}장)
+              </label>
+              <div
+                className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                  isDragging 
+                    ? 'border-blue-400 bg-blue-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('file-input').click()}
+              >
+                <input
+                  id="file-input"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                
+                {isDragging ? (
+                  <div className="text-blue-600">
+                    <Upload className="w-10 h-10 mx-auto mb-4" />
+                    <p className="text-lg font-medium">이미지를 드롭하세요!</p>
+                  </div>
+                ) : (
+                  <div className="text-gray-500">
+                    <ImageIcon className="w-10 h-10 mx-auto mb-4" />
+                    <p className="text-sm">
+                      이미지를 드래그하여 업로드하거나 클릭하여 파일을 선택하세요
+                    </p>
+                    <p className="text-xs mt-2">
+                      JPG, PNG, WEBP • 최대 5MB • {MAX_IMAGES}장까지
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 업로드된 이미지 미리보기 */}
+            {images.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  업로드된 이미지 ({images.length}/{MAX_IMAGES})
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {images.map(image => (
+                    <div key={image.id} className="relative group">
+                      <img
+                        src={image.url}
+                        alt={image.name}
+                        className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(image.id)}
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        title="이미지 제거"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                      <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">
+                        {Math.round(image.size / 1024)}KB
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* 액션 버튼 */}
             <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">

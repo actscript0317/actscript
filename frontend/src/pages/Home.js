@@ -1,143 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Users, Eye, Calendar, Heart, User, Mic, GraduationCap, Star, Bookmark, MessageCircle, TrendingUp } from 'lucide-react';
-import { scriptAPI, emotionAPI } from '../services/api';
+import { emotionAPI } from '../services/api';
 
 const Home = () => {
-  const [latestScripts, setLatestScripts] = useState([]);
-  const [emotions, setEmotions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-
-  // 카테고리 데이터
-  const categories = [
-    {
-      id: 'female-monologue',
-      title: '여자 독백',
-      description: '여성 1인 독백 대본',
-      icon: User,
-      query: 'gender=여자&scriptType=독백&characters=1',
-      gradient: 'from-pink-400 to-rose-600',
-      iconColor: 'text-pink-100',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=400&fit=crop&crop=face'
-    },
-    {
-      id: 'male-monologue', 
-      title: '남자 독백',
-      description: '남성 1인 독백 대본',
-      icon: Mic,
-      query: 'gender=남자&scriptType=독백&characters=1',
-      gradient: 'from-blue-400 to-indigo-600',
-      iconColor: 'text-blue-100',
-      image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&h=400&fit=crop&crop=face'
-    },
-    {
-      id: 'entrance-exam',
-      title: '입시 대본',
-      description: '연기 입시용 대본',
-      icon: GraduationCap,
-      query: 'purpose=수업/교육',
-      gradient: 'from-emerald-400 to-teal-600',
-      iconColor: 'text-emerald-100',
-      image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&h=400&fit=crop'
-    },
-    {
-      id: 'audition',
-      title: '오디션 용',
-      description: '오디션 실전 대본',
-      icon: Star,
-      query: 'purpose=오디션',
-      gradient: 'from-amber-400 to-orange-600',
-      iconColor: 'text-amber-100',
-      image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=600&h=400&fit=crop'
-    }
-  ];
-
-  // 카테고리 클릭 핸들러
-  const handleCategoryClick = (query) => {
-    navigate(`/scripts?${query}`);
-  };
-
-  // 감정별 이모지 매핑
-  const getEmotionEmoji = (emotionName) => {
-    const emojiMap = {
-      '기쁨': '😊',
-      '행복': '😄',
-      '슬픔': '😢',
-      '우울': '😔',
-      '분노': '😠',
-      '화남': '😡',
-      '사랑': '❤️',
-      '로맨스': '💕',
-      '그리움': '🥺',
-      '그리워': '🤗',
-      '불안': '😰',
-      '걱정': '😟',
-      '두려움': '😨',
-      '무서움': '😱',
-      '절망': '😞',
-      '절대절명': '😣',
-      '증오': '😤',
-      '혐오': '🤮',
-      '질투': '😒',
-      '시기': '🙄',
-      '놀람': '😲',
-      '놀라움': '😯',
-      '당황': '😅',
-      '부끄러움': '😳',
-      '수줍음': '☺️',
-      '자신감': '😎',
-      '당당함': '💪',
-      '희망': '🌟',
-      '꿈': '✨',
-      '평화': '😌',
-      '평온': '😴',
-      '고민': '🤔',
-      '생각': '💭'
-    };
-    
-    // 감정 이름에서 키워드를 찾아서 매핑
-    for (const [key, emoji] of Object.entries(emojiMap)) {
-      if (emotionName.includes(key)) {
-        return emoji;
-      }
-    }
-    
-    return '🎭'; // 기본 이모지
-  };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // 각 API 호출을 개별적으로 처리
-        try {
-          const latestRes = await scriptAPI.getLatest();
-          setLatestScripts(latestRes.data?.scripts || []);
-        } catch (error) {
-          console.error('최신 대본 로딩 실패:', error);
-        }
-
-        try {
-          const emotionsRes = await emotionAPI.getAll();
-          setEmotions(emotionsRes.data?.emotions || []);
-        } catch (error) {
-          console.error('감정 데이터 로딩 실패:', error);
-        }
-
-      } catch (error) {
-        console.error('데이터 로딩 실패:', error);
-        setError('데이터를 불러오는 중 문제가 발생했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   if (loading) {
     return (
@@ -228,38 +97,6 @@ const Home = () => {
       <div className="container py-16">
         <div className="space-y-16">
           
-          {/* 카테고리 섹션 */}
-          <section>
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">카테고리별 대본 찾기</h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                목적과 용도에 맞는 대본을 빠르게 찾아보세요
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto">
-              {categories.map((category) => {
-                const IconComponent = category.icon;
-                return (
-                  <Link
-                    key={category.id}
-                    to={`/scripts?${category.query}`}
-                    className="group relative bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                  >
-                    <div className={`h-48 bg-gradient-to-br ${category.gradient} relative overflow-hidden`}>
-                      <div className="absolute inset-0 bg-black/20"></div>
-                      <div className="relative h-full flex flex-col items-center justify-center text-white p-6">
-                        <IconComponent className={`w-12 h-12 mb-4 ${category.iconColor}`} />
-                        <h3 className="text-xl font-bold mb-2">{category.title}</h3>
-                        <p className="text-sm opacity-90 text-center">{category.description}</p>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-
           {/* 인기 글 TOP 5 섹션 */}
           <section>
             <div className="text-center mb-12">
@@ -270,34 +107,6 @@ const Home = () => {
             </div>
             
             <PopularPostsSection />
-          </section>
-
-
-
-          {/* 감정별 대본 섹션 */}
-          <section>
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">감정별 대본</h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                표현하고 싶은 감정에 맞는 대본을 선택해보세요
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-w-6xl mx-auto">
-              {emotions.map((emotion) => (
-                <Link
-                  key={emotion._id}
-                  to={`/scripts?emotion=${emotion._id}`}
-                  className="group text-center p-4 rounded-xl bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                >
-                  <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                    <span className="text-3xl">{getEmotionEmoji(emotion.name)}</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">{emotion.name}</h3>
-                  <p className="text-sm text-secondary">{emotion.description}</p>
-                </Link>
-              ))}
-            </div>
           </section>
 
           {/* CTA 섹션 */}

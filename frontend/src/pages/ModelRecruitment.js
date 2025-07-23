@@ -14,6 +14,8 @@ const ModelRecruitment = () => {
     category: 'all'
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [userLikes, setUserLikes] = useState(new Set());
+  const [userBookmarks, setUserBookmarks] = useState(new Set());
 
   // 더미 데이터 (좋아요, 저장 수 추가)
   const dummyPosts = [
@@ -132,12 +134,29 @@ const ModelRecruitment = () => {
       return;
     }
     
-    setPosts(prev => prev.map(post => 
-      post.id === postId 
-        ? { ...post, likes: post.likes + 1 }
-        : post
-    ));
-    toast.success('좋아요를 눌렸습니다!');
+    const isLiked = userLikes.has(postId);
+    
+    if (isLiked) {
+      setUserLikes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, likes: post.likes - 1 }
+          : post
+      ));
+      toast.success('좋아요를 취소했습니다.');
+    } else {
+      setUserLikes(prev => new Set([...prev, postId]));
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, likes: post.likes + 1 }
+          : post
+      ));
+      toast.success('좋아요를 눌렸습니다!');
+    }
   };
 
   const handleBookmark = (postId, e) => {
@@ -147,12 +166,29 @@ const ModelRecruitment = () => {
       return;
     }
     
-    setPosts(prev => prev.map(post => 
-      post.id === postId 
-        ? { ...post, bookmarks: post.bookmarks + 1 }
-        : post
-    ));
-    toast.success('게시글이 저장되었습니다!');
+    const isBookmarked = userBookmarks.has(postId);
+    
+    if (isBookmarked) {
+      setUserBookmarks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, bookmarks: post.bookmarks - 1 }
+          : post
+      ));
+      toast.success('저장을 취소했습니다.');
+    } else {
+      setUserBookmarks(prev => new Set([...prev, postId]));
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, bookmarks: post.bookmarks + 1 }
+          : post
+      ));
+      toast.success('게시글이 저장되었습니다!');
+    }
   };
 
   const handleWritePost = () => {
@@ -271,16 +307,24 @@ const ModelRecruitment = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={(e) => handleLike(post.id, e)}
-                          className="flex items-center px-3 py-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
+                            userLikes.has(post.id) 
+                              ? 'bg-red-100 text-red-600' 
+                              : 'text-red-500 hover:bg-red-50'
+                          }`}
                         >
-                          <Heart className="w-4 h-4 mr-1" />
+                          <Heart className={`w-4 h-4 mr-1 ${userLikes.has(post.id) ? 'fill-current' : ''}`} />
                           {post.likes}
                         </button>
                         <button
                           onClick={(e) => handleBookmark(post.id, e)}
-                          className="flex items-center px-3 py-1 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                          className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
+                            userBookmarks.has(post.id) 
+                              ? 'bg-blue-100 text-blue-600' 
+                              : 'text-blue-500 hover:bg-blue-50'
+                          }`}
                         >
-                          <Bookmark className="w-4 h-4 mr-1" />
+                          <Bookmark className={`w-4 h-4 mr-1 ${userBookmarks.has(post.id) ? 'fill-current' : ''}`} />
                           {post.bookmarks}
                         </button>
                       </div>

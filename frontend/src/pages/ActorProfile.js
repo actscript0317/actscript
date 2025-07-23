@@ -121,6 +121,11 @@ const ActorProfile = () => {
     navigate('/posts/new?board=actor-profile');
   };
 
+  const handleProfileClick = (profile) => {
+    // 프로필 상세 페이지로 이동 (실제로는 posts/:id 형태로)
+    navigate(`/posts/${profile.id}`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -197,7 +202,8 @@ const ActorProfile = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+              className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handleProfileClick(profile)}
             >
               {/* 프로필 이미지 */}
               <div className="h-64 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">

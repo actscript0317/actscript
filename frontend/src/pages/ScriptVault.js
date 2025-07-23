@@ -12,31 +12,97 @@ import {
   Trash2,
   Copy,
   X,
-  Search
+  Search,
+  Edit3,
+  MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const ScriptVault = () => {
   const { 
     aiGeneratedScripts, 
-    savedScripts, 
     loadAIGeneratedScripts, 
-    loadSavedScripts,
-    removeAIGeneratedScript,
-    removeSavedScript 
+    removeAIGeneratedScript
   } = useAuth();
-
-  const [activeTab, setActiveTab] = useState('ai'); // 'ai' or 'saved'
+  
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('ai'); // 'ai', 'saved', 'written'
   const [selectedScript, setSelectedScript] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
 
+  // 저장한 글 데이터 (더미)
+  const getSavedPosts = () => {
+    return [
+      {
+        _id: 'saved1',
+        title: '소속사 오디션 정보 공유',
+        content: '이번 달에 있는 소속사 오디션 정보들을 정리해서 공유드립니다...',
+        author: '정보공유',
+        category: '매니지먼트',
+        boardName: '연기자 정보방',
+        createdAt: '2024-01-11',
+        savedAt: '2024-01-20',
+        likes: 89,
+        bookmarks: 156,
+        views: 445,
+        comments: 23
+      },
+      {
+        _id: 'saved2',
+        title: '강남 연기 스터디 그룹 멤버 모집',
+        content: '매주 토요일 강남에서 모이는 연기 스터디 그룹입니다...',
+        author: '연기사랑',
+        category: '스터디 그룹',
+        boardName: '연기자 정보방',
+        createdAt: '2024-01-15',
+        savedAt: '2024-01-18',
+        likes: 42,
+        bookmarks: 28,
+        views: 234,
+        comments: 15
+      }
+    ];
+  };
+
+  // 내가 작성한 글 데이터 (더미)
+  const getMyPosts = () => {
+    return [
+      {
+        _id: 'my1',
+        title: '신인 배우 자기소개',
+        content: '안녕하세요! 연기에 열정을 가진 신인 배우입니다...',
+        author: '사용자', // 실제로는 로그인한 사용자
+        category: '자기소개',
+        boardName: '배우 프로필',
+        createdAt: '2024-01-16',
+        likes: 15,
+        bookmarks: 8,
+        views: 67,
+        comments: 5
+      },
+      {
+        _id: 'my2',
+        title: '단편영화 제작팀 모집합니다',
+        content: '대학생 단편영화 제작을 위해 스태프를 모집합니다...',
+        author: '사용자',
+        category: '단편영화',
+        boardName: '배우 모집',
+        createdAt: '2024-01-10',
+        likes: 23,
+        bookmarks: 12,
+        views: 156,
+        comments: 8
+      }
+    ];
+  };
+
   // 컴포넌트 마운트 시 대본 목록 로드
   useEffect(() => {
     loadAIGeneratedScripts();
-    loadSavedScripts();
-  }, [loadAIGeneratedScripts, loadSavedScripts]);
+  }, [loadAIGeneratedScripts]);
 
   // 모달 열기/닫기 시 body 스크롤 제어
   useEffect(() => {
@@ -246,7 +312,9 @@ const ScriptVault = () => {
       if (type === 'ai') {
         removeAIGeneratedScript(scriptId);
       } else {
-        removeSavedScript(scriptId);
+        // For saved scripts, we'll navigate to a new page or handle deletion differently
+        // For now, we'll just show an alert
+        alert('저장된 대본은 삭제할 수 없습니다.');
       }
     }
   };
@@ -263,35 +331,39 @@ const ScriptVault = () => {
     setSelectedScript(null);
   };
 
-  // 현재 탭에 따른 대본 목록 가져오기
+  // 현재 탭에 따른 대본/글 목록 가져오기
   const getCurrentScripts = () => {
-    const scripts = activeTab === 'ai' ? aiGeneratedScripts : savedScripts;
+    let scripts;
+    if (activeTab === 'ai') {
+      scripts = aiGeneratedScripts;
+    } else if (activeTab === 'saved') {
+      scripts = getSavedPosts();
+    } else if (activeTab === 'written') {
+      scripts = getMyPosts();
+    } else {
+      scripts = [];
+    }
     
     // 검색 필터링
-    let filteredScripts = scripts.filter(script => {
-      const displayTitle = getScriptDisplayTitle(script).toLowerCase();
-      const originalTitle = script.title?.toLowerCase() || '';
-      const contentMatch = script.content?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
-      const searchLower = searchTerm.toLowerCase();
-      
-      return displayTitle.includes(searchLower) || 
-             originalTitle.includes(searchLower) || 
-             contentMatch;
-    });
-
-    // 장르 필터링
-    if (filterGenre) {
-      filteredScripts = filteredScripts.filter(script => 
-        script.genre === filterGenre
+    let filtered = scripts;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(script => 
+        script.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (script.content && script.content.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
-
-    return filteredScripts;
+    
+    if (filterGenre && activeTab === 'ai') {
+      filtered = filtered.filter(script => script.genre === filterGenre);
+    }
+    
+    return filtered;
   };
 
   // 장르 목록 추출
   const getGenreOptions = () => {
-    const allScripts = activeTab === 'ai' ? aiGeneratedScripts : savedScripts;
+    const allScripts = aiGeneratedScripts; // AI scripts are not saved, so no savedScripts context
     const genres = [...new Set(allScripts.map(script => script.genre).filter(Boolean))];
     return genres;
   };
@@ -309,6 +381,94 @@ const ScriptVault = () => {
   };
 
   const currentScripts = getCurrentScripts();
+
+  const handleScriptClick = (script) => {
+    if (activeTab === 'ai') {
+      setSelectedScript(script);
+      setShowDetailModal(true);
+    } else {
+      // 저장한 글이나 내가 작성한 글의 경우 상세 페이지로 이동
+      navigate(`/posts/${script._id}`);
+    }
+  };
+
+  // 게시글 카드 렌더링 (저장한 글, 내가 작성한 글용)
+  const renderPostCard = (post) => {
+    const isWritten = activeTab === 'written';
+    const cardColor = isWritten ? 'border-green-200 hover:border-green-300' : 'border-blue-200 hover:border-blue-300';
+    
+    return (
+      <motion.div
+        key={post._id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`bg-white rounded-xl shadow-md border-2 ${cardColor} overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer`}
+        onClick={() => handleScriptClick(post)}
+      >
+        <div className="p-6">
+          {/* 헤더 */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+                {post.title}
+              </h3>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isWritten ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {post.category}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {post.boardName}
+                </span>
+              </div>
+            </div>
+            {isWritten ? (
+              <Edit3 className="w-5 h-5 text-green-500 flex-shrink-0" />
+            ) : (
+              <Bookmark className="w-5 h-5 text-blue-500 flex-shrink-0" />
+            )}
+          </div>
+
+          {/* 내용 미리보기 */}
+          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+            {post.content}
+          </p>
+
+          {/* 메타 정보 */}
+          <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center">
+                <Eye className="w-3 h-3 mr-1" />
+                {post.views}
+              </span>
+              <span className="flex items-center">
+                <Heart className="w-3 h-3 mr-1" />
+                {post.likes}
+              </span>
+              <span className="flex items-center">
+                <MessageCircle className="w-3 h-3 mr-1" />
+                {post.comments}
+              </span>
+            </div>
+            <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
+          </div>
+
+          {/* 작성자 정보 */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">
+              작성자: {post.author}
+            </span>
+            {!isWritten && post.savedAt && (
+              <span className="text-xs text-gray-400">
+                저장일: {new Date(post.savedAt).toLocaleDateString('ko-KR')}
+              </span>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-12">
@@ -341,30 +501,41 @@ const ScriptVault = () => {
           >
             {/* 탭 */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div className="flex bg-gray-100 rounded-xl p-1">
-                <button
-                  onClick={() => setActiveTab('ai')}
-                  className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
-                    activeTab === 'ai'
-                      ? 'bg-white text-purple-600 shadow-md'
-                      : 'text-gray-600 hover:text-purple-600'
-                  }`}
-                >
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  AI 생성 대본 ({aiGeneratedScripts.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('saved')}
-                  className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
-                    activeTab === 'saved'
-                      ? 'bg-white text-blue-600 shadow-md'
-                      : 'text-gray-600 hover:text-blue-600'
-                  }`}
-                >
-                  <Bookmark className="w-5 h-5 mr-2" />
-                  저장한 대본 ({savedScripts.length})
-                </button>
-              </div>
+                <div className="flex bg-gray-100 p-1 rounded-lg max-w-md">
+                  <button
+                    onClick={() => setActiveTab('ai')}
+                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
+                      activeTab === 'ai'
+                        ? 'bg-white text-purple-600 shadow-md'
+                        : 'text-gray-600 hover:text-purple-600'
+                    }`}
+                  >
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    AI 생성 대본 ({aiGeneratedScripts.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('saved')}
+                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
+                      activeTab === 'saved'
+                        ? 'bg-white text-blue-600 shadow-md'
+                        : 'text-gray-600 hover:text-blue-600'
+                    }`}
+                  >
+                    <Bookmark className="w-5 h-5 mr-2" />
+                    저장한 글 ({getSavedPosts().length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('written')}
+                    className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
+                      activeTab === 'written'
+                        ? 'bg-white text-green-600 shadow-md'
+                        : 'text-gray-600 hover:text-green-600'
+                    }`}
+                  >
+                    <Edit3 className="w-5 h-5 mr-2" />
+                    내가 작성한 글 ({getMyPosts().length})
+                  </button>
+                </div>
 
               {/* 검색 및 필터 */}
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -429,89 +600,87 @@ const ScriptVault = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {currentScripts.map((script, index) => (
-                  <motion.div
-                    key={script._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-all duration-300 group"
-                  >
-                    {/* 대본 헤더 */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                          {getScriptDisplayTitle(script)}
-                        </h3>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {script.isAIGenerated && (
-                            <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              AI 생성
-                            </span>
-                          )}
-                          {script.characterCount && (
-                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                              <Users className="w-3 h-3 mr-1" />
-                              {script.characterCount}명
-                            </span>
-                          )}
-                          {script.genre && (
-                            <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                              <Film className="w-3 h-3 mr-1" />
-                              {script.genre}
-                            </span>
-                          )}
+                  activeTab === 'ai' ? (
+                    <motion.div
+                      key={script._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-all duration-300 group"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+                            {getScriptDisplayTitle(script)}
+                          </h3>
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {script.isAIGenerated && (
+                              <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                AI 생성
+                              </span>
+                            )}
+                            {script.characterCount && (
+                              <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                <Users className="w-3 h-3 mr-1" />
+                                {script.characterCount}명
+                              </span>
+                            )}
+                            {script.genre && (
+                              <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                <Film className="w-3 h-3 mr-1" />
+                                {script.genre}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        <Sparkles className="w-6 h-6 text-purple-500 flex-shrink-0" />
                       </div>
-                    </div>
 
-                    {/* 대본 미리보기 */}
-                    <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                      <p className="text-sm text-gray-600 line-clamp-3">
-                        {script.content?.substring(0, 120)}...
-                      </p>
-                    </div>
-
-                    {/* 메타데이터 */}
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                      <div className="flex items-center">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {formatDate(script.generatedAt || script.savedAt || script.createdAt)}
+                      {/* 대본 미리보기 */}
+                      <div className="mb-4">
+                        <p className="text-gray-600 text-sm line-clamp-3">
+                          {script.content || script.situation || '대본 내용이 없습니다.'}
+                        </p>
                       </div>
-                      {script.emotion && (
-                        <div className="flex items-center">
-                          <Heart className="w-3 h-3 mr-1" />
-                          {script.emotion}
-                        </div>
-                      )}
-                    </div>
 
-                    {/* 액션 버튼 */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleViewScript(script)}
-                        className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        보기
-                      </button>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(script.content);
-                          alert('대본이 클립보드에 복사되었습니다!');
-                        }}
-                        className="flex items-center justify-center px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteScript(script._id, activeTab)}
-                        className="flex items-center justify-center px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </motion.div>
+                      {/* 메타 정보 */}
+                      <div className="flex items-center text-xs text-gray-500 mb-4 space-x-4">
+                        <span className="flex items-center">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          {new Date(script.createdAt).toLocaleDateString('ko-KR')}
+                        </span>
+                        {script.mood && (
+                          <span className="flex items-center">
+                            <Heart className="w-3 h-3 mr-1" />
+                            {script.mood}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 액션 버튼들 */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleScriptClick(script)}
+                          className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          상세보기
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteScript(script._id);
+                          }}
+                          className="flex items-center justify-center px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    renderPostCard(script)
+                  )
                 ))}
               </div>
             )}
@@ -619,7 +788,8 @@ const ScriptVault = () => {
                             if (selectedScript.isAIGenerated) {
                               await removeAIGeneratedScript(selectedScript._id);
                             } else {
-                              await removeSavedScript(selectedScript._id);
+                              // For user-written scripts, we'll navigate to a new page or handle deletion differently
+                              alert('직접 작성 대본은 삭제할 수 없습니다.');
                             }
                             handleCloseModal();
                           } catch (error) {

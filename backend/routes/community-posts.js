@@ -137,6 +137,12 @@ router.get('/:id', async (req, res) => {
 // 게시글 생성
 router.post('/', auth, upload.array('images', 10), async (req, res) => {
   try {
+    console.log('📥 커뮤니티 게시글 생성 요청:', {
+      body: req.body,
+      filesCount: req.files?.length || 0,
+      userId: req.user?.id
+    });
+
     const postData = {
       ...req.body,
       userId: req.user.id
@@ -181,7 +187,23 @@ router.post('/', auth, upload.array('images', 10), async (req, res) => {
       message: '게시글이 성공적으로 생성되었습니다.'
     });
   } catch (error) {
-    console.error('게시글 생성 오류:', error);
+    console.error('❌ 커뮤니티 게시글 생성 오류:', {
+      message: error.message,
+      name: error.name,
+      errors: error.errors,
+      stack: error.stack
+    });
+    
+    // Mongoose validation 에러 처리
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        success: false, 
+        message: '유효성 검사 실패: ' + validationErrors.join(', '),
+        errors: validationErrors
+      });
+    }
+    
     res.status(400).json({ 
       success: false, 
       message: error.message || '게시글 생성에 실패했습니다.' 

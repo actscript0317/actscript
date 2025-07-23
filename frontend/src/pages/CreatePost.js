@@ -18,13 +18,62 @@ const CreatePost = () => {
   // URL 파라미터에서 게시판 타입 가져오기
   const boardType = searchParams.get('board') || 'general';
   
+  // 게시판 타입별 상수
+  const isActorProfile = boardType === 'actor-profile';
+  const isActorRecruitment = boardType === 'actor-recruitment'; 
+  const isModelRecruitment = boardType === 'model-recruitment';
+  const isCommunityPost = !isActorProfile && !isActorRecruitment && !isModelRecruitment;
+  
+  // enum 상수들
+  const GENDER_OPTIONS = ['남성', '여성', '기타'];
+  const EXPERIENCE_OPTIONS = ['신인', '1-2년', '3-5년', '5년 이상'];
+  const ACTOR_EXPERIENCE_OPTIONS = ['무관', '신인 환영', '경력자 우대', '경력 필수'];
+  const LOCATION_OPTIONS = ['서울', '경기', '인천', '강원', '충북', '충남', '대전', '경북', '대구', '경남', '부산', '울산', '전북', '전남', '광주', '제주', '기타'];
+  const SPECIALTY_OPTIONS = ['연극', '영화', '드라마', '뮤지컬', '광고', '모델링', '성우', '기타'];
+  const PROJECT_TYPE_OPTIONS = ['상업', '독립', '학생', '아마추어'];
+  const PAYMENT_TYPE_OPTIONS = ['무료', '실비', '협의', '일정액'];
+  const MODEL_PAYMENT_OPTIONS = ['시급', '일급', '건당', '월급', '무료', '협의'];
+  const APPLICATION_METHOD_OPTIONS = ['이메일', '전화', '카카오톡', '인스타그램', '온라인폼', '직접만남'];
+  const MODEL_TYPE_OPTIONS = ['패션모델', '광고모델', '핸드모델', '피트모델', '헤어모델', '이벤트모델', '레이싱모델', '기타'];
+  const BODY_TYPE_OPTIONS = ['마른형', '보통형', '근육형', '글래머형', '무관'];
+  
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     category: '',
     recruitmentField: '',
     applicationMethod: '',
-    tags: ''
+    tags: '',
+    // 배우 프로필 전용 필드
+    name: '',
+    age: '',
+    gender: '',
+    height: '',
+    weight: '',
+    experience: '',
+    education: '',
+    specialty: [],
+    location: '',
+    phone: '',
+    email: '',
+    instagram: '',
+    portfolio: '',
+    // 모집공고 전용 필드
+    projectType: '',
+    detailedLocation: '',
+    paymentType: '',
+    paymentAmount: '',
+    paymentDetails: '',
+    deadline: '',
+    contactEmail: '',
+    contactPhone: '',
+    // 모델 모집 전용 필드
+    modelType: '',
+    bodyType: '',
+    ageMin: '',
+    ageMax: '',
+    heightMin: '',
+    heightMax: ''
   });
   
   const [images, setImages] = useState([]);
@@ -76,7 +125,6 @@ const CreatePost = () => {
   };
 
   const categories = getCategoriesByBoard(boardType);
-  const isRecruitmentBoard = boardType === 'actor-recruitment' || boardType === 'model-recruitment';
 
   // 게시판별 타이틀 설정
   const getBoardTitle = (board) => {
@@ -105,6 +153,16 @@ const CreatePost = () => {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  // specialty 체크박스 핸들러
+  const handleSpecialtyChange = (specialtyName) => {
+    setFormData(prev => ({
+      ...prev,
+      specialty: prev.specialty.includes(specialtyName)
+        ? prev.specialty.filter(s => s !== specialtyName)
+        : [...prev.specialty, specialtyName]
     }));
   };
 
@@ -248,10 +306,22 @@ const CreatePost = () => {
       return;
     }
 
-    // 모집 글인 경우 추가 검증
-    if (isRecruitmentBoard && !formData.recruitmentField.trim()) {
-      toast.error('모집분야를 입력해주세요.');
-      return;
+    // 게시판별 추가 검증
+    if (isActorProfile) {
+      if (!formData.name.trim() || !formData.gender || !formData.experience || !formData.location) {
+        toast.error('이름, 성별, 경력, 활동지역을 모두 입력해주세요.');
+        return;
+      }
+    } else if (isActorRecruitment) {
+      if (!formData.projectType || !formData.location || !formData.deadline || !formData.applicationMethod || !formData.paymentType || !formData.contactEmail) {
+        toast.error('프로젝트 유형, 촬영지역, 마감일, 지원방법, 보수유형, 연락처 이메일을 모두 입력해주세요.');
+        return;
+      }
+    } else if (isModelRecruitment) {
+      if (!formData.modelType || !formData.location || !formData.deadline || !formData.applicationMethod || !formData.paymentType || !formData.contactEmail) {
+        toast.error('모델 유형, 촬영지역, 마감일, 지원방법, 보수유형, 연락처 이메일을 모두 입력해주세요.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -280,33 +350,106 @@ const CreatePost = () => {
       switch (boardType) {
         case 'actor-profile':
           // 배우 프로필 생성
-          submitData.append('name', formData.recruitmentField || '배우');
-          submitData.append('gender', '기타'); // enum: ['남성', '여성', '기타']
-          submitData.append('experience', '신인'); // enum: ['신인', '1-2년', '3-5년', '5년 이상']
-          submitData.append('location', '서울');
+          submitData.append('name', formData.name || '이름 미입력');
+          submitData.append('gender', formData.gender || '기타');
+          submitData.append('experience', formData.experience || '신인');
+          submitData.append('location', formData.location || '서울');
+          if (formData.age) submitData.append('age', formData.age);
+          if (formData.height) submitData.append('height', formData.height);
+          if (formData.weight) submitData.append('weight', formData.weight);
+          if (formData.education) submitData.append('education', formData.education);
+          if (formData.specialty.length > 0) {
+            submitData.append('specialty', JSON.stringify(formData.specialty));
+          }
+          // 연락처 정보
+          const contactInfo = {};
+          if (formData.phone) contactInfo.phone = formData.phone;
+          if (formData.email) contactInfo.email = formData.email;
+          if (formData.instagram) contactInfo.instagram = formData.instagram;
+          if (formData.portfolio) contactInfo.portfolio = formData.portfolio;
+          if (Object.keys(contactInfo).length > 0) {
+            submitData.append('contact', JSON.stringify(contactInfo));
+          }
           response = await actorProfileAPI.create(submitData);
           break;
 
         case 'actor-recruitment':
           // 배우 모집공고 생성
-          submitData.append('projectType', '상업');
-          submitData.append('location', '서울');
-          submitData.append('applicationDeadline', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()); // 30일 후
+          submitData.append('projectType', formData.projectType || '상업');
+          submitData.append('location', formData.location || '서울');
+          if (formData.detailedLocation) submitData.append('detailedLocation', formData.detailedLocation);
+          
+          // 지원 마감일 (사용자 입력 또는 30일 후)
+          const deadline = formData.deadline ? new Date(formData.deadline).toISOString() 
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          submitData.append('applicationDeadline', deadline);
           submitData.append('applicationMethod', formData.applicationMethod || '이메일');
-          submitData.append('payment', JSON.stringify({ type: '협의', details: '협의 후 결정' }));
-          submitData.append('contactInfo', JSON.stringify({ email: 'contact@example.com' }));
+          
+          // 보상 정보
+          const payment = {
+            type: formData.paymentType || '협의',
+            details: formData.paymentDetails || '협의 후 결정'
+          };
+          if (formData.paymentAmount) payment.amount = parseInt(formData.paymentAmount);
+          submitData.append('payment', JSON.stringify(payment));
+          
+          // 연락처 정보
+          const recruitmentContactInfo = {};
+          if (formData.contactEmail) recruitmentContactInfo.email = formData.contactEmail;
+          if (formData.contactPhone) recruitmentContactInfo.phone = formData.contactPhone;
+          if (Object.keys(recruitmentContactInfo).length === 0) {
+            recruitmentContactInfo.email = 'contact@example.com';
+          }
+          submitData.append('contactInfo', JSON.stringify(recruitmentContactInfo));
           response = await actorRecruitmentAPI.create(submitData);
           break;
 
         case 'model-recruitment':
           // 모델 모집공고 생성
-          submitData.append('modelType', '패션모델');
-          submitData.append('location', '서울');
-          submitData.append('applicationDeadline', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+          submitData.append('modelType', formData.modelType || '패션모델');
+          submitData.append('location', formData.location || '서울');
+          if (formData.detailedLocation) submitData.append('detailedLocation', formData.detailedLocation);
+          
+          // 지원 마감일
+          const modelDeadline = formData.deadline ? new Date(formData.deadline).toISOString() 
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          submitData.append('applicationDeadline', modelDeadline);
           submitData.append('applicationMethod', formData.applicationMethod || '이메일');
-          submitData.append('requirements', JSON.stringify({ gender: '무관', experience: '무관' }));
-          submitData.append('payment', JSON.stringify({ type: '협의', details: '협의 후 결정' }));
-          submitData.append('contactInfo', JSON.stringify({ email: 'contact@example.com' }));
+          
+          // 모델 요구사항
+          const requirements = {
+            gender: formData.gender || '무관',
+            experience: formData.experience || '무관'
+          };
+          if (formData.ageMin || formData.ageMax) {
+            requirements.ageRange = {};
+            if (formData.ageMin) requirements.ageRange.min = parseInt(formData.ageMin);
+            if (formData.ageMax) requirements.ageRange.max = parseInt(formData.ageMax);
+          }
+          if (formData.heightMin || formData.heightMax) {
+            requirements.heightRange = {};
+            if (formData.heightMin) requirements.heightRange.min = parseInt(formData.heightMin);
+            if (formData.heightMax) requirements.heightRange.max = parseInt(formData.heightMax);
+          }
+          if (formData.bodyType) requirements.bodyType = formData.bodyType;
+          submitData.append('requirements', JSON.stringify(requirements));
+          
+          // 보상 정보
+          const modelPayment = {
+            type: formData.paymentType || '협의',
+            details: formData.paymentDetails || '협의 후 결정'
+          };
+          if (formData.paymentAmount) modelPayment.amount = parseInt(formData.paymentAmount);
+          submitData.append('payment', JSON.stringify(modelPayment));
+          
+          // 연락처 정보
+          const modelContactInfo = {};
+          if (formData.contactEmail) modelContactInfo.email = formData.contactEmail;
+          if (formData.contactPhone) modelContactInfo.phone = formData.contactPhone;
+          if (Object.keys(modelContactInfo).length === 0) {
+            modelContactInfo.email = 'contact@example.com';
+          }
+          submitData.append('contactInfo', JSON.stringify(modelContactInfo));
           response = await modelRecruitmentAPI.create(submitData);
           break;
 
@@ -410,23 +553,668 @@ const CreatePost = () => {
               />
             </div>
 
-            {/* 모집분야 (모집 글인 경우만) */}
-            {isRecruitmentBoard && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  모집분야 *
-                </label>
-                <input
-                  type="text"
-                  name="recruitmentField"
-                  value={formData.recruitmentField}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="예: 주연 배우, 모델 등"
-                  required={isRecruitmentBoard}
-                />
-              </div>
+            {/* 배우 프로필 전용 필드들 */}
+            {isActorProfile && (
+              <>
+                {/* 이름 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    이름 *
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="이름을 입력하세요"
+                    required
+                  />
+                </div>
+
+                {/* 성별, 경력 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      성별 *
+                    </label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">성별 선택</option>
+                      {GENDER_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      경력 *
+                    </label>
+                    <select
+                      name="experience"
+                      value={formData.experience}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">경력 선택</option>
+                      {EXPERIENCE_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 나이, 키, 몸무게 */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      나이
+                    </label>
+                    <input
+                      type="number"
+                      name="age"
+                      value={formData.age}
+                      onChange={handleChange}
+                      min="15"
+                      max="80"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="나이"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      키 (cm)
+                    </label>
+                    <input
+                      type="number"
+                      name="height"
+                      value={formData.height}
+                      onChange={handleChange}
+                      min="140"
+                      max="220"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="키"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      몸무게 (kg)
+                    </label>
+                    <input
+                      type="number"
+                      name="weight"
+                      value={formData.weight}
+                      onChange={handleChange}
+                      min="30"
+                      max="150"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="몸무게"
+                    />
+                  </div>
+                </div>
+
+                {/* 지역 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    활동 지역 *
+                  </label>
+                  <select
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">지역 선택</option>
+                    {LOCATION_OPTIONS.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 전문 분야 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    전문 분야 (복수 선택 가능)
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {SPECIALTY_OPTIONS.map(specialty => (
+                      <label key={specialty} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.specialty.includes(specialty)}
+                          onChange={() => handleSpecialtyChange(specialty)}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">{specialty}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 학력 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    학력
+                  </label>
+                  <input
+                    type="text"
+                    name="education"
+                    value={formData.education}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="학력을 입력하세요"
+                  />
+                </div>
+
+                {/* 연락처 정보 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      전화번호
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="010-0000-0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      이메일
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="이메일 주소"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      인스타그램
+                    </label>
+                    <input
+                      type="text"
+                      name="instagram"
+                      value={formData.instagram}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="@username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      포트폴리오 링크
+                    </label>
+                    <input
+                      type="url"
+                      name="portfolio"
+                      value={formData.portfolio}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="https://"
+                    />
+                  </div>
+                </div>
+              </>
             )}
+
+            {/* 배우 모집공고 전용 필드들 */}
+            {isActorRecruitment && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      프로젝트 유형 *
+                    </label>
+                    <select
+                      name="projectType"
+                      value={formData.projectType}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">프로젝트 유형 선택</option>
+                      {PROJECT_TYPE_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      촬영 지역 *
+                    </label>
+                    <select
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">지역 선택</option>
+                      {LOCATION_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    상세 촬영 장소
+                  </label>
+                  <input
+                    type="text"
+                    name="detailedLocation"
+                    value={formData.detailedLocation}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="예: 홍대 스튜디오, 강남구 일대"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      지원 마감일 *
+                    </label>
+                    <input
+                      type="date"
+                      name="deadline"
+                      value={formData.deadline}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      지원 방법 *
+                    </label>
+                    <select
+                      name="applicationMethod"
+                      value={formData.applicationMethod}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">지원 방법 선택</option>
+                      {APPLICATION_METHOD_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      보수 유형 *
+                    </label>
+                    <select
+                      name="paymentType"
+                      value={formData.paymentType}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">보수 유형 선택</option>
+                      {PAYMENT_TYPE_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      보수 금액
+                    </label>
+                    <input
+                      type="number"
+                      name="paymentAmount"
+                      value={formData.paymentAmount}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="금액 (원)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      보수 상세
+                    </label>
+                    <input
+                      type="text"
+                      name="paymentDetails"
+                      value={formData.paymentDetails}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="예: 식비 별도 제공"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      연락처 이메일 *
+                    </label>
+                    <input
+                      type="email"
+                      name="contactEmail"
+                      value={formData.contactEmail}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="연락받을 이메일"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      연락처 전화번호
+                    </label>
+                    <input
+                      type="tel"
+                      name="contactPhone"
+                      value={formData.contactPhone}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="010-0000-0000"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* 모델 모집공고 전용 필드들 */}
+            {isModelRecruitment && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      모델 유형 *
+                    </label>
+                    <select
+                      name="modelType"
+                      value={formData.modelType}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">모델 유형 선택</option>
+                      {MODEL_TYPE_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      촬영 지역 *
+                    </label>
+                    <select
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">지역 선택</option>
+                      {LOCATION_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    상세 촬영 장소
+                  </label>
+                  <input
+                    type="text"
+                    name="detailedLocation"
+                    value={formData.detailedLocation}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="예: 강남구 스튜디오, 삼성동 일대"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      성별 요구사항
+                    </label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">성별 무관</option>
+                      {GENDER_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      경력 요구사항
+                    </label>
+                    <select
+                      name="experience"
+                      value={formData.experience}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">경력 무관</option>
+                      {ACTOR_EXPERIENCE_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      체형 요구사항
+                    </label>
+                    <select
+                      name="bodyType"
+                      value={formData.bodyType}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">체형 무관</option>
+                      {BODY_TYPE_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      나이 요구사항
+                    </label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="number"
+                        name="ageMin"
+                        value={formData.ageMin}
+                        onChange={handleChange}
+                        min="15"
+                        max="80"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="최소"
+                      />
+                      <span className="self-center">~</span>
+                      <input
+                        type="number"
+                        name="ageMax"
+                        value={formData.ageMax}
+                        onChange={handleChange}
+                        min="15"
+                        max="80"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="최대"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      키 요구사항 (cm)
+                    </label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="number"
+                        name="heightMin"
+                        value={formData.heightMin}
+                        onChange={handleChange}
+                        min="140"
+                        max="220"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="최소"
+                      />
+                      <span className="self-center">~</span>
+                      <input
+                        type="number"
+                        name="heightMax"
+                        value={formData.heightMax}
+                        onChange={handleChange}
+                        min="140"
+                        max="220"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="최대"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      지원 마감일 *
+                    </label>
+                    <input
+                      type="date"
+                      name="deadline"
+                      value={formData.deadline}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      지원 방법 *
+                    </label>
+                    <select
+                      name="applicationMethod"
+                      value={formData.applicationMethod}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">지원 방법 선택</option>
+                      {APPLICATION_METHOD_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      보수 유형 *
+                    </label>
+                    <select
+                      name="paymentType"
+                      value={formData.paymentType}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">보수 유형 선택</option>
+                      {MODEL_PAYMENT_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      보수 금액
+                    </label>
+                    <input
+                      type="number"
+                      name="paymentAmount"
+                      value={formData.paymentAmount}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="금액 (원)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      보수 상세
+                    </label>
+                    <input
+                      type="text"
+                      name="paymentDetails"
+                      value={formData.paymentDetails}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="예: 교통비 별도"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      연락처 이메일 *
+                    </label>
+                    <input
+                      type="email"
+                      name="contactEmail"
+                      value={formData.contactEmail}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="연락받을 이메일"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      연락처 전화번호
+                    </label>
+                    <input
+                      type="tel"
+                      name="contactPhone"
+                      value={formData.contactPhone}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="010-0000-0000"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+
 
             {/* 본문 */}
             <div>
@@ -444,22 +1232,7 @@ const CreatePost = () => {
               />
             </div>
 
-            {/* 지원방법 (모집 글인 경우만) */}
-            {isRecruitmentBoard && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  지원방법
-                </label>
-                <input
-                  type="text"
-                  name="applicationMethod"
-                  value={formData.applicationMethod}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="예: 이메일, 전화번호, 카카오톡 ID 등"
-                />
-              </div>
-            )}
+
 
             {/* 태그 (선택사항) */}
             <div>

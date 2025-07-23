@@ -59,13 +59,13 @@ router.post('/generate', protect, async (req, res) => {
       });
     }
 
-    const { characterCount, genre, emotion, length, situation, style, location } = req.body;
+    const { characterCount, genre, length, location, gender } = req.body;
 
     // 입력값 검증
-    if (!characterCount || !genre || !emotion || !length) {
+    if (!characterCount || !genre || !length || !gender) {
       return res.status(400).json({
         error: '모든 필드를 입력해주세요.',
-        required: ['characterCount', 'genre', 'emotion', 'length']
+        required: ['characterCount', 'genre', 'length', 'gender']
       });
     }
 
@@ -78,27 +78,31 @@ router.post('/generate', protect, async (req, res) => {
 
     const lengthText = lengthMap[length] || length;
 
-    // 상황 설명 처리
-    const situationText = situation?.trim() 
-      ? situation 
-      : "Please set the situation freely. The more specific, the better script will be generated.";
+    // 성별 처리
+    const genderMap = {
+      'male': '남성',
+      'female': '여성',
+      'random': '성별 자유롭게'
+    };
     
-    const locationText = location?.trim() ? location : "Please set the location freely.";
+    const genderText = genderMap[gender] || gender;
+    
+    const locationText = location?.trim() ? location : "자유롭게 설정";
 
     // 장르별 지시사항
     const genreDirectives = {
-      '로맨스': 'Focus on warm and tender emotional lines.',
-      '코미디': 'Write with humor and fun as the center, keeping it lively.',
-      '스릴러': 'Structure with tension and plot twists.',
-      '드라마': 'Write realistically with deep emotional resonance.',
-      '액션': 'Include dynamic scenes and urgent dialogue flow.',
-      '공포': 'Insert horror atmosphere and tense dialogue.',
-      '판타지': 'Include imaginative settings and magical elements.',
-      'SF': 'Reflect futuristic and scientific backgrounds and situations.',
-      '미스터리': 'Write with mysterious flow that leaves questions and has plot twists.',
-      '시대극': 'Use speech patterns and vocabulary appropriate to the historical period.'
-    }[genre] || 'Keep the tone consistent with the selected genre.';
+      '로맨스': 'Focus on tender emotions, heart-fluttering moments, and sincere dialogue.',
+      '비극': 'Convey deep sorrow, irreversible loss, and emotionally devastating outcomes.',
+      '코미디': 'Use light-hearted tone, comedic timing, and witty exchanges.',
+      '스릴러': 'Build suspense with unexpected twists and fast-paced dialogue.',
+      '액션': 'Include fast-paced, dynamic scenes with urgent dialogue and physical tension.',
+      '공포': 'Create an eerie mood with unsettling descriptions and tense interactions.',
+      '판타지': 'Incorporate magical elements, fantastical settings, and imaginative conflicts.',
+      'SF': 'Base the story on futuristic or scientific concepts, with logical consistency.',
+      '시대극': 'Use historically appropriate language and cultural context.',
+    }[genre] || 'Keep the tone consistent with the selected genre.';  
 
+      
     // 등장인물별 지시사항
     const characterDirectives = {
       '1': `독백 전용 작성 가이드:
@@ -128,29 +132,16 @@ router.post('/generate', protect, async (req, res) => {
       return locationMap[location] || `Include atmospheric descriptions suitable for ${location} setting.`;
     })();
 
-    // 스타일별 지시사항
-    const styleDirectives = {
-      '웹드라마': 'Structure with concise sentences, rhythmic flow, focusing on daily conversations.',
-      '리얼리즘': 'Focus on realistic dialogue and natural human interactions.',
-      '연극톤': 'Emphasize emotions more and reflect theatrical stage-like direction.',
-      '시트콤': 'Include fast tempo and comedic points.',
-      '영화톤': 'Include lingering pauses and silent emotional flows.'
-    }[style] || 'Use natural conversational style.';
-
     // OpenAI에 보낼 프롬프트 생성
-    const prompt = characterCount === '1' ? 
-      // 독백 전용 프롬프트
-      `당신은 한국에서 활동하는 전문 독백 작가입니다.
+    const prompt = `당신은 한국에서 활동하는 전문 독백 작가입니다.
 연기 입시, 오디션, 연기 학원에서 사용되는 고품질 독백 대본을 전문적으로 작성합니다.
 감정의 흐름과 변화가 뚜렷하고, 실제 연기자가 몰입할 수 있는 현실적인 독백을 만드는 것이 특기입니다.
 
 **작성 조건:**
 - 장르: ${genre}  
-- 주요 감정: ${emotion}
 - 분량: ${lengthText}
-- 상황: ${situationText}
-- 스타일: ${style || '자연스러운 현실적 톤'}
 - 배경: ${locationText}
+- 성별: ${genderText}
 
 —
 
@@ -186,23 +177,6 @@ ${characterDirectives}
 
 **🎭 독백 시 말투 및 상황 설정 필수 지침:**
 - **누구에게 말하는 독백인지 명확히 설정** (혼잣말 vs 특정 상대방에게)
-- **혼잣말**: "내가 왜 그랬을까", "이제 어떻게 하지" 등 자연스러운 혼잣말 톤
-- **특정 상대방 향한 독백**: 그 상대와의 관계에 맞는 인칭과 말투 사용
-  - 부모님께: "아버지, 제가...", "엄마, 미안해요"
-  - 친구에게: "너 정말...", "야, 사실은..."
-  - 연인에게: "당신이...", "자기야..." 등
-- **상황과 감정에 따른 말투 변화**: 화났을 때, 슬플 때, 후회할 때의 자연스러운 어조
-
-**4. 주제 선정**
-- 10대 후반~20대 초반 공감 주제 우선
-- 가족 문제, 꿈과 현실, 자존감, 인간관계, 외로움, 실패, 성장 등
-
-**5. 연기 적합성**
-- 명확한 감정 변화 지점 제시
-- 연기자가 몰입하기 쉬운 구체적 상황
-- 오디션/입시에서 임팩트 있는 마무리
-
-—
 
 **📝 독백 결과 형식:**
 
@@ -223,123 +197,8 @@ ${characterDirectives}
 - 마무리: (마지막 대사의 감정 포인트)
 
 —
-
-위 형식으로 ${emotion} 감정을 중심으로 한 독백을 작성해주세요.
-연기자가 감정에 깊이 몰입할 수 있고, 실제 연기 현장에서 바로 활용 가능한 전문적인 독백을 완성해주세요.`
-      :
-      // 기존 일반 대본 프롬프트
-      `당신은 한국에서 활동하는 전문 대본 작가입니다.
-드라마, 웹드라마, 연기 입시, 뮤지컬 등 다양한 연기용 대본을 작성해왔습니다.
-감정선이 뚜렷하고, 짧은 분량 안에 기승전결이 분명해야 하며,
-배우가 몰입할 수 있도록 현실적이고 자연스러운 말투로 대사를 구성할 줄 압니다.
-
-말의 흐름과 감정의 쌓임이 매끄러워야 하며,
-마지막엔 감정 폭발 또는 여운이 남는 마무리가 있도록 구성해야 합니다.
-**실제 연기 학원, 입시, 오디션 현장에서 바로 활용할 수 있는 수준**의 대본을 작성해주세요.
-
-—
-
-**작성 조건:**
-- 등장인물: ${characterCount}
-- 장르: ${genre}  
-- 주요 감정: ${emotion}
-- 분량: ${lengthText}
-- 상황: ${situationText}
-- 스타일: ${style || '자연스러운 현실적 톤'}
-- 배경: ${locationText}
-
-—
-
-**📋 전문 대본 작성 가이드:**
-
-**1. 구성 원칙**
-- **기**: 상황 제시 및 인물 등장
-- **승**: 갈등 또는 감정 발생
-- **전**: 감정의 고조 또는 반전
-- **결**: 감정 폭발 또는 여운 있는 마무리
-
-**2. 대사 작성 원칙**
-- 일상 대화체 사용 (자연스럽고 현실적)
-- 감정을 드러내는 구체적 표현
-- 캐릭터별 말투 차별화
-- 침묵과 여백의 활용
-
-**⚠️ 대사 작성 금지 사항:**
-- 오글거리거나 인위적인 말버릇 사용 금지 ("이런...", "그냥...", "있잖아...", "하...", "나… 나 진짜…" 등)
-- 감정을 억지로 끌어내는 감탄사나 멜로 클리셰 표현 피하기
-- 멜로 드라마틱한 과장된 표현 대신 현실적이고 설득력 있는 말로 작성
-- 문어체/시적인 표현 금지 ("너의 방문을 기다리며", "하늘은 오늘도 흐리다" 등)
-- 명사형 표현 대신 동사 중심 문장 사용 ("사랑의 기억" ❌ → "그때 사랑했던 순간이 아직도 생생해" ✅)
-- **어색하고 비현실적인 종결어미 절대 금지**: "없길...", "있길...", "되길...", "하길...", "좋길..." 등
-- **실제 사람이 쓰는 자연스러운 종결어미 사용**: "없어", "있어", "돼", "해", "그래", "아니야", "맞아" 등
-
-**✅ 자연스러운 말투 지침:**
-- 실제 사람의 말투처럼 망설임, 말끊김, 솔직한 감정 표현
-- 예시: "근데... 진짜 무서웠어", "나도 몰랐어, 내가 이렇게 될 줄은"
-- 감정선 흐름은 유지하되, 대사 구조를 명확하고 밀도 있게 구성
-
-**🎭 관계별 말투 및 인칭 사용 필수 지침:**
-- **등장인물 간 관계를 명확히 설정**하고 그에 맞는 말투 사용
-- **권위자/윗사람** (경찰관, 교사, 상사, 부모님, 선배 등):
-  - "제가", "죄송합니다", "말씀드리겠습니다", "네, 알겠습니다" 등 존댓말
-- **동등한 관계** (동료, 같은 나이 친구, 동기):
-  - "내가", "미안해", "말해줄게", "그래?" 등 적당한 거리감의 반말
-- **친밀한 관계** (가족, 연인, 절친, 후배):
-  - "나", "미안", "야", "어?" 등 편한 말투와 자연스러운 반말
-- **나이/지위차 고려**: 
-  - 선배→후배: "너", "해봐", "알겠지?" 등
-  - 후배→선배: "형/언니", "해보겠습니다", "죄송해요" 등
-- **상황별 말투 변화**:
-  - 평상시 vs 갈등상황: 긴장감에 따른 더 정중하거나 격앙된 어조
-  - 공적 장소 vs 사적 공간: 격식의 차이 반영
-
-**3. 연기 적합성**
-- 배우가 감정몰입할 수 있는 현실적 상황
-- 명확한 감정 변화 지점 제시
-- 연기 연습에 적합한 적절한 분량
-- 오디션/입시에서 임팩트 있는 마무리
-
-**4. 인물 설정**
-- 성+이름 (김서현, 박준영, 이민지, 최동현 등)
-- 나이, 직업, 성격 간략 명시
-- 인물 간 관계 명확히 설정
-
-**5. 자연스러운 한국어 대화**
-- 연령대별 적절한 어휘 선택
-- 관계에 맞는 존댓말/반말 구분
-- 실제 사용하는 일상 표현
-- 감정에 따른 말투 변화
-
-—
-
-**결과 형식:**
-
-[상황 설명]
-(어떤 상황인지, 왜 이런 일이 벌어졌는지 2-3문장으로 설명)
-
-[등장인물]
-김서현: (25세, 회사원, 꼼꼼하지만 감정적인 성격)
-박준영: (27세, 김서현의 연인, 솔직하고 직설적)
-
-[대본]
-김서현: 준영아... 정말 그렇게 생각해?
-박준영: 뭘?
-김서현: 내가... 이기적이라고.
-박준영: (잠시 멈춤) 서현아...
-김서현: 말해봐. 진짜 그렇게 생각하는 거지?
-박준영: 그런 게 아니라...
-김서현: 아니라 뭐가 아니라? 너는 항상 그래. 중요한 순간에 대답을 안 해.
-박준영: (한숨) 그렇게 듣고 싶으면... 응, 가끔은 그런 것 같아.
-김서현: (충격받은 표정으로) 진짜... 그렇게 생각했구나.
-박준영: 서현아, 미안해. 나도 모르게...
-김서현: (조용히) 알겠어. 이제 알겠어.
-
-**연기 포인트:** 감정의 변화 - 불안 → 확인 → 충격 → 체념, 마지막 "알겠어"에서 모든 감정이 응축됨
-
-—
-
-위 형식으로 주어진 조건에 맞는 연기용 대본을 작성해주세요.
-배우가 감정 연기를 연습하기에 최적화된, 전문적인 수준의 대본을 완성해주세요.`;
+위 형식으로 ${genre} 감정을 중심으로 한 독백을 작성해주세요.
+연기자가 감정에 깊이 몰입할 수 있고, 실제 연기 현장에서 바로 활용 가능한 전문적인 독백을 완성해주세요.`;
 
     // OpenAI API 호출
     const completion = await openai.chat.completions.create({
@@ -371,10 +230,7 @@ ${characterDirectives}
       content: generatedScript,
       characterCount,
       genre,
-      emotions: emotion.split(', ').filter(e => e.trim()),
       length,
-      situation: situation || '',
-      style: style || '',
       location: location || '',
       metadata: {
         model: "gpt-4o",
@@ -483,7 +339,6 @@ router.post('/rewrite', async (req, res) => {
 **리라이팅 조건:**
 - 리라이팅 강도: ${selectedIntensity.name}
 - 장르: ${genre || '미지정'}
-- 주요 감정: ${emotion || '미지정'}
 
 **선택된 대사 (리라이팅 대상):**
 "${selectedText}"

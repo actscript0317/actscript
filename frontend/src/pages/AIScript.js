@@ -33,7 +33,8 @@ const AIScript = () => {
     characterCount: '1',
     genre: '',
     length: '',
-    location: ''
+    location: '',
+    gender: ''
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -75,6 +76,12 @@ const AIScript = () => {
 
   const locations = [
     '병원', '카페', '거리', '경찰서', '학교', '집', '사무실', '공원', '버스', '지하철'
+  ];
+
+  const genders = [
+    { value: 'male', label: '남자', icon: '👨' },
+    { value: 'female', label: '여자', icon: '👩' },
+    { value: 'random', label: '랜덤', icon: '🎲' }
   ];
 
   // 폼 데이터 변경 핸들러
@@ -322,8 +329,8 @@ const AIScript = () => {
     e.preventDefault();
     
     // 입력값 검증
-    if (!formData.characterCount || !formData.genre || !formData.length) {
-      setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이)');
+    if (!formData.characterCount || !formData.genre || !formData.length || !formData.gender) {
+      setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이, 성별)');
       return;
     }
 
@@ -336,7 +343,8 @@ const AIScript = () => {
         characterCount: formData.characterCount,
         genre: formData.genre,
         length: formData.length,
-        location: formData.location
+        location: formData.location,
+        gender: formData.gender
       });
 
       const data = response.data;
@@ -538,6 +546,33 @@ const AIScript = () => {
                           <div className="text-2xl mb-2">{length.icon}</div>
                           <div className="font-medium text-gray-900">{length.label}</div>
                           <div className="text-sm text-gray-500">{length.time}</div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 성별 선택 */}
+              <div className="space-y-4">
+                <label className="flex items-center text-lg font-semibold text-gray-800">
+                  <Users className="w-6 h-6 mr-3 text-purple-500" />
+                  성별
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {genders.map((gender) => (
+                    <label key={gender.value} className="relative">
+                      <input
+                        type="radio"
+                        name="gender"
+                        value={gender.value}
+                        onChange={(e) => handleInputChange('gender', e.target.value)}
+                        className="sr-only peer"
+                      />
+                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-blue-50 peer-checked:to-indigo-50 peer-checked:border-blue-500 peer-checked:shadow-md">
+                        <div className="text-center">
+                          <div className="text-2xl mb-2">{gender.icon}</div>
+                          <div className="font-medium text-gray-900">{gender.label}</div>
                         </div>
                       </div>
                     </label>

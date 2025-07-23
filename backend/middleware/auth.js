@@ -115,4 +115,10 @@ exports.optionalAuth = async (req, res, next) => {
   } catch (error) {
     next();
   }
-}; 
+};
+
+// 기본 export로 protect 미들웨어 사용하되, 다른 함수들도 유지
+module.exports = exports.protect;
+module.exports.protect = exports.protect;
+module.exports.authorize = exports.authorize;
+module.exports.optionalAuth = exports.optionalAuth; 

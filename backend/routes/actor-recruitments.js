@@ -6,9 +6,17 @@ const multer = require('multer');
 const path = require('path');
 
 // 이미지 업로드 설정
+const fs = require('fs');
+
+// uploads 디렉토리 생성 (없으면 생성)
+const uploadsDir = 'uploads/recruitments/';
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/recruitments/')
+    cb(null, uploadsDir)
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

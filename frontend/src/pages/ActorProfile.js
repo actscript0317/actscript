@@ -1,102 +1,128 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, User, Calendar, MapPin, Plus } from 'lucide-react';
+import { Search, Filter, Plus, Eye, Calendar, Users, MapPin, Heart, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { actorProfileAPI, likeAPI, bookmarkAPI } from '../services/api';
 
 const ActorProfile = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  
   const [profiles, setProfiles] = useState([]);
   const [filteredProfiles, setFilteredProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     gender: 'all',
-    ageGroup: 'all'
+    experience: 'all',
+    location: 'all',
+    specialty: 'all'
   });
   const [searchTerm, setSearchTerm] = useState('');
-
-  // 더미 데이터 (나중에 API로 교체)
-  const dummyProfiles = [
-    {
-      id: 1,
-      name: '김지영',
-      age: 25,
-      gender: 'female',
-      location: '서울',
-      image: '/api/placeholder/300/400',
-      introduction: '연극과 영화를 사랑하는 배우입니다. 다양한 역할에 도전하고 싶습니다.',
-      experience: '연극 3년, 영화 5편 출연'
-    },
-    {
-      id: 2,
-      name: '박준호',
-      age: 28,
-      gender: 'male',
-      location: '부산',
-      image: '/api/placeholder/300/400',
-      introduction: '액션과 드라마 장르를 좋아하며, 진정성 있는 연기를 추구합니다.',
-      experience: '단편영화 10편, 웹드라마 2편'
-    },
-    {
-      id: 3,
-      name: '이수민',
-      age: 22,
-      gender: 'female',
-      location: '대구',
-      image: '/api/placeholder/300/400',
-      introduction: '신인 배우로서 열정적으로 연기에 임하고 있습니다.',
-      experience: '연기학원 수료, 뮤지컬 경험'
-    },
-    {
-      id: 4,
-      name: '최민석',
-      age: 35,
-      gender: 'male',
-      location: '서울',
-      image: '/api/placeholder/300/400',
-      introduction: '베테랑 배우로서 후배들과 함께 성장하고 싶습니다.',
-      experience: '영화 20편, 드라마 5편'
-    }
-  ];
+  const [userLikes, setUserLikes] = useState(new Set());
+  const [userBookmarks, setUserBookmarks] = useState(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    setProfiles(dummyProfiles);
-    setFilteredProfiles(dummyProfiles);
-  }, []);
+    const fetchProfiles = async () => {
+      try {
+        setLoading(true);
+        
+        const params = {
+          page: currentPage,
+          limit: 12,
+          ...filters,
+          search: searchTerm
+        };
+        
+        // 'all' 값들은 제거
+        Object.keys(params).forEach(key => {
+          if (params[key] === 'all' || params[key] === '') {
+            delete params[key];
+          }
+        });
 
-  useEffect(() => {
-    let filtered = profiles;
-
-    // 성별 필터
-    if (filters.gender !== 'all') {
-      filtered = filtered.filter(profile => profile.gender === filters.gender);
-    }
-
-    // 나이대 필터
-    if (filters.ageGroup !== 'all') {
-      filtered = filtered.filter(profile => {
-        const age = profile.age;
-        switch (filters.ageGroup) {
-          case 'teens': return age >= 10 && age < 20;
-          case 'twenties': return age >= 20 && age < 30;
-          case 'thirties': return age >= 30 && age < 40;
-          case 'forties': return age >= 40;
-          default: return true;
+        const response = await actorProfileAPI.getAll(params);
+        
+        if (response.data.success) {
+          setProfiles(response.data.data);
+          setFilteredProfiles(response.data.data);
+          setTotalPages(response.data.pagination?.pages || 1);
         }
-      });
-    }
+      } catch (error) {
+        console.error('프로필 조회 오류:', error);
+        toast.error('프로필을 불러오는데 실패했습니다.');
+        setProfiles([]);
+        setFilteredProfiles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    // 검색어 필터
-    if (searchTerm) {
-      filtered = filtered.filter(profile =>
-        profile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        profile.introduction.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    fetchProfiles();
+  }, [currentPage, filters, searchTerm]);
 
-    setFilteredProfiles(filtered);
-  }, [profiles, filters, searchTerm]);
+  // 좋아요 처리
+  const handleLike = async (profileId, e) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+    
+    try {
+      const response = await likeAPI.toggle(profileId, 'actor_profile');
+      
+      if (response.data.success) {
+        setUserLikes(prev => {
+          const newSet = new Set(prev);
+          if (response.data.isLiked) {
+            newSet.add(profileId);
+          } else {
+            newSet.delete(profileId);
+          }
+          return newSet;
+        });
+        
+        toast.success(response.data.message);
+      }
+    } catch (error) {
+      console.error('좋아요 오류:', error);
+      toast.error('좋아요 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 북마크 처리
+  const handleBookmark = async (profileId, e) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+    
+    try {
+      const response = await bookmarkAPI.toggle(profileId, 'actor_profile');
+      
+      if (response.data.success) {
+        setUserBookmarks(prev => {
+          const newSet = new Set(prev);
+          if (response.data.isBookmarked) {
+            newSet.add(profileId);
+          } else {
+            newSet.delete(profileId);
+          }
+          return newSet;
+        });
+        
+        toast.success(response.data.message);
+      }
+    } catch (error) {
+      console.error('북마크 오류:', error);
+      toast.error('북마크 처리 중 오류가 발생했습니다.');
+    }
+  };
 
   const getAgeGroup = (age) => {
     if (age < 20) return '10대';
@@ -123,8 +149,22 @@ const ActorProfile = () => {
 
   const handleProfileClick = (profile) => {
     // 프로필 상세 페이지로 이동 (실제로는 posts/:id 형태로)
-    navigate(`/posts/${profile.id}`);
+    navigate(`/posts/${profile._id}`);
   };
+
+  // 검색어 변경 시 디바운싱
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(1); // 검색 시 첫 페이지로 이동
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // 필터 변경 시 첫 페이지로 이동
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -161,17 +201,59 @@ const ActorProfile = () => {
               <option value="female">여성</option>
             </select>
 
-            {/* 나이대 필터 */}
+            {/* 경력 필터 */}
             <select
-              value={filters.ageGroup}
-              onChange={(e) => setFilters(prev => ({ ...prev, ageGroup: e.target.value }))}
+              value={filters.experience}
+              onChange={(e) => setFilters(prev => ({ ...prev, experience: e.target.value }))}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
-              <option value="all">전체 나이대</option>
-              <option value="teens">10대</option>
-              <option value="twenties">20대</option>
-              <option value="thirties">30대</option>
-              <option value="forties">40대 이상</option>
+              <option value="all">전체 경력</option>
+              <option value="신인">신인</option>
+              <option value="1-2년">1-2년</option>
+              <option value="3-5년">3-5년</option>
+              <option value="5년 이상">5년 이상</option>
+            </select>
+
+            {/* 지역 필터 */}
+            <select
+              value={filters.location}
+              onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="all">전체 지역</option>
+              <option value="서울">서울</option>
+              <option value="경기">경기</option>
+              <option value="인천">인천</option>
+              <option value="부산">부산</option>
+              <option value="대구">대구</option>
+              <option value="대전">대전</option>
+              <option value="광주">광주</option>
+              <option value="울산">울산</option>
+              <option value="강원">강원</option>
+              <option value="경북">경북</option>
+              <option value="경남">경남</option>
+              <option value="충북">충북</option>
+              <option value="충남">충남</option>
+              <option value="전북">전북</option>
+              <option value="전남">전남</option>
+              <option value="제주">제주</option>
+            </select>
+
+            {/* 특기 필터 */}
+            <select
+              value={filters.specialty}
+              onChange={(e) => setFilters(prev => ({ ...prev, specialty: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="all">전체 특기</option>
+              <option value="연극">연극</option>
+              <option value="영화">영화</option>
+              <option value="드라마">드라마</option>
+              <option value="뮤지컬">뮤지컬</option>
+              <option value="광고">광고</option>
+              <option value="모델링">모델링</option>
+              <option value="성우">성우</option>
+              <option value="기타">기타</option>
             </select>
 
             {/* 결과 개수 */}
@@ -196,65 +278,138 @@ const ActorProfile = () => {
 
         {/* 프로필 카드 목록 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProfiles.map((profile) => (
-            <motion.div
-              key={profile.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => handleProfileClick(profile)}
-            >
-              {/* 프로필 이미지 */}
-              <div className="h-64 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
-                <User className="w-24 h-24 text-white" />
-              </div>
-
-              {/* 프로필 정보 */}
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xl font-bold text-gray-900">{profile.name}</h3>
-                  <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-                    {getAgeGroup(profile.age)}
-                  </span>
+          {loading ? (
+            <div className="col-span-full text-center py-12">
+              <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-gray-500">프로필을 불러오는 중입니다...</p>
+            </div>
+          ) : filteredProfiles.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                검색 조건에 맞는 프로필이 없습니다
+              </h3>
+              <p className="text-gray-500">다른 검색 조건을 시도해보세요.</p>
+            </div>
+          ) : (
+            filteredProfiles.map((profile) => (
+              <motion.div
+                key={profile._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => handleProfileClick(profile)}
+              >
+                {/* 프로필 이미지 */}
+                <div className="h-64 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
+                  {profile.images && profile.images.length > 0 ? (
+                    <img 
+                      src={profile.images[0].url} 
+                      alt={profile.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = '/api/placeholder/300/400';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-16 h-16 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <button
+                      onClick={(e) => handleBookmark(profile._id, e)}
+                      className={`p-2 rounded-full transition-colors ${
+                        userBookmarks.has(profile._id)
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white/80 text-gray-600 hover:bg-white'
+                      }`}
+                    >
+                      <Heart className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center text-gray-600 mb-2">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  <span>{profile.age}세</span>
-                  <span className="mx-2">•</span>
-                  <span>{profile.gender === 'male' ? '남성' : '여성'}</span>
+                {/* 프로필 정보 */}
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-900 mb-1">{profile.name}</h3>
+                      <div className="flex items-center text-sm text-gray-500 space-x-3">
+                        <span>{profile.age}세</span>
+                        <span>{profile.gender}</span>
+                        <span>{profile.location}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                    {profile.content || profile.title}
+                  </p>
+
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <div className="flex items-center space-x-3">
+                      <span className="flex items-center">
+                        <Eye className="w-3 h-3 mr-1" />
+                        {profile.views || 0}
+                      </span>
+                      <span className="flex items-center">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {new Date(profile.createdAt).toLocaleDateString('ko-KR')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap gap-1">
+                      {profile.specialty && profile.specialty.slice(0, 2).map((skill, index) => (
+                        <span key={index} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                    
+                    <button
+                      onClick={(e) => handleLike(profile._id, e)}
+                      className={`flex items-center px-3 py-1 rounded-lg transition-colors ${
+                        userLikes.has(profile._id)
+                          ? 'bg-red-100 text-red-600'
+                          : 'text-red-500 hover:bg-red-50'
+                      }`}
+                    >
+                      <Heart className={`w-4 h-4 mr-1 ${userLikes.has(profile._id) ? 'fill-current' : ''}`} />
+                      <span className="text-xs">좋아요</span>
+                    </button>
+                  </div>
                 </div>
-
-                <div className="flex items-center text-gray-600 mb-3">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  <span>{profile.location}</span>
-                </div>
-
-                <p className="text-gray-700 text-sm mb-4 line-clamp-3">
-                  {profile.introduction}
-                </p>
-
-                <div className="text-xs text-gray-500 mb-4">
-                  <strong>경력:</strong> {profile.experience}
-                </div>
-
-                <button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 transition-colors">
-                  프로필 상세보기
-                </button>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))
+          )}
         </div>
 
-        {/* 프로필이 없는 경우 */}
-        {filteredProfiles.length === 0 && (
-          <div className="text-center py-12">
-            <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              검색 조건에 맞는 프로필이 없습니다
-            </h3>
-            <p className="text-gray-500">다른 검색 조건을 시도해보세요.</p>
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-8">
+            <nav className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                이전
+              </button>
+              <span className="text-gray-700">
+                페이지 {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                다음
+              </button>
+            </nav>
           </div>
         )}
       </div>

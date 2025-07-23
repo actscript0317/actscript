@@ -274,4 +274,65 @@ export const bookmarkAPI = {
   getMyBookmarks: (params) => api.get('/bookmarks/my-bookmarks', { params })
 };
 
+// 배우 프로필 API
+export const actorProfileAPI = {
+  getAll: (params) => api.get('/actor-profiles', { params }),
+  getById: (id) => api.get(`/actor-profiles/${id}`),
+  create: (formData) => api.post('/actor-profiles', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  update: (id, formData) => api.put(`/actor-profiles/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  delete: (id) => api.delete(`/actor-profiles/${id}`),
+  getMy: () => api.get('/actor-profiles/my/profiles'),
+  getPopular: (params) => api.get('/actor-profiles/popular/trending', { params })
+};
+
+// 배우 모집 API
+export const actorRecruitmentAPI = {
+  getAll: (params) => api.get('/actor-recruitments', { params }),
+  getById: (id) => api.get(`/actor-recruitments/${id}`),
+  create: (formData) => api.post('/actor-recruitments', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  update: (id, formData) => api.put(`/actor-recruitments/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  delete: (id) => api.delete(`/actor-recruitments/${id}`),
+  getMy: () => api.get('/actor-recruitments/my/recruitments'),
+  getUrgent: (params) => api.get('/actor-recruitments/urgent/list', { params })
+};
+
+// 모델 모집 API
+export const modelRecruitmentAPI = {
+  getAll: (params) => api.get('/model-recruitments', { params }),
+  getById: (id) => api.get(`/model-recruitments/${id}`),
+  create: (formData) => api.post('/model-recruitments', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  update: (id, formData) => api.put(`/model-recruitments/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  delete: (id) => api.delete(`/model-recruitments/${id}`),
+  getMy: () => api.get('/model-recruitments/my/recruitments'),
+  getUrgent: (params) => api.get('/model-recruitments/urgent/list', { params })
+};
+
+// 커뮤니티 게시글 API
+export const communityPostAPI = {
+  getAll: (params) => api.get('/community-posts', { params }),
+  getById: (id) => api.get(`/community-posts/${id}`),
+  create: (formData) => api.post('/community-posts', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  update: (id, formData) => api.put(`/community-posts/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  delete: (id) => api.delete(`/community-posts/${id}`),
+  getMy: () => api.get('/community-posts/my/posts'),
+  getHot: (params) => api.get('/community-posts/hot/list', { params }),
+  search: (params) => api.get('/community-posts/search', { params })
+};
+
 export default api; 

@@ -56,15 +56,6 @@ app.use('/api/ai-script', require('./routes/ai-script'));
 if (process.env.NODE_ENV === 'production') {
   // 정적 파일 제공
   app.use(express.static(path.join(__dirname, '../frontend/build')));
-
-  // API가 아닌 모든 요청을 React 앱으로 전달
-  app.get('*', (req, res, next) => {
-    // API 경로는 제외
-    if (req.path.startsWith('/api/')) {
-      return next();
-    }
-    res.sendFile(path.resolve(__dirname, '../frontend/build', 'index.html'));
-  });
 }
 
 // 에러 핸들러
@@ -78,5 +69,12 @@ app.use((error, req, res, next) => {
     ...(config.NODE_ENV !== 'production' && { stack: error.stack })
   });
 });
+
+// 프로덕션에서 모든 React Router 경로를 index.html로 리다이렉트
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../frontend/build', 'index.html'));
+  });
+}
 
 module.exports = app; 

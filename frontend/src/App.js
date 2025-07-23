@@ -15,6 +15,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import MyPage from './pages/MyPage';
 import NotFound from './pages/NotFound';
+// 새로운 배우 관련 페이지들
+import ActorProfile from './pages/ActorProfile';
+import ActorRecruitment from './pages/ActorRecruitment';
+import ModelRecruitment from './pages/ModelRecruitment';
+import ActorInfo from './pages/ActorInfo';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -29,6 +34,12 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/scripts" element={<Scripts />} />
               <Route path="/scripts/:id" element={<ScriptDetail />} />
+              
+              {/* 배우 관련 페이지 - 공개 접근 */}
+              <Route path="/actor-profile" element={<ActorProfile />} />
+              <Route path="/actor-recruitment" element={<ActorRecruitment />} />
+              <Route path="/model-recruitment" element={<ModelRecruitment />} />
+              <Route path="/actor-info" element={<ActorInfo />} />
               
               {/* 인증이 필요한 사용자만 접근 가능한 라우트 */}
               <Route path="/add-script" element={

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, User } from 'lucide-react';
+import { Menu, X, LogOut, User, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isActorMenuOpen, setIsActorMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, logout, loading } = useAuth();
 
@@ -34,6 +35,51 @@ const Navbar = () => {
               >
                 대본 목록
               </Link>
+              
+              {/* 저는 배우입니다 드롭다운 메뉴 */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsActorMenuOpen(!isActorMenuOpen)}
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-primary"
+                >
+                  저는 배우입니다
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </button>
+                {isActorMenuOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="py-1">
+                      <Link
+                        to="/actor-profile"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsActorMenuOpen(false)}
+                      >
+                        배우 프로필
+                      </Link>
+                      <Link
+                        to="/actor-recruitment"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsActorMenuOpen(false)}
+                      >
+                        배우 모집
+                      </Link>
+                      <Link
+                        to="/model-recruitment"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsActorMenuOpen(false)}
+                      >
+                        모델/출연자 모집
+                      </Link>
+                      <Link
+                        to="/actor-info"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsActorMenuOpen(false)}
+                      >
+                        연기자 정보방
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
               {!loading && isAuthenticated && (
                 <>
                   <Link

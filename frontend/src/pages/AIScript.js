@@ -5,8 +5,6 @@ import { toast } from 'react-hot-toast';
 import { 
   Sparkles, 
   Users, 
-  Palette, 
-  Heart, 
   Clock, 
   Wand2, 
   Copy, 
@@ -16,8 +14,6 @@ import {
   X,
   MapPin,
   Film,
-  PenTool,
-  Edit3,
   ArrowRight,
   Check,
   AlertCircle,
@@ -38,12 +34,9 @@ const AIScript = () => {
   
   // 폼 상태 관리
   const [formData, setFormData] = useState({
-    characterCount: '',
+    characterCount: '1',
     genre: '',
-    emotions: [],
     length: '',
-    situation: '',
-    style: '',
     location: ''
   });
 
@@ -52,7 +45,6 @@ const AIScript = () => {
   const [generatedScriptId, setGeneratedScriptId] = useState(null); // MongoDB에 저장된 스크립트 ID
   const [error, setError] = useState('');
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
-  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   
   // 리라이팅 관련 상태
@@ -69,9 +61,9 @@ const AIScript = () => {
 
   // 옵션 데이터
   const characterOptions = [
-    { value: '1', label: '1인 독백', icon: '👤' },
-    { value: '2-3', label: '2~3인 대화', icon: '👥' },
-    { value: '4+', label: '4인 이상 앙상블', icon: '👨‍👩‍👧‍👦' }
+    { value: '1', label: '1인 독백', icon: '👤', available: true },
+    { value: '2-3', label: '2~3인 대화', icon: '👥', available: false },
+    { value: '4+', label: '4인 이상 앙상블', icon: '👨‍👩‍👧‍👦', available: false }
   ];
 
   const genres = [
@@ -79,19 +71,10 @@ const AIScript = () => {
     '공포', '판타지', 'SF', '미스터리', '시대극'
   ];
 
-  const emotions = [
-    '기쁨', '슬픔', '분노', '사랑', '그리움', 
-    '희망', '절망', '놀라움', '두려움', '평온'
-  ];
-
   const lengths = [
     { value: 'short', label: '짧게', time: '1~2분', icon: '⚡' },
     { value: 'medium', label: '중간', time: '3~5분', icon: '⏱️' },
     { value: 'long', label: '길게', time: '5~10분', icon: '📝' }
-  ];
-
-  const styles = [
-    '웹드라마', '리얼리즘', '연극톤', '시트콤', '영화톤'
   ];
 
   const locations = [
@@ -103,16 +86,6 @@ const AIScript = () => {
     setFormData(prev => ({
       ...prev,
       [field]: value
-    }));
-  };
-
-  // 감정 토글 핸들러
-  const toggleEmotion = (emotion) => {
-    setFormData(prev => ({
-      ...prev,
-      emotions: prev.emotions.includes(emotion)
-        ? prev.emotions.filter(e => e !== emotion)
-        : [...prev.emotions, emotion]
     }));
   };
 
@@ -381,8 +354,8 @@ const AIScript = () => {
     e.preventDefault();
     
     // 입력값 검증
-    if (!formData.characterCount || !formData.genre || formData.emotions.length === 0 || !formData.length) {
-      setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 주요 감정, 대본 길이)');
+    if (!formData.characterCount || !formData.genre || !formData.length) {
+      setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이)');
       return;
     }
 
@@ -394,10 +367,7 @@ const AIScript = () => {
       const response = await api.post('/ai-script/generate', {
         characterCount: formData.characterCount,
         genre: formData.genre,
-        emotion: formData.emotions.join(', '),
         length: formData.length,
-        situation: formData.situation,
-        style: formData.style,
         location: formData.location
       });
 
@@ -508,10 +478,10 @@ const AIScript = () => {
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              AI 대본 생성기
+              AI 1인 독백 생성기
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              몇 가지 설정만으로 당신만의 특별한 연기 대본을 생성하세요
+              AI가 당신을 위한 감성적인 1인 독백 대본을 생성합니다. 다인 대화는 현재 개발 중입니다.
             </p>
           </motion.div>
 
@@ -532,18 +502,30 @@ const AIScript = () => {
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {characterOptions.map((option) => (
-                    <label key={option.value} className="relative">
+                    <label key={option.value} className={`relative ${!option.available ? 'cursor-not-allowed' : ''}`}>
                       <input
                         type="radio"
                         name="characterCount"
                         value={option.value}
                         onChange={(e) => handleInputChange('characterCount', e.target.value)}
                         className="sr-only peer"
+                        disabled={!option.available}
                       />
-                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-purple-50 peer-checked:border-purple-500 peer-checked:shadow-md">
+                      <div className={`p-4 border-2 rounded-xl transition-all ${
+                        option.available 
+                          ? 'bg-gray-50 border-gray-200 cursor-pointer hover:bg-gray-100 peer-checked:bg-purple-50 peer-checked:border-purple-500 peer-checked:shadow-md' 
+                          : 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
+                      }`}>
                         <div className="text-center">
                           <div className="text-2xl mb-2">{option.icon}</div>
-                          <div className="font-medium text-gray-900">{option.label}</div>
+                          <div className={`font-medium ${option.available ? 'text-gray-900' : 'text-gray-500'}`}>
+                            {option.label}
+                          </div>
+                          {!option.available && (
+                            <div className="mt-1 px-2 py-1 bg-gray-200 text-gray-600 text-xs rounded-full inline-block">
+                              개발 중
+                            </div>
+                          )}
                         </div>
                       </div>
                     </label>
@@ -565,43 +547,6 @@ const AIScript = () => {
                   isOpen={showGenreDropdown}
                   setIsOpen={setShowGenreDropdown}
                 />
-              </div>
-
-              {/* 주요 감정 (멀티 셀렉트) */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <Heart className="w-6 h-6 mr-3 text-purple-500" />
-                  주요 감정 <span className="text-sm text-gray-500 ml-2">(복수 선택 가능)</span>
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  {emotions.map((emotion) => (
-                    <button
-                      key={emotion}
-                      type="button"
-                      onClick={() => toggleEmotion(emotion)}
-                      className={`px-4 py-3 rounded-xl border-2 transition-all font-medium ${
-                        formData.emotions.includes(emotion)
-                          ? 'bg-pink-50 border-pink-500 text-pink-700 shadow-md'
-                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {emotion}
-                    </button>
-                  ))}
-                </div>
-                {formData.emotions.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {formData.emotions.map((emotion) => (
-                      <span key={emotion} className="inline-flex items-center px-3 py-1 bg-pink-100 text-pink-800 rounded-full text-sm">
-                        {emotion}
-                        <X 
-                          className="w-4 h-4 ml-1 cursor-pointer hover:text-pink-600" 
-                          onClick={() => toggleEmotion(emotion)}
-                        />
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* 대본 길이 */}
@@ -632,52 +577,19 @@ const AIScript = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 스타일 선택 */}
-                <div className="space-y-4">
-                  <label className="flex items-center text-lg font-semibold text-gray-800">
-                    <Palette className="w-6 h-6 mr-3 text-purple-500" />
-                    스타일 <span className="text-sm text-gray-500 ml-2">(선택사항)</span>
-                  </label>
-                  <Dropdown
-                    options={styles}
-                    value={formData.style}
-                    onChange={(value) => handleInputChange('style', value)}
-                    placeholder="스타일을 선택하세요"
-                    isOpen={showStyleDropdown}
-                    setIsOpen={setShowStyleDropdown}
-                  />
-                </div>
-
-                {/* 배경 장소 */}
-                <div className="space-y-4">
-                  <label className="flex items-center text-lg font-semibold text-gray-800">
-                    <MapPin className="w-6 h-6 mr-3 text-purple-500" />
-                    배경 장소 <span className="text-sm text-gray-500 ml-2">(선택사항)</span>
-                  </label>
-                  <Dropdown
-                    options={locations}
-                    value={formData.location}
-                    onChange={(value) => handleInputChange('location', value)}
-                    placeholder="장소를 선택하세요"
-                    isOpen={showLocationDropdown}
-                    setIsOpen={setShowLocationDropdown}
-                  />
-                </div>
-              </div>
-
-              {/* 상황 설명 */}
+              {/* 배경 장소 */}
               <div className="space-y-4">
                 <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <PenTool className="w-6 h-6 mr-3 text-purple-500" />
-                  상황 설명 <span className="text-sm text-gray-500 ml-2">(선택사항)</span>
+                  <MapPin className="w-6 h-6 mr-3 text-purple-500" />
+                  배경 장소 <span className="text-sm text-gray-500 ml-2">(선택사항)</span>
                 </label>
-                <textarea
-                  value={formData.situation}
-                  onChange={(e) => handleInputChange('situation', e.target.value)}
-                  placeholder="예: 카페에서 전 애인을 만나는 장면"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors resize-none"
-                  rows={3}
+                <Dropdown
+                  options={locations}
+                  value={formData.location}
+                  onChange={(value) => handleInputChange('location', value)}
+                  placeholder="장소를 선택하세요"
+                  isOpen={showLocationDropdown}
+                  setIsOpen={setShowLocationDropdown}
                 />
               </div>
 

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Plus, Calendar, User, Eye, MessageCircle } from 'lucide-react';
+import { Search, Filter, Plus, Calendar, User, Eye, MessageCircle, Heart, Bookmark } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import PostModal from '../components/PostModal';
+import WritePostModal from '../components/WritePostModal';
+import { toast } from 'react-hot-toast';
 
 const ActorRecruitment = () => {
   const { isAuthenticated } = useAuth();
@@ -12,32 +15,38 @@ const ActorRecruitment = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [showWriteModal, setShowWriteModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [showPostModal, setShowPostModal] = useState(false);
 
-  // 더미 데이터
+  // 더미 데이터 (좋아요, 저장 수 추가)
   const dummyPosts = [
     {
       id: 1,
       title: '장편 독립영화 주연 배우 모집',
       author: '김감독',
       category: 'indie-feature',
-      content: '청춘을 주제로 한 독립영화의 주연 배우를 모집합니다. 20대 초반 여성 배우를 찾고 있습니다.',
+      content: '청춘을 주제로 한 독립영화의 주연 배우를 모집합니다. 20대 초반 여성 배우를 찾고 있습니다.\n\n촬영 기간: 2024년 3월 ~ 5월\n촬영 장소: 서울, 경기 일대\n\n요구사항:\n- 20~25세 여성\n- 연기 경험 우대\n- 장기간 촬영 가능한 분\n\n많은 관심과 지원 부탁드립니다.',
       recruitmentField: '주연 배우',
       applicationMethod: '이메일: casting@example.com',
       createdAt: '2024-01-15',
       views: 127,
-      comments: 8
+      comments: 8,
+      likes: 23,
+      bookmarks: 15
     },
     {
       id: 2,
       title: '웹드라마 조연 배우 모집 (남성)',
       author: '박PD',
       category: 'web-drama',
-      content: '로맨스 웹드라마의 남자 조연 배우를 모집합니다. 연기 경험이 있으신 분을 우대합니다.',
+      content: '로맨스 웹드라마의 남자 조연 배우를 모집합니다. 연기 경험이 있으신 분을 우대합니다.\n\n역할: 남자 주인공의 베스트 프렌드\n촬영 일정: 주말 위주\n\n우대사항:\n- 연기 경험\n- 밝고 활발한 성격\n- 서울 거주자',
       recruitmentField: '조연 배우',
       applicationMethod: '연락처: 010-1234-5678',
       createdAt: '2024-01-14',
       views: 89,
-      comments: 5
+      comments: 5,
+      likes: 12,
+      bookmarks: 8
     },
     {
       id: 3,
@@ -49,7 +58,9 @@ const ActorRecruitment = () => {
       applicationMethod: '카카오톡: @casting123',
       createdAt: '2024-01-13',
       views: 256,
-      comments: 15
+      comments: 15,
+      likes: 45,
+      bookmarks: 32
     },
     {
       id: 4,
@@ -61,7 +72,9 @@ const ActorRecruitment = () => {
       applicationMethod: '이메일: shortfilm@example.com',
       createdAt: '2024-01-12',
       views: 67,
-      comments: 3
+      comments: 3,
+      likes: 8,
+      bookmarks: 5
     }
   ];
 
@@ -105,6 +118,66 @@ const ActorRecruitment = () => {
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('ko-KR');
+  };
+
+  const handlePostClick = (post) => {
+    // 조회수 증가
+    setPosts(prev => prev.map(p => 
+      p.id === post.id ? { ...p, views: p.views + 1 } : p
+    ));
+    setSelectedPost(post);
+    setShowPostModal(true);
+  };
+
+  const handleLike = (postId, e) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+    
+    setPosts(prev => prev.map(post => 
+      post.id === postId 
+        ? { ...post, likes: post.likes + 1 }
+        : post
+    ));
+    toast.success('좋아요를 눌렸습니다!');
+  };
+
+  const handleBookmark = (postId, e) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+    
+    setPosts(prev => prev.map(post => 
+      post.id === postId 
+        ? { ...post, bookmarks: post.bookmarks + 1 }
+        : post
+    ));
+    toast.success('게시글이 저장되었습니다!');
+  };
+
+  const handleWritePost = (formData) => {
+    if (!isAuthenticated) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+
+    const newPost = {
+      id: Date.now(),
+      ...formData,
+      author: '사용자', // 실제로는 로그인한 사용자 이름
+      createdAt: new Date().toISOString(),
+      views: 0,
+      comments: 0,
+      likes: 0,
+      bookmarks: 0
+    };
+
+    setPosts(prev => [newPost, ...prev]);
+    toast.success('게시글이 작성되었습니다!');
   };
 
   return (
@@ -166,6 +239,7 @@ const ActorRecruitment = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => handlePostClick(post)}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -186,27 +260,47 @@ const ActorRecruitment = () => {
                       {post.content}
                     </p>
                     
-                    <div className="text-sm text-gray-500 mb-2">
+                    <div className="text-sm text-gray-500 mb-3">
                       <strong>지원방법:</strong> {post.applicationMethod}
                     </div>
                     
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span className="flex items-center">
-                        <User className="w-4 h-4 mr-1" />
-                        {post.author}
-                      </span>
-                      <span className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        {formatDate(post.createdAt)}
-                      </span>
-                      <span className="flex items-center">
-                        <Eye className="w-4 h-4 mr-1" />
-                        {post.views}
-                      </span>
-                      <span className="flex items-center">
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        {post.comments}
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span className="flex items-center">
+                          <User className="w-4 h-4 mr-1" />
+                          {post.author}
+                        </span>
+                        <span className="flex items-center">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {formatDate(post.createdAt)}
+                        </span>
+                        <span className="flex items-center">
+                          <Eye className="w-4 h-4 mr-1" />
+                          {post.views}
+                        </span>
+                        <span className="flex items-center">
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          {post.comments}
+                        </span>
+                      </div>
+
+                      {/* 좋아요, 저장 버튼 */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => handleLike(post.id, e)}
+                          className="flex items-center px-3 py-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Heart className="w-4 h-4 mr-1" />
+                          {post.likes}
+                        </button>
+                        <button
+                          onClick={(e) => handleBookmark(post.id, e)}
+                          className="flex items-center px-3 py-1 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Bookmark className="w-4 h-4 mr-1" />
+                          {post.bookmarks}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -234,6 +328,22 @@ const ActorRecruitment = () => {
             </p>
           </div>
         )}
+
+        {/* 모달들 */}
+        <PostModal
+          isOpen={showPostModal}
+          onClose={() => setShowPostModal(false)}
+          post={selectedPost}
+          categoryLabel={selectedPost ? getCategoryLabel(selectedPost.category) : ''}
+        />
+
+        <WritePostModal
+          isOpen={showWriteModal}
+          onClose={() => setShowWriteModal(false)}
+          onSubmit={handleWritePost}
+          categories={categories}
+          postType="recruitment"
+        />
       </div>
     </div>
   );

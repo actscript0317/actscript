@@ -40,7 +40,7 @@ const Navbar = () => {
               <div className="relative">
                 <button
                   onClick={() => setIsActorMenuOpen(!isActorMenuOpen)}
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-primary"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-primary h-16"
                 >
                   저는 배우입니다
                   <ChevronDown className="ml-1 h-4 w-4" />

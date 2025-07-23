@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Eye, Calendar, Heart, User, Mic, GraduationCap, Star, Bookmark } from 'lucide-react';
+import { Users, Eye, Calendar, Heart, User, Mic, GraduationCap, Star, Bookmark, MessageCircle, TrendingUp } from 'lucide-react';
 import { scriptAPI, emotionAPI } from '../services/api';
 
 const Home = () => {
@@ -332,21 +332,21 @@ const Home = () => {
 
 
 
-          {/* 감정 카테고리 섹션 */}
+          {/* 감정별 대본 섹션 */}
           <section>
             <div className="text-center mb-12">
-              <h2 className="section-title">감정별 대본 찾기</h2>
-              <p className="text-secondary max-w-2xl mx-auto">
-                원하는 감정이나 상황에 맞는 대본을 쉽게 찾아보세요
+              <h2 className="text-3xl font-bold text-gray-800 mb-4">감정별 대본</h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                표현하고 싶은 감정에 맞는 대본을 선택해보세요
               </p>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {emotions.slice(0, 8).map((emotion) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-w-6xl mx-auto">
+              {emotions.map((emotion) => (
                 <Link
                   key={emotion._id}
                   to={`/scripts?emotion=${emotion._id}`}
-                  className="card-hover text-center group"
+                  className="group text-center p-4 rounded-xl bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                 >
                   <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                     <span className="text-3xl">{getEmotionEmoji(emotion.name)}</span>
@@ -356,6 +356,18 @@ const Home = () => {
                 </Link>
               ))}
             </div>
+          </section>
+
+          {/* 인기 글 섹션 */}
+          <section>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-800 mb-4">인기 글 TOP 5</h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                가장 많은 관심을 받고 있는 글들을 확인해보세요
+              </p>
+            </div>
+            
+            <PopularPostsSection />
           </section>
 
           {/* CTA 섹션 */}
@@ -512,6 +524,197 @@ const ScriptCardHome = ({ script }) => {
             자세히 보기
           </Link>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// PopularPostsSection 컴포넌트
+const PopularPostsSection = () => {
+  // 인기 글 더미 데이터 (좋아요 + 저장수 기준 정렬)
+  const popularPosts = [
+    {
+      id: 1,
+      title: '소속사 오디션 정보 공유',
+      category: '매니지먼트',
+      categoryColor: 'bg-blue-100 text-blue-700',
+      author: '정보공유',
+      likes: 89,
+      bookmarks: 156,
+      views: 445,
+      comments: 23,
+      board: 'actor-info',
+      boardName: '연기자 정보방',
+      rank: 1
+    },
+    {
+      id: 2,
+      title: '아이돌 뮤직비디오 출연자 모집',
+      category: '뮤직비디오',
+      categoryColor: 'bg-pink-100 text-pink-700',
+      author: '뮤직비디오팀',
+      likes: 67,
+      bookmarks: 43,
+      views: 342,
+      comments: 12,
+      board: 'model-recruitment',
+      boardName: '모델/출연자 모집',
+      rank: 2
+    },
+    {
+      id: 3,
+      title: 'OTT 드라마 엑스트라 모집',
+      category: 'OTT/TV 드라마',
+      categoryColor: 'bg-purple-100 text-purple-700',
+      author: '이작가',
+      likes: 45,
+      bookmarks: 32,
+      views: 256,
+      comments: 15,
+      board: 'actor-recruitment',
+      boardName: '배우 모집',
+      rank: 3
+    },
+    {
+      id: 4,
+      title: '강남 연기 스터디 그룹 멤버 모집',
+      category: '스터디 그룹',
+      categoryColor: 'bg-blue-100 text-blue-700',
+      author: '연기사랑',
+      likes: 42,
+      bookmarks: 28,
+      views: 234,
+      comments: 15,
+      board: 'actor-info',
+      boardName: '연기자 정보방',
+      rank: 4
+    },
+    {
+      id: 5,
+      title: '화장품 광고 모델 모집',
+      category: '광고/홍보',
+      categoryColor: 'bg-pink-100 text-pink-700',
+      author: '광고대행사',
+      likes: 34,
+      bookmarks: 28,
+      views: 189,
+      comments: 7,
+      board: 'model-recruitment',
+      boardName: '모델/출연자 모집',
+      rank: 5
+    }
+  ];
+
+  const getBoardPath = (board) => {
+    const paths = {
+      'actor-recruitment': '/actor-recruitment',
+      'model-recruitment': '/model-recruitment',
+      'actor-info': '/actor-info',
+      'actor-profile': '/actor-profile'
+    };
+    return paths[board] || '/';
+  };
+
+  const getRankIcon = (rank) => {
+    const colors = {
+      1: 'text-yellow-500',
+      2: 'text-gray-400',
+      3: 'text-amber-600'
+    };
+    return colors[rank] || 'text-gray-600';
+  };
+
+  const getRankBg = (rank) => {
+    const colors = {
+      1: 'bg-gradient-to-r from-yellow-400 to-yellow-500',
+      2: 'bg-gradient-to-r from-gray-300 to-gray-400',
+      3: 'bg-gradient-to-r from-amber-400 to-amber-500'
+    };
+    return colors[rank] || 'bg-gradient-to-r from-gray-200 to-gray-300';
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
+        <div className="flex items-center">
+          <TrendingUp className="w-6 h-6 text-white mr-2" />
+          <h3 className="text-xl font-bold text-white">인기 글 랭킹</h3>
+        </div>
+      </div>
+      
+      <div className="divide-y divide-gray-200">
+        {popularPosts.map((post) => (
+          <Link
+            key={post.id}
+            to={getBoardPath(post.board)}
+            className="block p-6 hover:bg-gray-50 transition-colors group"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-4 flex-1">
+                {/* 순위 배지 */}
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full ${getRankBg(post.rank)} flex items-center justify-center`}>
+                  <span className="text-white font-bold text-sm">{post.rank}</span>
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${post.categoryColor}`}>
+                      {post.category}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {post.boardName}
+                    </span>
+                  </div>
+                  
+                  <h4 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors mb-2 line-clamp-1">
+                    {post.title}
+                  </h4>
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <span className="flex items-center">
+                      <User className="w-4 h-4 mr-1" />
+                      {post.author}
+                    </span>
+                    <span className="flex items-center">
+                      <Eye className="w-4 h-4 mr-1" />
+                      {post.views}
+                    </span>
+                    <span className="flex items-center">
+                      <MessageCircle className="w-4 h-4 mr-1" />
+                      {post.comments}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 인기도 지표 */}
+              <div className="flex flex-col items-end space-y-1">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center text-red-500">
+                    <Heart className="w-4 h-4 mr-1" />
+                    <span className="font-medium">{post.likes}</span>
+                  </div>
+                  <div className="flex items-center text-blue-500">
+                    <Bookmark className="w-4 h-4 mr-1" />
+                    <span className="font-medium">{post.bookmarks}</span>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400">
+                  인기도: {post.likes + post.bookmarks}
+                </div>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+      
+      <div className="bg-gray-50 px-6 py-4 text-center">
+        <Link
+          to="/actor-recruitment"
+          className="text-purple-600 hover:text-purple-700 font-medium text-sm transition-colors"
+        >
+          더 많은 인기 글 보기 →
+        </Link>
       </div>
     </div>
   );

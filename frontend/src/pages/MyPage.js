@@ -97,7 +97,22 @@ const MyPage = () => {
       try {
         const response = await bookmarkAPI.getMyBookmarks();
         if (response.data.success) {
-          setMySavedPosts(response.data.bookmarks || []);
+          // 북마크 데이터를 가공하여 일관된 구조로 만들기
+          const processedBookmarks = response.data.bookmarks.map(bookmark => {
+            // postId가 populate된 경우와 아닌 경우 모두 처리
+            const postData = typeof bookmark.postId === 'object' ? bookmark.postId : bookmark;
+            
+            return {
+              ...postData,
+              _id: postData._id || bookmark.postId, // 실제 게시글 ID
+              bookmarkId: bookmark._id, // 북마크 자체의 ID (삭제 시 사용)
+              boardType: bookmark.postType?.replace('_', '-') || 'community', // postType을 boardType으로 변환
+              savedAt: bookmark.createdAt // 북마크 생성일
+            };
+          });
+          
+          console.log('✅ 저장한 글 처리 완료:', processedBookmarks);
+          setMySavedPosts(processedBookmarks);
         }
       } catch (error) {
         console.error('저장한 글 불러오기 실패:', error);
@@ -123,10 +138,10 @@ const MyPage = () => {
   };
 
   // 저장한 글 삭제
-  const removeSavedPost = async (postId) => {
+  const removeSavedPost = async (bookmarkId) => {
     try {
-      await bookmarkAPI.deleteBookmark(postId);
-      setMySavedPosts(mySavedPosts.filter(post => post._id !== postId));
+      await bookmarkAPI.deleteBookmark(bookmarkId);
+      setMySavedPosts(mySavedPosts.filter(post => post.bookmarkId !== bookmarkId));
       toast.success('저장 취소되었습니다.');
     } catch (error) {
       toast.error('저장 취소에 실패했습니다.');
@@ -305,7 +320,7 @@ const MyPage = () => {
                 ) : (
                   <div className="space-y-4">
                     {mySavedPosts.map((post) => (
-                      <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 transition-colors">
+                      <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
@@ -317,10 +332,17 @@ const MyPage = () => {
                               </span>
                             </div>
                             <Link 
-                              to={`/posts/${post.postId || post._id}`}
+                              to={`/posts/${post._id}`}
                               className="block"
+                              onClick={(e) => {
+                                // ID가 없으면 링크 클릭 방지
+                                if (!post._id) {
+                                  e.preventDefault();
+                                  toast.error('게시글 ID를 찾을 수 없습니다.');
+                                }
+                              }}
                             >
-                              <h3 className="text-lg font-semibold text-gray-900 hover:text-emerald-600 transition-colors cursor-pointer">
+                              <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">
                                 {post.title}
                               </h3>
                               <p className="text-sm text-gray-600 mt-1 line-clamp-2">
@@ -348,7 +370,7 @@ const MyPage = () => {
                             </Link>
                           </div>
                           <button
-                            onClick={() => removeSavedPost(post._id)}
+                            onClick={() => removeSavedPost(post.bookmarkId)}
                             className="text-red-600 hover:text-red-700 text-sm ml-4 px-2 py-1 rounded hover:bg-red-50 transition-colors"
                           >
                             삭제

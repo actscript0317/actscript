@@ -25,23 +25,118 @@ const ActorProfile = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // 사용자의 기존 좋아요/북마크 상태 로드
-  useEffect(() => {
-    const fetchUserStatus = async () => {
-      if (!isAuthenticated) return;
+  // 프로필들에 대한 사용자의 좋아요/북마크 상태 확인
+  const checkUserStatusForProfiles = async (profilesData) => {
+    try {
+      const profileIds = profilesData.map(profile => profile._id);
+      const likeStatuses = new Set();
+      const bookmarkStatuses = new Set();
       
-      try {
-        // 여기서는 프로필 목록을 가져올 때 각 프로필의 좋아요/북마크 상태도 함께 가져와야 합니다
-        // 현재는 간단히 빈 Set으로 초기화하고, 실제 상태는 각 버튼 클릭 시 업데이트됩니다
-        setUserLikes(new Set());
-        setUserBookmarks(new Set());
-      } catch (error) {
-        console.error('사용자 상태 로드 실패:', error);
+      // 각 프로필에 대한 상태를 병렬로 확인
+      await Promise.all(profileIds.map(async (profileId) => {
+        try {
+          const [likeStatus, bookmarkStatus] = await Promise.all([
+            likeAPI.getStatus(profileId, 'actor_profile').catch(() => ({ data: { isLiked: false } })),
+            bookmarkAPI.getStatus(profileId, 'actor_profile').catch(() => ({ data: { isBookmarked: false } }))
+          ]);
+          
+          if (likeStatus.data.isLiked) {
+            likeStatuses.add(profileId);
+          }
+          if (bookmarkStatus.data.isBookmarked) {
+            bookmarkStatuses.add(profileId);
+          }
+        } catch (error) {
+          console.error(`프로필 ${profileId} 상태 확인 실패:`, error);
+        }
+      }));
+      
+      setUserLikes(likeStatuses);
+      setUserBookmarks(bookmarkStatuses);
+      
+      console.log('✅ 사용자 상태 로드 완료:', {
+        likes: likeStatuses.size,
+        bookmarks: bookmarkStatuses.size
+      });
+    } catch (error) {
+      console.error('사용자 상태 확인 실패:', error);
+    }
+  };
+
+  // 사용자 인증 상태가 변경될 때 상태 초기화
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUserLikes(new Set());
+      setUserBookmarks(new Set());
+    }
+  }, [isAuthenticated]);
+
+  // 다른 페이지에서의 좋아요/북마크 상태 변경 감지
+  useEffect(() => {
+    const handleLikeStatusChanged = (event) => {
+      const { postId, postType, isLiked, likeCount } = event.detail;
+      if (postType === 'actor_profile') {
+        // 좋아요 상태 업데이트
+        setUserLikes(prev => {
+          const newSet = new Set(prev);
+          if (isLiked) {
+            newSet.add(postId);
+          } else {
+            newSet.delete(postId);
+          }
+          return newSet;
+        });
+        
+        // 프로필 리스트의 좋아요 수 업데이트
+        setProfiles(prev => prev.map(profile => 
+          profile._id === postId 
+            ? { ...profile, likes: likeCount }
+            : profile
+        ));
+        setFilteredProfiles(prev => prev.map(profile => 
+          profile._id === postId 
+            ? { ...profile, likes: likeCount }
+            : profile
+        ));
       }
     };
 
-    fetchUserStatus();
-  }, [isAuthenticated]);
+    const handleBookmarkStatusChanged = (event) => {
+      const { postId, postType, isBookmarked, bookmarkCount } = event.detail;
+      if (postType === 'actor_profile') {
+        // 북마크 상태 업데이트
+        setUserBookmarks(prev => {
+          const newSet = new Set(prev);
+          if (isBookmarked) {
+            newSet.add(postId);
+          } else {
+            newSet.delete(postId);
+          }
+          return newSet;
+        });
+        
+        // 프로필 리스트의 북마크 수 업데이트
+        setProfiles(prev => prev.map(profile => 
+          profile._id === postId 
+            ? { ...profile, bookmarks: bookmarkCount }
+            : profile
+        ));
+        setFilteredProfiles(prev => prev.map(profile => 
+          profile._id === postId 
+            ? { ...profile, bookmarks: bookmarkCount }
+            : profile
+        ));
+      }
+    };
+
+    window.addEventListener('likeStatusChanged', handleLikeStatusChanged);
+    window.addEventListener('bookmarkStatusChanged', handleBookmarkStatusChanged);
+
+    return () => {
+      window.removeEventListener('likeStatusChanged', handleLikeStatusChanged);
+      window.removeEventListener('bookmarkStatusChanged', handleBookmarkStatusChanged);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -67,9 +162,15 @@ const ActorProfile = () => {
         console.log('📥 프로필 조회 응답:', response.data);
         
         if (response.data.success) {
-          setProfiles(response.data.data || []);
-          setFilteredProfiles(response.data.data || []);
+          const profilesData = response.data.data || [];
+          setProfiles(profilesData);
+          setFilteredProfiles(profilesData);
           setTotalPages(response.data.pagination?.pages || 1);
+          
+          // 로그인된 사용자의 경우 각 프로필에 대한 좋아요/북마크 상태 확인
+          if (isAuthenticated && profilesData.length > 0) {
+            checkUserStatusForProfiles(profilesData);
+          }
         } else {
           throw new Error(response.data.message || '프로필 조회 실패');
         }
@@ -121,6 +222,16 @@ const ActorProfile = () => {
             ? { ...profile, likes: response.data.likeCount }
             : profile
         ));
+        setFilteredProfiles(prev => prev.map(profile => 
+          profile._id === profileId 
+            ? { ...profile, likes: response.data.likeCount }
+            : profile
+        ));
+        
+        // 상태 변경 이벤트 발생
+        window.dispatchEvent(new CustomEvent('likeStatusChanged', {
+          detail: { postId: profileId, postType: 'actor_profile', isLiked: response.data.isLiked, likeCount: response.data.likeCount }
+        }));
         
         toast.success(response.data.message);
       }
@@ -158,6 +269,16 @@ const ActorProfile = () => {
             ? { ...profile, bookmarks: response.data.bookmarkCount }
             : profile
         ));
+        setFilteredProfiles(prev => prev.map(profile => 
+          profile._id === profileId 
+            ? { ...profile, bookmarks: response.data.bookmarkCount }
+            : profile
+        ));
+        
+        // 상태 변경 이벤트 발생
+        window.dispatchEvent(new CustomEvent('bookmarkStatusChanged', {
+          detail: { postId: profileId, postType: 'actor_profile', isBookmarked: response.data.isBookmarked, bookmarkCount: response.data.bookmarkCount }
+        }));
         
         toast.success(response.data.message);
       }

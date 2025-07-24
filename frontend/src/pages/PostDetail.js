@@ -81,6 +81,11 @@ const PostDetail = () => {
         setLoading(true);
         console.log('📄 게시글 상세 조회 시작:', id);
         
+        // ID가 없는 경우 에러 처리
+        if (!id || id === 'undefined') {
+          throw new Error('유효하지 않은 게시글 ID입니다.');
+        }
+        
         const postData = await fetchPostByType(id);
         setPost(postData);
         
@@ -147,6 +152,19 @@ const PostDetail = () => {
           likes: newLikeCount
         }));
         
+        // 상태 변경을 localStorage에 저장하여 다른 페이지와 공유
+        const likeStatusKey = `like_${post._id}_${mapBoardTypeToPostType(boardType)}`;
+        if (newIsLiked) {
+          localStorage.setItem(likeStatusKey, 'true');
+        } else {
+          localStorage.removeItem(likeStatusKey);
+        }
+        
+        // 다른 탭/창에 상태 변경 알림
+        window.dispatchEvent(new CustomEvent('likeStatusChanged', {
+          detail: { postId: post._id, postType: mapBoardTypeToPostType(boardType), isLiked: newIsLiked, likeCount: newLikeCount }
+        }));
+        
         toast.success(response.data.message);
       }
     } catch (error) {
@@ -204,7 +222,23 @@ const PostDetail = () => {
           }));
         }
         
-        toast.success(response.data.message || (serverIsBookmarked ? '저장되었습니다!' : '저장을 취소했습니다!'));
+        // 최종 상태를 localStorage에 저장
+        const bookmarkStatusKey = `bookmark_${post._id}_${mapBoardTypeToPostType(boardType)}`;
+        const finalIsBookmarked = serverIsBookmarked !== undefined ? serverIsBookmarked : willBeBookmarked;
+        const finalBookmarkCount = serverBookmarkCount !== undefined ? serverBookmarkCount : newBookmarkCount;
+        
+        if (finalIsBookmarked) {
+          localStorage.setItem(bookmarkStatusKey, 'true');
+        } else {
+          localStorage.removeItem(bookmarkStatusKey);
+        }
+        
+        // 다른 탭/창에 상태 변경 알림
+        window.dispatchEvent(new CustomEvent('bookmarkStatusChanged', {
+          detail: { postId: post._id, postType: mapBoardTypeToPostType(boardType), isBookmarked: finalIsBookmarked, bookmarkCount: finalBookmarkCount }
+        }));
+        
+        toast.success(response.data.message || (finalIsBookmarked ? '저장되었습니다!' : '저장을 취소했습니다!'));
       }
     } catch (error) {
       // 오류 발생 시 UI 롤백

@@ -13,6 +13,9 @@ import AIScript from './pages/AIScript';
 import ScriptVault from './pages/ScriptVault';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import MyPage from './pages/MyPage';
 import NotFound from './pages/NotFound';
 // 새로운 배우 관련 페이지들
@@ -83,6 +86,21 @@ function App() {
               <Route path="/register" element={
                 <PublicRoute>
                   <Register />
+                </PublicRoute>
+              } />
+              <Route path="/forgot-password" element={
+                <PublicRoute>
+                  <ForgotPassword />
+                </PublicRoute>
+              } />
+              <Route path="/reset-password/:token" element={
+                <PublicRoute>
+                  <ResetPassword />
+                </PublicRoute>
+              } />
+              <Route path="/verify-email/:token" element={
+                <PublicRoute>
+                  <VerifyEmail />
                 </PublicRoute>
               } />
 

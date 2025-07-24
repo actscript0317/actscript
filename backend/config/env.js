@@ -25,6 +25,12 @@ if (!process.env.CLIENT_URL) {
   process.env.CLIENT_URL = 'https://actscript-1.onrender.com';
 }
 
+// Google OAuth 설정
+if (!process.env.GOOGLE_CLIENT_ID) {
+  process.env.GOOGLE_CLIENT_ID = 'your-google-client-id-here';
+  console.warn('⚠️ GOOGLE_CLIENT_ID가 설정되지 않았습니다. Google 로그인을 사용하려면 설정해주세요.');
+}
+
 // 환경 변수 검증
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -44,5 +50,6 @@ module.exports = {
   JWT_SECRET: process.env.JWT_SECRET,
   JWT_EXPIRE: process.env.JWT_EXPIRE || '7d',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  CLIENT_URL: process.env.CLIENT_URL || 'https://actscript-1.onrender.com'
+  CLIENT_URL: process.env.CLIENT_URL || 'https://actscript-1.onrender.com',
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID
 }; 

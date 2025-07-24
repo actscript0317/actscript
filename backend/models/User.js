@@ -33,8 +33,28 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, '비밀번호는 필수입니다.'],
-    minlength: [6, '비밀번호는 최소 6자 이상이어야 합니다.'],
+    required: function() {
+      // Google 로그인 사용자는 비밀번호가 필요하지 않음
+      return !this.googleId;
+    },
+    minlength: [8, '비밀번호는 최소 8자 이상이어야 합니다.'],
+    validate: {
+      validator: function(password) {
+        // Google 로그인 사용자는 비밀번호 검증 스킵
+        if (this.googleId && !password) return true;
+        if (!password) return false;
+        
+        // 영문 대소문자, 숫자, 특수문자 중 3가지 이상 포함
+        const hasLowercase = /[a-z]/.test(password);
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasNumbers = /\d/.test(password);
+        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+        
+        const criteriaCount = [hasLowercase, hasUppercase, hasNumbers, hasSpecialChar].filter(Boolean).length;
+        return criteriaCount >= 3;
+      },
+      message: '비밀번호는 영문 대소문자, 숫자, 특수문자 중 3가지 이상을 포함해야 합니다.'
+    },
     select: false // 기본적으로 비밀번호는 조회 시 제외
   },
   name: {
@@ -52,8 +72,49 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Google OAuth 관련 필드
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true // null 값도 허용하면서 unique 유지
+  },
+  provider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
+  },
+  // 로그인 시도 제한 관련 필드
+  loginAttempts: {
+    type: Number,
+    default: 0
+  },
+  lockUntil: {
+    type: Date
+  },
   lastLogin: {
     type: Date
+  },
+  // 비밀번호 재설정 관련 필드
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpire: {
+    type: Date,
+    select: false
+  },
+  // 이메일 인증 관련 필드
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: {
+    type: String,
+    select: false
+  },
+  emailVerificationExpire: {
+    type: Date,
+    select: false
   }
 }, {
   timestamps: true,
@@ -66,17 +127,26 @@ userSchema.pre('validate', function(next) {
     debug('유효성 검사 시작', {
       id: this._id,
       email: this.email,
-      username: this.username
+      username: this.username,
+      provider: this.provider,
+      googleId: this.googleId
     });
     
-    if (!this.email || !this.password || !this.username || !this.name) {
+    // 기본 필수 필드 확인
+    if (!this.email || !this.username || !this.name) {
       const error = new Error('필수 필드가 누락되었습니다.');
       debug('유효성 검사 실패 - 필수 필드 누락', {
         hasEmail: !!this.email,
-        hasPassword: !!this.password,
         hasUsername: !!this.username,
         hasName: !!this.name
       });
+      return next(error);
+    }
+    
+    // Google 로그인이 아닌 경우에만 비밀번호 필수
+    if (!this.googleId && !this.password) {
+      const error = new Error('일반 로그인의 경우 비밀번호는 필수입니다.');
+      debug('유효성 검사 실패 - 비밀번호 누락 (일반 로그인)');
       return next(error);
     }
     
@@ -220,11 +290,91 @@ userSchema.methods.toSafeObject = function() {
     debug('안전한 사용자 객체 생성');
     const userObject = this.toObject();
     delete userObject.password;
+    delete userObject.loginAttempts;
+    delete userObject.lockUntil;
     return userObject;
   } catch (error) {
     debug('안전한 사용자 객체 생성 에러', { error: error.message });
     throw error;
   }
+};
+
+// 로그인 시도 제한 관련 상수
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_TIME = 15 * 60 * 1000; // 15분
+
+// 가상 필드: 계정 잠금 여부
+userSchema.virtual('isLocked').get(function() {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
+});
+
+// 로그인 실패 시 호출하는 메서드
+userSchema.methods.incLoginAttempts = function() {
+  // 잠금 시간이 지났으면 초기화
+  if (this.lockUntil && this.lockUntil < Date.now()) {
+    return this.updateOne({
+      $unset: {
+        loginAttempts: 1,
+        lockUntil: 1
+      }
+    });
+  }
+  
+  const updates = { $inc: { loginAttempts: 1 } };
+  
+  // 최대 시도 횟수 도달 시 계정 잠금
+  if (this.loginAttempts + 1 >= MAX_LOGIN_ATTEMPTS && !this.isLocked) {
+    updates.$set = { lockUntil: Date.now() + LOCK_TIME };
+  }
+  
+  return this.updateOne(updates);
+};
+
+// 로그인 성공 시 호출하는 메서드
+userSchema.methods.resetLoginAttempts = function() {
+  return this.updateOne({
+    $unset: {
+      loginAttempts: 1,
+      lockUntil: 1
+    },
+    $set: {
+      lastLogin: new Date()
+    }
+  });
+};
+
+// 비밀번호 재설정 토큰 생성
+userSchema.methods.getResetPasswordToken = function() {
+  // 랜덤 토큰 생성
+  const resetToken = require('crypto').randomBytes(20).toString('hex');
+  
+  // 토큰 해싱해서 저장
+  this.resetPasswordToken = require('crypto')
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+  
+  // 토큰 만료시간 설정 (10분)
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  
+  return resetToken;
+};
+
+// 이메일 인증 토큰 생성
+userSchema.methods.getEmailVerificationToken = function() {
+  // 랜덤 토큰 생성
+  const verificationToken = require('crypto').randomBytes(20).toString('hex');
+  
+  // 토큰 해싱해서 저장
+  this.emailVerificationToken = require('crypto')
+    .createHash('sha256')
+    .update(verificationToken)
+    .digest('hex');
+  
+  // 토큰 만료시간 설정 (24시간)
+  this.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000;
+  
+  return verificationToken;
 };
 
 // 인덱스 생성

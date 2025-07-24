@@ -247,6 +247,8 @@ export const authAPI = {
   register: (data) => withRetry(() => api.post('/auth/register', data)),
   // 로그인
   login: (data) => withRetry(() => api.post('/auth/login', data)),
+  // Google 로그인
+  googleLogin: (data) => withRetry(() => api.post('/auth/google', data)),
   // 로그아웃
   logout: () => withRetry(() => api.post('/auth/logout')),
   // 현재 사용자 정보 조회
@@ -255,6 +257,16 @@ export const authAPI = {
   updateProfile: (data) => withRetry(() => api.put('/auth/profile', data)),
   // 비밀번호 변경
   changePassword: (data) => withRetry(() => api.put('/auth/password', data)),
+  // 비밀번호 재설정 요청
+  forgotPassword: (data) => withRetry(() => api.post('/auth/forgot-password', data)),
+  // 비밀번호 재설정 실행
+  resetPassword: (token, data) => withRetry(() => api.put(`/auth/reset-password/${token}`, data)),
+  // 이메일 인증 요청
+  sendVerification: () => withRetry(() => api.post('/auth/send-verification')),
+  // 이메일 인증 확인
+  verifyEmail: (token) => withRetry(() => api.get(`/auth/verify-email/${token}`)),
+  // 이메일 인증 상태 확인
+  getVerificationStatus: () => withRetry(() => api.get('/auth/verification-status')),
 };
 
 // AI 스크립트 API

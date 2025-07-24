@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Eye, EyeOff } from 'lucide-react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { authAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 
 const Register = () => {
@@ -15,6 +17,8 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { googleLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -49,7 +53,7 @@ const Register = () => {
       });
 
       if (response.data.success) {
-        toast.success('회원가입이 완료되었습니다!');
+        toast.success('회원가입이 완료되었습니다! 로그인 후 이메일 인증을 진행해주세요.');
         navigate('/login');
       } else {
         setError(response.data.message || '회원가입에 실패했습니다.');
@@ -60,6 +64,38 @@ const Register = () => {
       setError(errorMessage);
       toast.error(errorMessage);
     }
+  };
+
+  // Google 로그인 성공 핸들러 (회원가입에서도 동일하게 처리)
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      console.log('Google 회원가입/로그인 시도');
+      const result = await googleLogin(credentialResponse.credential);
+      
+      if (result.success) {
+        console.log('Google 로그인 성공:', { user: result.user });
+        // 회원가입 페이지에서 Google 로그인 성공 시 홈으로 이동
+        navigate('/', { replace: true });
+      } else {
+        console.error('Google 로그인 실패:', result.message);
+        setError(result.message);
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Google 로그인 에러:', error);
+      const errorMessage = 'Google 로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Google 로그인 실패 핸들러
+  const handleGoogleError = () => {
+    console.error('Google 로그인 실패');
+    toast.error('Google 로그인에 실패했습니다.');
   };
 
   return (
@@ -185,11 +221,47 @@ const Register = () => {
           <div>
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <UserPlus className="w-5 h-5 mr-2" />
-              회원가입
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                  처리 중...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-5 h-5 mr-2" />
+                  회원가입
+                </>
+              )}
             </button>
+          </div>
+
+          {/* 구분선 */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">또는</span>
+            </div>
+          </div>
+
+          {/* Google 로그인 */}
+          <div className="flex justify-center">
+            <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || "your-google-client-id"}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                text="signup_with"
+                shape="rectangular"
+                theme="outline"
+                size="large"
+                width="100%"
+                locale="ko"
+              />
+            </GoogleOAuthProvider>
           </div>
         </form>
       </div>

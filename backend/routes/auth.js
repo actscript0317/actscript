@@ -1,11 +1,17 @@
 const express = require('express');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const config = require('../config/env');
+const sendEmail = require('../utils/sendEmail');
 const mongoose = require('mongoose');
 
 const router = express.Router();
+
+// Google OAuth 클라이언트 설정
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // 디버그 로그 유틸리티
 const debug = (message, data = {}) => {
@@ -244,6 +250,15 @@ router.post('/login', [
       });
     }
 
+    // 계정 잠금 확인
+    if (user.isLocked) {
+      debug('잠긴 계정', { userId: user._id, lockUntil: user.lockUntil });
+      return res.status(423).json({
+        success: false,
+        message: '너무 많은 로그인 시도로 계정이 일시적으로 잠겼습니다. 15분 후 다시 시도해주세요.'
+      });
+    }
+
     // 계정 활성화 확인
     if (!user.isActive) {
       debug('비활성화된 계정', { userId: user._id });
@@ -258,15 +273,18 @@ router.post('/login', [
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       debug('비밀번호 불일치', { userId: user._id });
+      
+      // 로그인 실패 시도 증가
+      await user.incLoginAttempts();
+      
       return res.status(401).json({
         success: false,
         message: '이메일 또는 비밀번호가 올바르지 않습니다.'
       });
     }
 
-    // 마지막 로그인 시간 업데이트
-    user.lastLogin = new Date();
-    await user.save({ validateBeforeSave: false });
+    // 로그인 성공 시 시도 횟수 초기화 및 마지막 로그인 시간 업데이트
+    await user.resetLoginAttempts();
 
     // JWT 토큰 생성
     debug('JWT 토큰 생성 중');
@@ -292,6 +310,114 @@ router.post('/login', [
     res.status(500).json({
       success: false,
       message: '로그인 중 오류가 발생했습니다.',
+      error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
+// Google 로그인
+router.post('/google', [
+  body('token')
+    .notEmpty()
+    .withMessage('Google 토큰이 필요합니다.')
+], async (req, res) => {
+  try {
+    debug('Google 로그인 시도', { ip: req.ip });
+
+    // 유효성 검사
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: '잘못된 요청입니다.',
+        errors: errors.array()
+      });
+    }
+
+    const { token } = req.body;
+
+    // Google 토큰 검증
+    debug('Google 토큰 검증 중');
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    debug('Google 토큰 검증 완료', {
+      googleId: payload.sub,
+      email: payload.email,
+      name: payload.name
+    });
+
+    const { sub: googleId, email, name, picture } = payload;
+
+    // 기존 사용자 확인 (Google ID 또는 이메일로)
+    let user = await User.findOne({
+      $or: [
+        { googleId },
+        { email }
+      ]
+    });
+
+    if (user) {
+      // 기존 사용자 - Google ID 업데이트 (이메일로만 가입한 경우)
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.provider = 'google';
+        await user.save({ validateBeforeSave: false });
+        debug('기존 사용자에 Google ID 연결', { userId: user._id });
+      }
+      
+      // 로그인 성공 처리
+      await user.resetLoginAttempts();
+    } else {
+      // 새 사용자 생성
+      debug('새 Google 사용자 생성 중');
+      
+      // 중복되지 않는 사용자명 생성
+      let username = email.split('@')[0];
+      const existingUser = await User.findOne({ username });
+      if (existingUser) {
+        username = `${username}_${Date.now()}`;
+      }
+
+      user = await User.create({
+        googleId,
+        email,
+        name,
+        username,
+        provider: 'google',
+        isActive: true
+      });
+
+      debug('새 Google 사용자 생성 완료', { userId: user._id });
+    }
+
+    // JWT 토큰 생성
+    const jwtToken = user.getSignedJwtToken();
+
+    debug('Google 로그인 성공', { userId: user._id });
+
+    res.status(200)
+      .cookie('token', jwtToken, getCookieOptions())
+      .json({
+        success: true,
+        message: 'Google 로그인이 완료되었습니다.',
+        token: jwtToken,
+        user: user.toSafeObject(),
+        isNewUser: !user.lastLogin // 새 사용자인지 여부
+      });
+
+  } catch (error) {
+    debug('Google 로그인 에러', { 
+      error: error.message,
+      stack: error.stack
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Google 로그인 중 오류가 발생했습니다.',
       error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
     });
   }
@@ -480,6 +606,375 @@ router.get('/db-status', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// 비밀번호 재설정 요청
+router.post('/forgot-password', [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('올바른 이메일을 입력해주세요.')
+], async (req, res) => {
+  try {
+    debug('비밀번호 재설정 요청', { email: req.body.email });
+
+    // 유효성 검사
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: '올바른 이메일을 입력해주세요.',
+        errors: errors.array()
+      });
+    }
+
+    const { email } = req.body;
+
+    // 사용자 찾기
+    const user = await User.findOne({ email });
+    if (!user) {
+      // 보안상 이유로 사용자가 없어도 성공 메시지 반환
+      return res.status(200).json({
+        success: true,
+        message: '비밀번호 재설정 링크가 이메일로 전송되었습니다.'
+      });
+    }
+
+    // Google 로그인 사용자는 비밀번호 재설정 불가
+    if (user.provider === 'google') {
+      return res.status(400).json({
+        success: false,
+        message: 'Google 계정은 Google에서 비밀번호를 관리해주세요.'
+      });
+    }
+
+    // 재설정 토큰 생성
+    const resetToken = user.getResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
+
+    debug('비밀번호 재설정 토큰 생성', { userId: user._id });
+
+    // 재설정 URL 생성
+    const resetUrl = `${config.CLIENT_URL}/reset-password/${resetToken}`;
+
+    // 이메일 HTML 템플릿
+    const html = `
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #6366f1;">ActScript</h1>
+          <h2 style="color: #374151;">비밀번호 재설정</h2>
+        </div>
+        
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <p style="margin: 0 0 15px 0; color: #374151;">안녕하세요, ${user.name}님!</p>
+          <p style="margin: 0 0 15px 0; color: #374151;">비밀번호 재설정 요청을 받았습니다.</p>
+          <p style="margin: 0 0 15px 0; color: #374151;">아래 버튼을 클릭하여 새 비밀번호를 설정해주세요:</p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" 
+             style="display: inline-block; padding: 12px 30px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
+            비밀번호 재설정하기
+          </a>
+        </div>
+        
+        <div style="background: #fef3cd; padding: 15px; border-radius: 6px; margin: 20px 0;">
+          <p style="margin: 0; color: #92400e; font-size: 14px;">
+            ⚠️ 이 링크는 10분 후에 만료됩니다.
+          </p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0; color: #6b7280; font-size: 14px;">
+            만약 비밀번호 재설정을 요청하지 않으셨다면, 이 이메일을 무시해주세요.
+          </p>
+          <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">
+            링크가 작동하지 않는 경우 다음 URL을 브라우저에 복사해주세요:<br>
+            <span style="word-break: break-all;">${resetUrl}</span>
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'ActScript 비밀번호 재설정',
+        html
+      });
+
+      debug('비밀번호 재설정 이메일 전송 완료', { userId: user._id });
+
+      res.status(200).json({
+        success: true,
+        message: '비밀번호 재설정 링크가 이메일로 전송되었습니다.'
+      });
+    } catch (error) {
+      debug('이메일 전송 실패', { error: error.message });
+      
+      // 이메일 전송 실패 시 토큰 정리
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return res.status(500).json({
+        success: false,
+        message: '이메일 전송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      });
+    }
+
+  } catch (error) {
+    debug('비밀번호 재설정 요청 에러', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: '서버 오류가 발생했습니다.',
+      error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 비밀번호 재설정 실행
+router.put('/reset-password/:resettoken', [
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('비밀번호는 최소 8자 이상이어야 합니다.')
+    .matches(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])/)
+    .withMessage('비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.'),
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error('비밀번호 확인이 일치하지 않습니다.');
+      }
+      return true;
+    })
+], async (req, res) => {
+  try {
+    debug('비밀번호 재설정 실행', { token: req.params.resettoken });
+
+    // 유효성 검사
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: '입력 데이터가 올바르지 않습니다.',
+        errors: errors.array()
+      });
+    }
+
+    // 토큰 해싱
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(req.params.resettoken)
+      .digest('hex');
+
+    // 토큰으로 사용자 찾기 (만료 시간도 확인)
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      debug('유효하지 않거나 만료된 토큰', { token: req.params.resettoken });
+      return res.status(400).json({
+        success: false,
+        message: '유효하지 않거나 만료된 토큰입니다.'
+      });
+    }
+
+    debug('비밀번호 재설정 중', { userId: user._id });
+
+    // 새 비밀번호 설정
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    debug('비밀번호 재설정 완료', { userId: user._id });
+
+    res.status(200).json({
+      success: true,
+      message: '비밀번호가 성공적으로 재설정되었습니다.'
+    });
+
+  } catch (error) {
+    debug('비밀번호 재설정 에러', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: '서버 오류가 발생했습니다.',
+      error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 이메일 인증 요청 (회원가입 후)
+router.post('/send-verification', protect, async (req, res) => {
+  try {
+    debug('이메일 인증 요청 시작', { userId: req.user.id });
+
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: '이미 인증된 이메일입니다.'
+      });
+    }
+
+    // 이메일 인증 토큰 생성
+    const emailVerificationToken = user.getEmailVerificationToken();
+    await user.save({ validateBeforeSave: false });
+
+    // 인증 이메일 전송
+    const verificationUrl = `${config.CLIENT_URL}/verify-email/${emailVerificationToken}`;
+    
+    const html = `
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #6366f1;">ActScript</h1>
+          <h2 style="color: #374151;">이메일 인증</h2>
+        </div>
+        
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <p style="margin: 0 0 15px 0; color: #374151;">안녕하세요, ${user.name}님!</p>
+          <p style="margin: 0 0 15px 0; color: #374151;">ActScript 회원가입을 완료하기 위해 이메일 인증이 필요합니다.</p>
+          <p style="margin: 0 0 15px 0; color: #374151;">아래 버튼을 클릭하여 이메일을 인증해주세요:</p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" 
+             style="display: inline-block; padding: 12px 30px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
+            이메일 인증하기
+          </a>
+        </div>
+        
+        <div style="background: #fef3cd; padding: 15px; border-radius: 6px; margin: 20px 0;">
+          <p style="margin: 0; color: #92400e; font-size: 14px;">
+            ⚠️ 이 링크는 10분 후에 만료됩니다.
+          </p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0; color: #6b7280; font-size: 14px;">
+            만약 이 요청을 하지 않으셨다면, 이 이메일을 무시해주세요.
+          </p>
+          <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">
+            링크가 작동하지 않는 경우 다음 URL을 브라우저에 복사해주세요:<br>
+            <span style="word-break: break-all;">${verificationUrl}</span>
+          </p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail({
+      email: user.email,
+      subject: 'ActScript 이메일 인증',
+      html
+    });
+
+    debug('이메일 인증 요청 성공', { email: user.email });
+
+    res.status(200).json({
+      success: true,
+      message: '인증 이메일이 전송되었습니다.'
+    });
+
+  } catch (error) {
+    console.error('이메일 인증 요청 에러:', error);
+    
+    // 토큰 초기화
+    const user = await User.findById(req.user.id);
+    if (user) {
+      user.emailVerificationToken = undefined;
+      user.emailVerificationExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: '이메일 전송 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 이메일 인증 확인
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    debug('이메일 인증 확인 시작', { token: req.params.token.substring(0, 10) + '...' });
+
+    const emailVerificationToken = crypto
+      .createHash('sha256')
+      .update(req.params.token)
+      .digest('hex');
+
+    const user = await User.findOne({
+      emailVerificationToken,
+      emailVerificationExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: '유효하지 않은 토큰이거나 만료된 토큰입니다.'
+      });
+    }
+
+    // 이메일 인증 완료
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
+
+    await user.save({ validateBeforeSave: false });
+
+    debug('이메일 인증 성공', { userId: user._id, email: user.email });
+
+    res.status(200).json({
+      success: true,
+      message: '이메일 인증이 완료되었습니다.'
+    });
+
+  } catch (error) {
+    console.error('이메일 인증 확인 에러:', error);
+    res.status(500).json({
+      success: false,
+      message: '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 이메일 인증 상태 확인
+router.get('/verification-status', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('isEmailVerified email');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        isEmailVerified: user.isEmailVerified,
+        email: user.email
+      }
+    });
+
+  } catch (error) {
+    console.error('이메일 인증 상태 확인 에러:', error);
+    res.status(500).json({
+      success: false,
+      message: '서버 오류가 발생했습니다.'
     });
   }
 });

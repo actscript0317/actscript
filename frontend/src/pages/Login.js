@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 
@@ -11,7 +12,7 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { login, loading, isAuthenticated } = useAuth();
+  const { login, googleLogin, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -76,6 +77,38 @@ const Login = () => {
       return false;
     }
     return true;
+  };
+
+  // Google 로그인 성공 핸들러
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      console.log('Google 로그인 시도');
+      const result = await googleLogin(credentialResponse.credential);
+      
+      if (result.success) {
+        console.log('Google 로그인 성공:', { user: result.user });
+        
+        // 즉시 리다이렉트 시도
+        const from = location.state?.from || '/';
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 100);
+      } else {
+        console.error('Google 로그인 실패:', result.message);
+        setError(result.message);
+      }
+    } catch (error) {
+      console.error('Google 로그인 에러:', error);
+      const errorMessage = 'Google 로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    }
+  };
+
+  // Google 로그인 실패 핸들러
+  const handleGoogleError = () => {
+    console.error('Google 로그인 실패');
+    toast.error('Google 로그인에 실패했습니다.');
   };
 
   const handleChange = (e) => {
@@ -152,6 +185,16 @@ const Login = () => {
             </div>
           </div>
 
+          {/* 비밀번호 찾기 링크 */}
+          <div className="text-right">
+            <Link 
+              to="/forgot-password" 
+              className="text-sm text-primary hover:text-primary-dark"
+            >
+              비밀번호를 잊으셨나요?
+            </Link>
+          </div>
+
           <div>
             <button
               type="submit"
@@ -170,6 +213,32 @@ const Login = () => {
                 </>
               )}
             </button>
+          </div>
+
+          {/* 구분선 */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">또는</span>
+            </div>
+          </div>
+
+          {/* Google 로그인 */}
+          <div className="flex justify-center">
+            <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || "your-google-client-id"}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                text="signin_with"
+                shape="rectangular"
+                theme="outline"
+                size="large"
+                width="100%"
+                locale="ko"
+              />
+            </GoogleOAuthProvider>
           </div>
         </form>
       </div>

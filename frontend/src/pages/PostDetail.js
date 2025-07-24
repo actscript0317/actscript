@@ -474,7 +474,7 @@ const PostDetail = () => {
                     alt={`첨부 이미지 ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg border border-gray-200"
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/300x200/f3f4f6/9ca3af?text=No+Image';
+                      e.target.src = '/default-image-wide.svg';
                     }}
                   />
                 ))}

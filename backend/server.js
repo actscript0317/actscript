@@ -129,15 +129,20 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
   const w = parseInt(width) || 300;
   const h = parseInt(height) || 200;
   
-  console.log(`📷 플레이스홀더 이미지 요청: ${w}x${h}`);
+  console.log(`📷 플레이스홀더 이미지 요청: ${w}x${h} from ${req.ip}`);
   
   // SVG 플레이스홀더 이미지 생성
   const svg = `
     <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
       <rect width="100%" height="100%" fill="#f3f4f6"/>
-      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="14" fill="#9ca3af" text-anchor="middle" dy=".3em">
+      <text x="50%" y="40%" font-family="Arial, sans-serif" font-size="16" fill="#9ca3af" text-anchor="middle" dy=".3em">
+        이미지 없음
+      </text>
+      <text x="50%" y="60%" font-family="Arial, sans-serif" font-size="14" fill="#6b7280" text-anchor="middle" dy=".3em">
         ${w} × ${h}
       </text>
+      <circle cx="${w/2}" cy="${h*0.3}" r="${Math.min(w,h)*0.08}" fill="#d1d5db" opacity="0.5"/>
+      <polygon points="${w*0.4},${h*0.35} ${w*0.6},${h*0.35} ${w*0.5},${h*0.25}" fill="#9ca3af" opacity="0.7"/>
     </svg>
   `;
   

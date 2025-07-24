@@ -1383,6 +1383,9 @@ const CreatePost = () => {
                         src={image.url}
                         alt={image.name}
                         className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          e.target.src = '/default-image-wide.svg';
+                        }}
                       />
                       <button
                         type="button"

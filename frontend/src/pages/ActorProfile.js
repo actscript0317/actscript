@@ -342,7 +342,7 @@ const ActorProfile = () => {
                       alt={profile.name}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/300x400/f3f4f6/9ca3af?text=No+Image';
+                        e.target.src = '/default-image.svg';
                       }}
                     />
                   ) : (

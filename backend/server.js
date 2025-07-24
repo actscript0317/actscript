@@ -19,6 +19,8 @@ const actorProfileRoutes = require('./routes/actor-profiles');
 const actorRecruitmentRoutes = require('./routes/actor-recruitments');
 const communityPostRoutes = require('./routes/community-posts');
 const modelRecruitmentRoutes = require('./routes/model-recruitments');
+const likeRoutes = require('./routes/likes');
+const bookmarkRoutes = require('./routes/bookmarks');
 
 const app = express();
 const PORT = config.PORT;

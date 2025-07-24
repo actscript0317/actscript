@@ -312,11 +312,15 @@ router.put('/:id', auth, upload.array('images', 10), async (req, res) => {
 
     // 새 이미지 처리
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => ({
-        url: `/uploads/community/${file.filename}`,
-        filename: file.filename,
-        size: file.size
-      }));
+      const baseUrl = process.env.NODE_ENV === 'production' 
+  ? 'https://actscript-1.onrender.com' 
+  : `${req.protocol}://${req.get('host')}`;
+
+const newImages = req.files.map(file => ({
+  url: `${baseUrl}/uploads/profiles/${file.filename}`,
+  filename: file.filename,
+  size: file.size
+}));
       
       updateData.images = [...(post.images || []), ...newImages].slice(0, 10);
     }

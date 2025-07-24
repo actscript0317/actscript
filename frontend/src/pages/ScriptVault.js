@@ -474,29 +474,32 @@ const ScriptVault = () => {
     const isWritten = activeTab === 'written';
     const cardColor = isWritten ? 'border-green-200 hover:border-green-300' : 'border-blue-200 hover:border-blue-300';
     
+    // 저장한 글의 경우 실제 게시글 데이터는 postId 안에 있을 수 있음
+    const actualPost = post.postId || post;
+    
     return (
       <motion.div
         key={post._id}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className={`bg-white rounded-xl shadow-md border-2 ${cardColor} overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer`}
-        onClick={() => handleScriptClick(post)}
+        onClick={() => handleScriptClick(actualPost)}
       >
         <div className="p-6">
           {/* 헤더 */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
               <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                {post.title}
+                {actualPost.title}
               </h3>
               <div className="flex items-center gap-2 mb-3">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  isWritten ? getBoardTypeColor(post.boardType) : 'bg-blue-100 text-blue-700'
+                  isWritten ? getBoardTypeColor(actualPost.boardType) : 'bg-blue-100 text-blue-700'
                 }`}>
-                  {isWritten ? getBoardTypeName(post.boardType) : (post.category || '일반')}
+                  {isWritten ? getBoardTypeName(actualPost.boardType) : (actualPost.category || '일반')}
                 </span>
                 <span className="text-xs text-gray-500">
-                  {isWritten ? getBoardTypeName(post.boardType) : (post.boardName || '게시판')}
+                  {isWritten ? getBoardTypeName(actualPost.boardType) : (actualPost.boardName || '게시판')}
                 </span>
               </div>
             </div>
@@ -509,7 +512,7 @@ const ScriptVault = () => {
 
           {/* 내용 미리보기 */}
           <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-            {post.content}
+            {actualPost.content}
           </p>
 
           {/* 메타 정보 */}
@@ -517,28 +520,28 @@ const ScriptVault = () => {
             <div className="flex items-center gap-3">
               <span className="flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
-                {post.views || 0}
+                {actualPost.views || 0}
               </span>
               <span className="flex items-center">
                 <Heart className="w-3 h-3 mr-1" />
-                {post.likes || 0}
+                {actualPost.likes || 0}
               </span>
               <span className="flex items-center">
                 <MessageCircle className="w-3 h-3 mr-1" />
-                {post.comments || 0}
+                {actualPost.comments || 0}
               </span>
             </div>
-            <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
+            <span>{new Date(actualPost.createdAt).toLocaleDateString('ko-KR')}</span>
           </div>
 
           {/* 작성자 정보 */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              작성자: {post.userId?.email || post.author || '익명'}
+              작성자: {actualPost.userId?.email || actualPost.author || '익명'}
             </span>
-            {!isWritten && post.savedAt && (
+            {!isWritten && post.createdAt && (
               <span className="text-xs text-gray-400">
-                저장일: {new Date(post.savedAt).toLocaleDateString('ko-KR')}
+                저장일: {new Date(post.createdAt).toLocaleDateString('ko-KR')}
               </span>
             )}
           </div>

@@ -19,6 +19,8 @@ const PostDetail = () => {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [boardType, setBoardType] = useState('');
+  const [isLiked, setIsLiked] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   // boardType을 백엔드 postType enum으로 변환
   const mapBoardTypeToPostType = (boardType) => {
@@ -82,6 +84,23 @@ const PostDetail = () => {
         const postData = await fetchPostByType(id);
         setPost(postData);
         
+        // 좋아요와 북마크 상태 확인 (로그인된 경우만)
+        if (isAuthenticated && postData) {
+          const postType = mapBoardTypeToPostType(boardType);
+          
+          try {
+            const [likeStatus, bookmarkStatus] = await Promise.all([
+              likeAPI.getStatus(postData._id, postType),
+              bookmarkAPI.getStatus(postData._id, postType)
+            ]);
+            
+            setIsLiked(likeStatus.data.isLiked || false);
+            setIsBookmarked(bookmarkStatus.data.isBookmarked || false);
+          } catch (error) {
+            console.log('상태 확인 중 오류:', error);
+          }
+        }
+        
       } catch (error) {
         console.error('❌ 게시글 조회 실패:', error);
         toast.error('게시글을 불러올 수 없습니다: ' + error.message);
@@ -93,7 +112,7 @@ const PostDetail = () => {
     if (id) {
       fetchPost();
     }
-  }, [id]);
+  }, [id, isAuthenticated, boardType]);
 
   const handleLike = async () => {
     if (!isAuthenticated) {
@@ -103,30 +122,23 @@ const PostDetail = () => {
     
     try {
       const postType = mapBoardTypeToPostType(boardType);
-      console.log('🔍 좋아요 API 호출:', {
-        postId: post._id,
-        boardType: boardType,
-        postType: postType
-      });
-      
       const response = await likeAPI.toggle(post._id, postType);
-      console.log('✅ 좋아요 API 응답:', response.data);
       
       if (response.data.success) {
+        const newIsLiked = response.data.isLiked;
+        const newLikeCount = response.data.likeCount;
+        
+        setIsLiked(newIsLiked);
         setPost(prev => ({
           ...prev,
-          likes: response.data.likeCount || (prev.likes || 0) + 1
+          likes: newLikeCount
         }));
-        toast.success(response.data.message || '좋아요!');
+        
+        toast.success(response.data.message);
       }
     } catch (error) {
-      console.error('❌ 좋아요 오류 상세:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url
-      });
-      toast.error('좋아요 처리 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message));
+      console.error('좋아요 오류:', error);
+      toast.error('좋아요 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -148,11 +160,16 @@ const PostDetail = () => {
       console.log('✅ 북마크 API 응답:', response.data);
       
       if (response.data.success) {
+        const newIsBookmarked = response.data.isBookmarked;
+        const newBookmarkCount = response.data.bookmarkCount;
+        
+        setIsBookmarked(newIsBookmarked);
         setPost(prev => ({
           ...prev,
-          bookmarks: response.data.bookmarkCount || (prev.bookmarks || 0) + 1
+          bookmarks: newBookmarkCount
         }));
-        toast.success(response.data.message || '저장되었습니다!');
+        
+        toast.success(response.data.message || (newIsBookmarked ? '저장되었습니다!' : '저장을 취소했습니다!'));
       }
     } catch (error) {
       console.error('❌ 북마크 오류 상세:', {
@@ -480,16 +497,24 @@ const PostDetail = () => {
               <div className="flex items-center space-x-4">
                 <button
                   onClick={handleLike}
-                  className="flex items-center px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                    isLiked 
+                      ? 'bg-red-500 text-white hover:bg-red-600' 
+                      : 'text-red-500 hover:bg-red-50'
+                  }`}
                 >
-                  <Heart className="w-5 h-5 mr-2" />
+                  <Heart className={`w-5 h-5 mr-2 ${isLiked ? 'fill-current' : ''}`} />
                   좋아요 {post.likes || 0}
                 </button>
                 <button
                   onClick={handleBookmark}
-                  className="flex items-center px-4 py-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                    isBookmarked 
+                      ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                      : 'text-blue-500 hover:bg-blue-50'
+                  }`}
                 >
-                  <Bookmark className="w-5 h-5 mr-2" />
+                  <Bookmark className={`w-5 h-5 mr-2 ${isBookmarked ? 'fill-current' : ''}`} />
                   저장하기 {post.bookmarks || 0}
                 </button>
               </div>

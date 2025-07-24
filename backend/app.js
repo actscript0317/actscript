@@ -65,21 +65,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// API 라우트
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/scripts', require('./routes/scripts'));
-app.use('/api/emotions', require('./routes/emotions'));
-app.use('/api/ai-script', require('./routes/ai-script'));
-app.use('/api/likes', require('./routes/likes'));
-app.use('/api/bookmarks', require('./routes/bookmarks'));
-
-// 커뮤니티 라우트
-app.use('/api/actor-profiles', require('./routes/actor-profiles'));
-app.use('/api/actor-recruitments', require('./routes/actor-recruitments'));
-app.use('/api/model-recruitments', require('./routes/model-recruitments'));
-app.use('/api/community-posts', require('./routes/community-posts'));
-
-// 플레이스홀더 이미지 API
+// 플레이스홀더 이미지 API (다른 라우트보다 먼저 등록)
 app.get('/api/placeholder/:width/:height', (req, res) => {
   const { width, height } = req.params;
   const w = parseInt(width) || 300;
@@ -99,6 +85,20 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1년 캐시
   res.send(svg);
 });
+
+// API 라우트
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/scripts', require('./routes/scripts'));
+app.use('/api/emotions', require('./routes/emotions'));
+app.use('/api/ai-script', require('./routes/ai-script'));
+app.use('/api/likes', require('./routes/likes'));
+app.use('/api/bookmarks', require('./routes/bookmarks'));
+
+// 커뮤니티 라우트
+app.use('/api/actor-profiles', require('./routes/actor-profiles'));
+app.use('/api/actor-recruitments', require('./routes/actor-recruitments'));
+app.use('/api/model-recruitments', require('./routes/model-recruitments'));
+app.use('/api/community-posts', require('./routes/community-posts'));
 
 // 프로덕션 환경에서 정적 파일 제공
 if (process.env.NODE_ENV === 'production') {

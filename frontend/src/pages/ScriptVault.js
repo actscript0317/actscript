@@ -119,7 +119,37 @@ const ScriptVault = () => {
       setLoading(true);
       const response = await bookmarkAPI.getMyBookmarks();
       if (response.data.success) {
-        setMySavedPosts(response.data.bookmarks || []);
+        // 북마크 데이터 처리 - postType을 boardType으로 변환하고 실제 게시글 데이터 추출
+        const processedBookmarks = response.data.bookmarks.map(bookmark => {
+          // postId가 populate된 경우와 아닌 경우 모두 처리
+          let postData;
+          let actualPostId;
+          
+          if (typeof bookmark.postId === 'object' && bookmark.postId !== null) {
+            // postId가 populate된 경우 (실제 게시글 객체)
+            postData = bookmark.postId;
+            actualPostId = postData._id;
+          } else if (typeof bookmark.postId === 'string') {
+            // postId가 단순 문자열 ID인 경우
+            actualPostId = bookmark.postId;
+            postData = { _id: actualPostId, title: '제목 없음', content: '내용 없음' };
+          }
+          
+          // postType을 boardType으로 변환
+          const boardType = bookmark.postType?.replace('_', '-') || 'community';
+          
+          return {
+            ...postData,
+            _id: actualPostId,
+            bookmarkId: bookmark._id,
+            boardType: boardType,
+            savedAt: bookmark.createdAt,
+            // 북마크 데이터임을 표시
+            isBookmark: true
+          };
+        });
+        
+        setMySavedPosts(processedBookmarks);
       }
     } catch (error) {
       console.error('저장한 글 불러오기 실패:', error);
@@ -465,9 +495,13 @@ const ScriptVault = () => {
       setShowDetailModal(true);
     } else {
       // 저장한 글이나 내가 작성한 글의 경우 상세 페이지로 이동
-      // 저장한 글의 경우 실제 게시글 ID는 postId 안에 있을 수 있음
-      const actualPost = script.postId || script;
-      navigate(`/posts/${actualPost._id}`);
+      // 이미 처리된 데이터이므로 script._id를 바로 사용
+      if (script._id) {
+        navigate(`/posts/${script._id}`);
+      } else {
+        console.error('게시글 ID가 없습니다:', script);
+        toast.error('게시글 정보가 올바르지 않습니다.');
+      }
     }
   };
 
@@ -475,27 +509,24 @@ const ScriptVault = () => {
   const renderPostCard = (post) => {
     const isWritten = activeTab === 'written';
     
-    // 저장한 글의 경우 실제 게시글 데이터는 postId 안에 있을 수 있음
-    const actualPost = post.postId || post;
-    
     return (
       <motion.div
         key={post._id}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl shadow-md border-2 border-green-200 hover:border-green-300 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
-        onClick={() => handleScriptClick(actualPost)}
+        onClick={() => handleScriptClick(post)}
       >
         <div className="p-6">
           {/* 헤더 */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
               <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                {actualPost.title}
+                {post.title || '제목 없음'}
               </h3>
               <div className="flex items-center gap-2 mb-3">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(actualPost.boardType)}`}>
-                  {getBoardTypeName(actualPost.boardType)}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType)}`}>
+                  {getBoardTypeName(post.boardType)}
                 </span>
               </div>
             </div>
@@ -504,7 +535,7 @@ const ScriptVault = () => {
 
           {/* 내용 미리보기 */}
           <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-            {actualPost.content}
+            {post.content || '내용 없음'}
           </p>
 
           {/* 메타 정보 */}
@@ -512,28 +543,28 @@ const ScriptVault = () => {
             <div className="flex items-center gap-3">
               <span className="flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
-                {actualPost.views || 0}
+                {post.views || 0}
               </span>
               <span className="flex items-center">
                 <Heart className="w-3 h-3 mr-1" />
-                {actualPost.likes || 0}
+                {post.likes || 0}
               </span>
               <span className="flex items-center">
                 <MessageCircle className="w-3 h-3 mr-1" />
-                {actualPost.comments || 0}
+                {post.comments || 0}
               </span>
             </div>
-            <span>{new Date(actualPost.createdAt).toLocaleDateString('ko-KR')}</span>
+            <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
           </div>
 
           {/* 작성자 정보 */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              작성자: {actualPost.userId?.email || actualPost.author || '익명'}
+              작성자: {post.userId?.email || post.author || '익명'}
             </span>
-            {!isWritten && post.createdAt && (
+            {!isWritten && post.savedAt && (
               <span className="text-xs text-gray-400">
-                저장일: {new Date(post.createdAt).toLocaleDateString('ko-KR')}
+                저장일: {new Date(post.savedAt).toLocaleDateString('ko-KR')}
               </span>
             )}
           </div>

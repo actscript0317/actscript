@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Plus, Eye, Calendar, Users, MapPin, Heart, User } from 'lucide-react';
+import { Search, Filter, Plus, Eye, Calendar, Users, MapPin, Heart, User, Bookmark } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +24,24 @@ const ActorProfile = () => {
   const [userBookmarks, setUserBookmarks] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // 사용자의 기존 좋아요/북마크 상태 로드
+  useEffect(() => {
+    const fetchUserStatus = async () => {
+      if (!isAuthenticated) return;
+      
+      try {
+        // 여기서는 프로필 목록을 가져올 때 각 프로필의 좋아요/북마크 상태도 함께 가져와야 합니다
+        // 현재는 간단히 빈 Set으로 초기화하고, 실제 상태는 각 버튼 클릭 시 업데이트됩니다
+        setUserLikes(new Set());
+        setUserBookmarks(new Set());
+      } catch (error) {
+        console.error('사용자 상태 로드 실패:', error);
+      }
+    };
+
+    fetchUserStatus();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -74,6 +92,7 @@ const ActorProfile = () => {
     fetchProfiles();
   }, [currentPage, filters, searchTerm]);
 
+
   // 좋아요 처리
   const handleLike = async (profileId, e) => {
     e.stopPropagation();
@@ -95,6 +114,13 @@ const ActorProfile = () => {
           }
           return newSet;
         });
+        
+        // 프로필 리스트에서 좋아요 수 업데이트
+        setProfiles(prev => prev.map(profile => 
+          profile._id === profileId 
+            ? { ...profile, likes: response.data.likeCount }
+            : profile
+        ));
         
         toast.success(response.data.message);
       }
@@ -125,6 +151,13 @@ const ActorProfile = () => {
           }
           return newSet;
         });
+        
+        // 프로필 리스트에서 북마크 수 업데이트
+        setProfiles(prev => prev.map(profile => 
+          profile._id === profileId 
+            ? { ...profile, bookmarks: response.data.bookmarkCount }
+            : profile
+        ));
         
         toast.success(response.data.message);
       }
@@ -395,6 +428,20 @@ const ActorProfile = () => {
                     </div>
                   )}
                   <div className="absolute top-3 right-3 flex gap-2">
+                    {/* 좋아요 버튼 */}
+                    <button
+                      onClick={(e) => handleLike(profile._id, e)}
+                      className={`p-2 rounded-full transition-colors ${
+                        userLikes.has(profile._id)
+                          ? 'bg-red-500 text-white'
+                          : 'bg-white/80 text-gray-600 hover:bg-white'
+                      }`}
+                      title="좋아요"
+                    >
+                      <Heart className="w-4 h-4" />
+                    </button>
+                    
+                    {/* 북마크 버튼 */}
                     <button
                       onClick={(e) => handleBookmark(profile._id, e)}
                       className={`p-2 rounded-full transition-colors ${
@@ -402,8 +449,9 @@ const ActorProfile = () => {
                           ? 'bg-blue-500 text-white'
                           : 'bg-white/80 text-gray-600 hover:bg-white'
                       }`}
+                      title="저장하기"
                     >
-                      <Heart className="w-4 h-4" />
+                      <Bookmark className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -443,10 +491,20 @@ const ActorProfile = () => {
                   </p>
                   
                   <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span className="flex items-center">
-                      <Eye className="w-4 h-4 mr-1" />
-                      {profile.views || 0}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center">
+                        <Eye className="w-4 h-4 mr-1" />
+                        {profile.views || 0}
+                      </span>
+                      <span className="flex items-center">
+                        <Heart className="w-4 h-4 mr-1 text-red-500" />
+                        {profile.likes || 0}
+                      </span>
+                      <span className="flex items-center">
+                        <Bookmark className="w-4 h-4 mr-1 text-blue-500" />
+                        {profile.bookmarks || 0}
+                      </span>
+                    </div>
                     <span className="flex items-center">
                       <Calendar className="w-4 h-4 mr-1" />
                       {formatDate(profile.createdAt)}

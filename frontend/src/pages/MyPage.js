@@ -309,15 +309,15 @@ const MyPage = () => {
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${post.categoryColor}`}>
-                                {post.category}
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType || post.board)}`}>
+                                {getBoardTypeName(post.boardType || post.board)}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {post.boardName}
+                                {formatDate(post.savedAt || post.createdAt)}
                               </span>
                             </div>
                             <Link 
-                              to={getBoardPath(post.board)}
+                              to={`/posts/${post.postId || post._id}`}
                               className="block"
                             >
                               <h3 className="text-lg font-semibold text-gray-900 hover:text-emerald-600 transition-colors cursor-pointer">
@@ -327,25 +327,32 @@ const MyPage = () => {
                                 {post.content}
                               </p>
                               <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                                <span>작성자: {post.author}</span>
-                                <span>저장일: {new Date(post.savedAt).toLocaleDateString()}</span>
+                                <span className="flex items-center">
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  {post.views || 0}
+                                </span>
                                 <span className="flex items-center">
                                   <Heart className="w-3 h-3 mr-1 text-red-500" />
-                                  {post.likes}
+                                  {post.likes || 0}
                                 </span>
                                 <span className="flex items-center">
                                   <Bookmark className="w-3 h-3 mr-1 text-blue-500" />
-                                  {post.bookmarks}
+                                  {post.bookmarks || 0}
                                 </span>
+                                {post.author && (
+                                  <span className="text-xs text-gray-400">
+                                    작성자: {post.author}
+                                  </span>
+                                )}
                               </div>
                             </Link>
                           </div>
-                            <button
+                          <button
                             onClick={() => removeSavedPost(post._id)}
-                            className="text-red-600 hover:text-red-700 text-sm ml-4"
-                            >
-                              삭제
-                            </button>
+                            className="text-red-600 hover:text-red-700 text-sm ml-4 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                          >
+                            삭제
+                          </button>
                         </div>
                       </div>
                     ))}

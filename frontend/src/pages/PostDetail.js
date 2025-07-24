@@ -90,15 +90,28 @@ const PostDetail = () => {
           
           try {
             const [likeStatus, bookmarkStatus] = await Promise.all([
-              likeAPI.getStatus(postData._id, postType),
-              bookmarkAPI.getStatus(postData._id, postType)
+              likeAPI.getStatus(postData._id, postType).catch(err => {
+                console.log('좋아요 상태 확인 실패:', err);
+                return { data: { isLiked: false } };
+              }),
+              bookmarkAPI.getStatus(postData._id, postType).catch(err => {
+                console.log('북마크 상태 확인 실패:', err);
+                return { data: { isBookmarked: false } };
+              })
             ]);
             
             setIsLiked(likeStatus.data.isLiked || false);
             setIsBookmarked(bookmarkStatus.data.isBookmarked || false);
           } catch (error) {
             console.log('상태 확인 중 오류:', error);
+            // 오류 발생 시 기본값으로 설정
+            setIsLiked(false);
+            setIsBookmarked(false);
           }
+        } else {
+          // 로그인하지 않은 경우 기본값으로 설정
+          setIsLiked(false);
+          setIsBookmarked(false);
         }
         
       } catch (error) {
@@ -148,36 +161,60 @@ const PostDetail = () => {
       return;
     }
     
+    // 즉시 UI 업데이트 (낙관적 업데이트)
+    const willBeBookmarked = !isBookmarked;
+    const currentBookmarkCount = post.bookmarks || 0;
+    const newBookmarkCount = willBeBookmarked ? currentBookmarkCount + 1 : currentBookmarkCount - 1;
+    
+    // UI를 먼저 업데이트
+    setIsBookmarked(willBeBookmarked);
+    setPost(prev => ({
+      ...prev,
+      bookmarks: Math.max(0, newBookmarkCount) // 음수 방지
+    }));
+    
     try {
       const postType = mapBoardTypeToPostType(boardType);
       console.log('🔍 북마크 API 호출:', {
         postId: post._id,
         boardType: boardType,
-        postType: postType
+        postType: postType,
+        expectedResult: willBeBookmarked
       });
       
       const response = await bookmarkAPI.toggle(post._id, postType);
       console.log('✅ 북마크 API 응답:', response.data);
       
       if (response.data.success) {
-        const newIsBookmarked = response.data.isBookmarked;
-        const newBookmarkCount = response.data.bookmarkCount;
+        // 서버 응답으로 최종 확인 및 동기화
+        const serverIsBookmarked = response.data.isBookmarked;
+        const serverBookmarkCount = response.data.bookmarkCount;
         
-        setIsBookmarked(newIsBookmarked);
-        setPost(prev => ({
-          ...prev,
-          bookmarks: newBookmarkCount
-        }));
+        // 예상과 다른 경우에만 다시 업데이트
+        if (serverIsBookmarked !== willBeBookmarked || serverBookmarkCount !== newBookmarkCount) {
+          console.log('🔄 서버 응답과 불일치, 동기화 중:', {
+            expected: { bookmarked: willBeBookmarked, count: newBookmarkCount },
+            server: { bookmarked: serverIsBookmarked, count: serverBookmarkCount }
+          });
+          
+          setIsBookmarked(serverIsBookmarked);
+          setPost(prev => ({
+            ...prev,
+            bookmarks: serverBookmarkCount
+          }));
+        }
         
-        toast.success(response.data.message || (newIsBookmarked ? '저장되었습니다!' : '저장을 취소했습니다!'));
+        toast.success(response.data.message || (serverIsBookmarked ? '저장되었습니다!' : '저장을 취소했습니다!'));
       }
     } catch (error) {
-      console.error('❌ 북마크 오류 상세:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url
-      });
+      // 오류 발생 시 UI 롤백
+      console.error('❌ 북마크 오류, UI 롤백:', error);
+      setIsBookmarked(!willBeBookmarked);
+      setPost(prev => ({
+        ...prev,
+        bookmarks: currentBookmarkCount
+      }));
+      
       toast.error('북마크 처리 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message));
     }
   };

@@ -24,10 +24,14 @@ router.get('/', async (req, res) => {
     // 필터 조건 구성
     const filter = { isActive: true };
     
+    console.log('🔍 받은 필터 파라미터:', { gender, experience, location, specialty });
+    
     if (gender && gender !== 'all') filter.gender = gender;
     if (experience && experience !== 'all') filter.experience = experience;
     if (location && location !== 'all') filter.location = location;
     if (specialty && specialty !== 'all') filter.specialty = { $in: [specialty] };
+    
+    console.log('📊 생성된 필터 조건:', filter);
     
     if (ageMin || ageMax) {
       filter.age = {};
@@ -55,11 +59,28 @@ router.get('/', async (req, res) => {
       .skip((page - 1) * limit)
       .lean();
 
+    // 각 프로필에 대한 좋아요/북마크 수 집계
+    const Like = require('../models/Like');
+    const Bookmark = require('../models/Bookmark');
+    
+    const profilesWithCounts = await Promise.all(profiles.map(async (profile) => {
+      const [likeCount, bookmarkCount] = await Promise.all([
+        Like.countDocuments({ postId: profile._id, postType: 'actor_profile' }),
+        Bookmark.countDocuments({ postId: profile._id, postType: 'actor_profile' })
+      ]);
+      
+      return {
+        ...profile,
+        likes: likeCount,
+        bookmarks: bookmarkCount
+      };
+    }));
+
     const total = await ActorProfile.countDocuments(filter);
 
     res.json({
       success: true,
-      data: profiles,
+      data: profilesWithCounts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -90,12 +111,27 @@ router.get('/:id', async (req, res) => {
       });
     }
 
+    // 좋아요/북마크 수 집계
+    const Like = require('../models/Like');
+    const Bookmark = require('../models/Bookmark');
+    
+    const [likeCount, bookmarkCount] = await Promise.all([
+      Like.countDocuments({ postId: profile._id, postType: 'actor_profile' }),
+      Bookmark.countDocuments({ postId: profile._id, postType: 'actor_profile' })
+    ]);
+    
+    const profileWithCounts = {
+      ...profile,
+      likes: likeCount,
+      bookmarks: bookmarkCount
+    };
+
     // 조회수 증가
     await ActorProfile.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
 
     res.json({
       success: true,
-      data: profile
+      data: profileWithCounts
     });
   } catch (error) {
     console.error('프로필 상세 조회 오류:', error);

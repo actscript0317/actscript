@@ -99,17 +99,36 @@ const MyPage = () => {
         if (response.data.success) {
           // 북마크 데이터를 가공하여 일관된 구조로 만들기
           const processedBookmarks = response.data.bookmarks.map(bookmark => {
-            // postId가 populate된 경우와 아닌 경우 모두 처리
-            const postData = typeof bookmark.postId === 'object' ? bookmark.postId : bookmark;
+            console.log('🔍 북마크 원본 데이터:', bookmark);
             
-            return {
+            // postId가 populate된 경우와 아닌 경우 모두 처리
+            let postData;
+            let actualPostId;
+            
+            if (typeof bookmark.postId === 'object' && bookmark.postId !== null) {
+              // postId가 populate된 경우 (실제 게시글 객체)
+              postData = bookmark.postId;
+              actualPostId = postData._id;
+            } else if (typeof bookmark.postId === 'string') {
+              // postId가 단순 문자열 ID인 경우
+              actualPostId = bookmark.postId;
+              postData = { _id: actualPostId };
+            } else {
+              console.error('❌ 유효하지 않은 postId:', bookmark.postId);
+              return null;
+            }
+            
+            const result = {
               ...postData,
-              _id: postData._id || bookmark.postId, // 실제 게시글 ID
+              _id: actualPostId, // 실제 게시글 ID
               bookmarkId: bookmark._id, // 북마크 자체의 ID (삭제 시 사용)
               boardType: bookmark.postType?.replace('_', '-') || 'community', // postType을 boardType으로 변환
               savedAt: bookmark.createdAt // 북마크 생성일
             };
-          });
+            
+            console.log('✅ 가공된 북마크 데이터:', result);
+            return result;
+          }).filter(Boolean); // null 값 제거
           
           console.log('✅ 저장한 글 처리 완료:', processedBookmarks);
           setMySavedPosts(processedBookmarks);
@@ -289,9 +308,16 @@ const MyPage = () => {
                                   <Bookmark className="w-3 h-3 mr-1 text-blue-500" />
                                   {post.bookmarks || 0}
                                 </span>
+                                {post.author && (
+                                  <span className="text-xs text-gray-400">
+                                    작성자: {post.author}
+                                  </span>
+                                )}
                               </div>
                             </Link>
                           </div>
+                          {/* 레이아웃 통일을 위한 빈 공간 (저장한 글의 삭제 버튼과 동일한 너비) */}
+                          <div className="w-16"></div>
                         </div>
                       </div>
                     ))}
@@ -335,11 +361,15 @@ const MyPage = () => {
                               to={`/posts/${post._id}`}
                               className="block"
                               onClick={(e) => {
-                                // ID가 없으면 링크 클릭 방지
-                                if (!post._id) {
+                                // ID가 없거나 undefined면 링크 클릭 방지
+                                if (!post._id || post._id === 'undefined' || post._id === undefined) {
                                   e.preventDefault();
-                                  toast.error('게시글 ID를 찾을 수 없습니다.');
+                                  console.error('❌ 유효하지 않은 게시글 ID:', post._id);
+                                  console.error('❌ 전체 post 객체:', post);
+                                  toast.error('게시글 ID가 유효하지 않습니다.');
+                                  return;
                                 }
+                                console.log('✅ 게시글로 이동:', post._id);
                               }}
                             >
                               <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">

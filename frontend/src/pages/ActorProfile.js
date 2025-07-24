@@ -366,8 +366,8 @@ const ActorProfile = () => {
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="all">전체 성별</option>
-              <option value="male">남성</option>
-              <option value="female">여성</option>
+              <option value="남성">남성</option>
+              <option value="여성">여성</option>
             </select>
 
             {/* 경력 필터 */}

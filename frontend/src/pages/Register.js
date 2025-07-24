@@ -36,10 +36,51 @@ const Register = () => {
 
     const { username, email, password, confirmPassword, name } = formData;
 
+    // 필수 필드 확인
+    if (!username || !email || !password || !confirmPassword || !name) {
+      setError('모든 필드를 입력해주세요.');
+      toast.error('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    // 비밀번호 길이 확인
+    if (password.length < 8) {
+      setError('비밀번호는 최소 8자 이상이어야 합니다.');
+      toast.error('비밀번호는 최소 8자 이상이어야 합니다.');
+      return;
+    }
+
+    // 비밀번호 복잡성 검증
+    const hasLowercase = /[a-z]/.test(password);
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    const criteriaCount = [hasLowercase, hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
+    
+    if (criteriaCount < 3) {
+      setError('비밀번호는 영문 대소문자, 숫자, 특수문자 중 3종류 이상을 포함해야 합니다.');
+      toast.error('비밀번호는 영문 대소문자, 숫자, 특수문자 중 3종류 이상을 포함해야 합니다.');
+      return;
+    }
+
     // 비밀번호 확인
     if (password !== confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.');
       toast.error('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    // 사용자명 유효성 검사
+    if (username.length < 3 || username.length > 20) {
+      setError('사용자명은 3-20자 사이여야 합니다.');
+      toast.error('사용자명은 3-20자 사이여야 합니다.');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setError('사용자명은 영문, 숫자, 언더스코어만 사용 가능합니다.');
+      toast.error('사용자명은 영문, 숫자, 언더스코어만 사용 가능합니다.');
       return;
     }
 
@@ -217,6 +258,45 @@ const Register = () => {
               </div>
             </div>
           </div>
+
+          {/* 비밀번호 요구사항 */}
+          {formData.password && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">비밀번호 요구사항:</h4>
+              <div className="space-y-1 text-xs">
+                <div className={`flex items-center ${formData.password.length >= 8 ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${formData.password.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  8자 이상
+                </div>
+                <div className={`flex items-center ${/[a-z]/.test(formData.password) ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${/[a-z]/.test(formData.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  소문자 포함
+                </div>
+                <div className={`flex items-center ${/[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${/[A-Z]/.test(formData.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  대문자 포함
+                </div>
+                <div className={`flex items-center ${/\d/.test(formData.password) ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${/\d/.test(formData.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  숫자 포함
+                </div>
+                <div className={`flex items-center ${/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  특수문자 포함
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                * 위 조건 중 3가지 이상을 만족해야 합니다.
+              </p>
+            </div>
+          )}
+
+          {/* 비밀번호 일치 확인 */}
+          {formData.confirmPassword && (
+            <div className={`text-sm ${formData.password === formData.confirmPassword ? 'text-green-600' : 'text-red-600'}`}>
+              {formData.password === formData.confirmPassword ? '✓ 비밀번호가 일치합니다.' : '✗ 비밀번호가 일치하지 않습니다.'}
+            </div>
+          )}
 
           <div>
             <button

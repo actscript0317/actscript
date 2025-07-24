@@ -86,20 +86,28 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: [
+        "'self'", 
+        "'unsafe-inline'", 
+        "'unsafe-eval'",
+        "https://accounts.google.com",
+        "https://apis.google.com"
+      ],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"], // blob: 추가
       connectSrc: [
         "'self'",
         "https://actscript.onrender.com",
         "https://actscript-1.onrender.com",
         "http://localhost:10000",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "https://accounts.google.com",
+        "https://oauth2.googleapis.com"
       ],
       fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'", "blob:"], // blob: 추가
-      frameSrc: ["'none'"],
+      frameSrc: ["'self'", "https://accounts.google.com"],
     },
   },
   crossOriginResourcePolicy: { policy: "cross-origin" },

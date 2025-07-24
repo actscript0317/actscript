@@ -43,8 +43,23 @@ router.post('/register', [
     .normalizeEmail()
     .withMessage('올바른 이메일 형식을 입력해주세요.'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('비밀번호는 최소 6자 이상이어야 합니다.'),
+    .isLength({ min: 8 })
+    .withMessage('비밀번호는 최소 8자 이상이어야 합니다.')
+    .custom((value) => {
+      // 비밀번호 복잡성 검증: 영문 대소문자, 숫자, 특수문자 중 3종류 이상
+      const hasLowercase = /[a-z]/.test(value);
+      const hasUppercase = /[A-Z]/.test(value);
+      const hasNumber = /\d/.test(value);
+      const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(value);
+      
+      const criteriaCount = [hasLowercase, hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
+      
+      if (criteriaCount < 3) {
+        throw new Error('비밀번호는 영문 대소문자, 숫자, 특수문자 중 3종류 이상을 포함해야 합니다.');
+      }
+      
+      return true;
+    }),
   body('name')
     .trim()
     .isLength({ min: 1, max: 50 })
@@ -524,8 +539,23 @@ router.put('/password', protect, [
     .notEmpty()
     .withMessage('현재 비밀번호를 입력해주세요.'),
   body('newPassword')
-    .isLength({ min: 6 })
-    .withMessage('새 비밀번호는 최소 6자 이상이어야 합니다.')
+    .isLength({ min: 8 })
+    .withMessage('새 비밀번호는 최소 8자 이상이어야 합니다.')
+    .custom((value) => {
+      // 비밀번호 복잡성 검증: 영문 대소문자, 숫자, 특수문자 중 3종류 이상
+      const hasLowercase = /[a-z]/.test(value);
+      const hasUppercase = /[A-Z]/.test(value);
+      const hasNumber = /\d/.test(value);
+      const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(value);
+      
+      const criteriaCount = [hasLowercase, hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
+      
+      if (criteriaCount < 3) {
+        throw new Error('비밀번호는 영문 대소문자, 숫자, 특수문자 중 3종류 이상을 포함해야 합니다.');
+      }
+      
+      return true;
+    })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);

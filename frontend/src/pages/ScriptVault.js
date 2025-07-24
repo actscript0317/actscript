@@ -111,6 +111,46 @@ const ScriptVault = () => {
     }
   };
 
+  // postType에 따른 API 매핑
+  const getAPIByPostType = (postType) => {
+    const apiMap = {
+      'actor_profile': actorProfileAPI,
+      'actor-profile': actorProfileAPI,
+      'actor_recruitment': actorRecruitmentAPI,
+      'actor-recruitment': actorRecruitmentAPI,
+      'model_recruitment': modelRecruitmentAPI,
+      'model-recruitment': modelRecruitmentAPI,
+      'community_post': communityPostAPI,
+      'community': communityPostAPI
+    };
+    return apiMap[postType];
+  };
+
+  // 개별 게시글 정보 가져오기
+  const fetchPostById = async (postId, postType) => {
+    try {
+      const api = getAPIByPostType(postType);
+      if (!api) {
+        console.error('❌ 지원하지 않는 postType:', postType);
+        return null;
+      }
+      
+      console.log(`🔍 ${postType} API로 게시글 ${postId} 조회 중...`);
+      const response = await api.getById(postId);
+      
+      if (response.data.success && response.data.data) {
+        console.log(`✅ ${postType} 게시글 조회 성공:`, response.data.data);
+        return response.data.data;
+      } else {
+        console.log(`❌ ${postType} 게시글 조회 실패:`, response.data);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ ${postType} 게시글 ${postId} 조회 중 오류:`, error);
+      return null;
+    }
+  };
+
   // 저장한 글 가져오기
   const fetchMySavedPosts = async () => {
     if (!isAuthenticated) return;
@@ -122,52 +162,62 @@ const ScriptVault = () => {
       
       if (response.data.success) {
         // 북마크 데이터 처리 - postType을 boardType으로 변환하고 실제 게시글 데이터 추출
-        const processedBookmarks = response.data.bookmarks.map(bookmark => {
-          console.log('🔍 개별 북마크 데이터:', bookmark);
-          
-          // postId가 populate된 경우와 아닌 경우 모두 처리
-          let postData;
-          let actualPostId;
-          
-          if (typeof bookmark.postId === 'object' && bookmark.postId !== null) {
-            // postId가 populate된 경우 (실제 게시글 객체)
-            postData = bookmark.postId;
-            actualPostId = postData._id;
-            console.log('✅ populate된 postId:', actualPostId, postData);
-          } else if (typeof bookmark.postId === 'string') {
-            // postId가 단순 문자열 ID인 경우 - 실제 게시글 정보를 API로 가져와야 함
-            actualPostId = bookmark.postId;
-            console.log('⚠️ 문자열 postId (populate 안됨), API 호출 필요:', actualPostId);
+        const processedBookmarks = await Promise.all(
+          response.data.bookmarks.map(async (bookmark) => {
+            console.log('🔍 개별 북마크 데이터:', bookmark);
             
-            // 해당 게시글이 삭제되었거나 존재하지 않을 수 있으므로 기본값 설정
-            postData = { 
-              _id: actualPostId, 
-              title: '삭제된 게시글일 수 있습니다', 
-              content: '게시글 정보를 불러올 수 없습니다',
-              createdAt: bookmark.createdAt 
+            // postId가 populate된 경우와 아닌 경우 모두 처리
+            let postData;
+            let actualPostId;
+            
+            if (typeof bookmark.postId === 'object' && bookmark.postId !== null) {
+              // postId가 populate된 경우 (실제 게시글 객체)
+              postData = bookmark.postId;
+              actualPostId = postData._id;
+              console.log('✅ populate된 postId:', actualPostId, postData);
+            } else if (typeof bookmark.postId === 'string') {
+              // postId가 단순 문자열 ID인 경우 - 실제 게시글 정보를 API로 가져오기
+              actualPostId = bookmark.postId;
+              console.log('⚠️ 문자열 postId (populate 안됨), API 호출:', actualPostId, bookmark.postType);
+              
+              // 실제 게시글 정보를 API로 가져오기
+              postData = await fetchPostById(actualPostId, bookmark.postType);
+              
+              if (!postData) {
+                // 게시글을 찾을 수 없는 경우 기본값 설정
+                postData = { 
+                  _id: actualPostId, 
+                  title: '삭제된 게시글입니다', 
+                  content: '이 게시글은 삭제되었거나 더 이상 존재하지 않습니다',
+                  createdAt: bookmark.createdAt,
+                  isDeleted: true
+                };
+              }
+            } else {
+              console.error('❌ 유효하지 않은 postId:', bookmark.postId);
+              return null;
+            }
+            
+            // postType을 boardType으로 변환
+            const boardType = bookmark.postType?.replace(/_/g, '-') || 'community';
+            console.log('🔄 postType 변환:', bookmark.postType, '→', boardType);
+            
+            return {
+              ...postData,
+              _id: actualPostId,
+              bookmarkId: bookmark._id,
+              boardType: boardType,
+              savedAt: bookmark.createdAt,
+              // 북마크 데이터임을 표시
+              isBookmark: true
             };
-          } else {
-            console.error('❌ 유효하지 않은 postId:', bookmark.postId);
-            return null;
-          }
-          
-          // postType을 boardType으로 변환
-          const boardType = bookmark.postType?.replace(/_/g, '-') || 'community';
-          console.log('🔄 postType 변환:', bookmark.postType, '→', boardType);
-          
-          return {
-            ...postData,
-            _id: actualPostId,
-            bookmarkId: bookmark._id,
-            boardType: boardType,
-            savedAt: bookmark.createdAt,
-            // 북마크 데이터임을 표시
-            isBookmark: true
-          };
-        }).filter(Boolean); // null 제거
+          })
+        );
         
-        console.log('✅ 처리된 북마크 데이터:', processedBookmarks);
-        setMySavedPosts(processedBookmarks);
+        // null 값 제거
+        const validBookmarks = processedBookmarks.filter(Boolean);
+        console.log('✅ 처리된 북마크 데이터:', validBookmarks);
+        setMySavedPosts(validBookmarks);
       }
     } catch (error) {
       console.error('저장한 글 불러오기 실패:', error);

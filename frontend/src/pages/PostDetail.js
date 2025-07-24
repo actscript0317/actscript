@@ -468,12 +468,29 @@ const PostDetail = () => {
               <h3 className="text-lg font-semibold mb-4">첨부 이미지</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {post.images.map((image, index) => {
-                  // 확장자가 없는 URL 처리
+                  // Render 환경에 맞춘 이미지 URL 처리
                   let imageUrl = image.url;
-                  const hasExtension = imageUrl.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(imageUrl);
-                  if (!hasExtension && imageUrl.startsWith('/uploads/')) {
-                    console.log(`🔧 [PostDetail] 확장자 없는 URL 수정: ${imageUrl} → ${imageUrl}.jpg`);
-                    imageUrl = imageUrl + '.jpg';
+                  
+                  // 프로덕션 환경에서 URL 처리
+                  if (process.env.NODE_ENV === 'production') {
+                    console.log(`🏭 [PostDetail] 프로덕션 환경 - 이미지 URL: ${imageUrl}`);
+                    
+                    // 절대 URL인 경우 그대로 사용
+                    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+                      console.log(`🌐 [PostDetail] 절대 URL 사용: ${imageUrl}`);
+                    } 
+                    // 상대 URL인 경우 현재 도메인으로 변환
+                    else if (imageUrl.startsWith('/uploads/')) {
+                      imageUrl = `${window.location.origin}${imageUrl}`;
+                      console.log(`🔧 [PostDetail] 상대 URL을 절대 URL로 변환: ${imageUrl}`);
+                    }
+                  } else {
+                    // 개발 환경에서는 확장자 처리 포함
+                    const hasExtension = imageUrl.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(imageUrl);
+                    if (!hasExtension && imageUrl.startsWith('/uploads/')) {
+                      console.log(`🔧 [PostDetail] 확장자 없는 URL 수정: ${imageUrl} → ${imageUrl}.jpg`);
+                      imageUrl = imageUrl + '.jpg';
+                    }
                   }
                   
                   return (
@@ -488,7 +505,20 @@ const PostDetail = () => {
                           postId: post._id,
                           imageIndex: index
                         });
-                        e.target.src = '/default-image-wide.svg';
+                        
+                        // 여러 fallback 시도
+                        const fallbackUrls = [
+                          '/default-image-wide.svg',
+                          '/api/placeholder/300/200',
+                          'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuydtOuvuOyngCDsl4bsnYw8L3RleHQ+PC9zdmc+'
+                        ];
+                        
+                        const currentIndex = fallbackUrls.indexOf(e.target.src);
+                        const nextIndex = currentIndex + 1;
+                        
+                        if (nextIndex < fallbackUrls.length) {
+                          e.target.src = fallbackUrls[nextIndex];
+                        }
                       }}
                       onLoad={() => {
                         console.log(`✅ [PostDetail] 이미지 ${index + 1} 로드 성공:`, imageUrl);

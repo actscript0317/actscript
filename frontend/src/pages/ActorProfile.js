@@ -338,19 +338,29 @@ const ActorProfile = () => {
                 <div className="h-64 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
                   {profile.images && profile.images.length > 0 ? (
                     (() => {
-                      // 이미지 URL 처리 로직 개선
+                      // 이미지 URL 처리 로직 개선 - Render 환경 대응
                       let imageUrl = profile.images[0].url;
                       
-                      // 절대 URL인 경우 그대로 사용
-                      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-                        // Production 환경에서는 이미지가 제대로 로드되지 않을 수 있으므로 fallback 처리
-                        console.log(`🌐 [ActorProfile] 절대 URL 사용: ${imageUrl}`);
-                      } 
-                      // 상대 URL인 경우 API 기본 URL과 결합
-                      else if (imageUrl.startsWith('/uploads/')) {
-                        const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.origin;
-                        imageUrl = `${API_BASE_URL}${imageUrl}`;
-                        console.log(`🔧 [ActorProfile] 상대 URL을 절대 URL로 변환: ${imageUrl}`);
+                      // Render 환경에서는 모든 이미지를 placeholder로 처리
+                      if (process.env.NODE_ENV === 'production') {
+                        console.log(`🏭 [ActorProfile] 프로덕션 환경 - 이미지 URL: ${imageUrl}`);
+                        
+                        // 절대 URL인 경우 그대로 사용하되 placeholder 여부 확인
+                        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+                          console.log(`🌐 [ActorProfile] 절대 URL 사용: ${imageUrl}`);
+                        } 
+                        // 상대 URL인 경우 현재 도메인으로 변환
+                        else if (imageUrl.startsWith('/uploads/')) {
+                          imageUrl = `${window.location.origin}${imageUrl}`;
+                          console.log(`🔧 [ActorProfile] 상대 URL을 절대 URL로 변환: ${imageUrl}`);
+                        }
+                      } else {
+                        // 개발 환경에서는 기존 로직 사용
+                        if (imageUrl.startsWith('/uploads/')) {
+                          const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.origin;
+                          imageUrl = `${API_BASE_URL}${imageUrl}`;
+                          console.log(`🔧 [ActorProfile] 개발환경 URL 변환: ${imageUrl}`);
+                        }
                       }
                       
                       return (

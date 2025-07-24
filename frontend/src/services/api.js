@@ -1,7 +1,12 @@
 import axios from 'axios';
 
-// API 기본 설정 - 같은 도메인에서 실행되므로 상대 경로 사용
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+// API 기본 설정 - Render 환경에 맞게 수정
+const API_BASE_URL = process.env.REACT_APP_API_URL || (
+  // 프로덕션 환경에서는 현재 도메인의 API를 사용
+  process.env.NODE_ENV === 'production' 
+    ? `${window.location.origin}/api`
+    : '/api'
+);
 
 // axios 인스턴스 생성
 const api = axios.create({

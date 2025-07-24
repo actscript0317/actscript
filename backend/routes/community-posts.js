@@ -198,13 +198,35 @@ router.post('/', auth, upload.array('images', 10), async (req, res) => {
       postData.category = '자유';
     }
 
-    // 이미지 처리
+    // 이미지 처리 - Render 환경 대응
     if (req.files && req.files.length > 0) {
-      postData.images = req.files.map(file => ({
-        url: `/uploads/community/${file.filename}`,
-        filename: file.filename,
-        size: file.size
-      }));
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`)
+        : `${req.protocol}://${req.get('host')}`;
+
+      postData.images = req.files.map(file => {
+        // Render 환경에서는 placeholder URL 생성
+        if (process.env.NODE_ENV === 'production' && process.env.RENDER) {
+          console.log(`🏭 [Render 환경 community] 파일 ${file.filename} → placeholder URL 생성`);
+          return {
+            url: `${baseUrl}/uploads/community/${file.filename}`,
+            filename: file.filename,
+            size: file.size,
+            mimetype: file.mimetype,
+            isPlaceholder: true,
+            uploadedAt: new Date().toISOString()
+          };
+        }
+
+        // 로컬 환경에서는 실제 파일 처리
+        return {
+          url: `${baseUrl}/uploads/community/${file.filename}`,
+          filename: file.filename,
+          size: file.size,
+          mimetype: file.mimetype,
+          isPlaceholder: false
+        };
+      });
     }
 
     // JSON 문자열 파싱 및 기본값 처리

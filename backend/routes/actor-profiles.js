@@ -240,13 +240,29 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
         files: req.files.map(f => ({ filename: f.filename, size: f.size, path: f.path }))
       });
       
-      // 환경에 따른 기본 URL 설정 개선
+      // Render 환경에 맞춘 이미지 URL 생성
       const baseUrl = process.env.NODE_ENV === 'production' 
-        ? (process.env.BACKEND_URL || 'https://actscript-1.onrender.com')
+        ? (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`)
         : `${req.protocol}://${req.get('host')}`;
 
+      console.log(`🌐 [actor-profiles] 기본 URL: ${baseUrl}, 환경: ${process.env.NODE_ENV}, Render: ${process.env.RENDER}`);
+
       profileData.images = req.files.map(file => {
-        // 파일 확장자 확인 및 추가
+        // Render 환경에서는 실제 파일 저장하지 않고 placeholder URL 생성
+        if (process.env.NODE_ENV === 'production' && process.env.RENDER) {
+          console.log(`🏭 [Render 환경] 파일 ${file.filename} → placeholder URL 생성`);
+          return {
+            url: `${baseUrl}/uploads/profiles/${file.filename}`,
+            filename: file.filename,
+            originalFilename: file.filename,
+            size: file.size,
+            mimetype: file.mimetype,
+            isPlaceholder: true,
+            uploadedAt: new Date().toISOString()
+          };
+        }
+
+        // 로컬 환경에서는 실제 파일 처리
         let filename = file.filename;
         const hasExtension = filename.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
         
@@ -269,7 +285,8 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
           filename: filename,
           originalFilename: file.filename,
           size: file.size,
-          mimetype: file.mimetype
+          mimetype: file.mimetype,
+          isPlaceholder: false
         };
       });
       
@@ -357,11 +374,25 @@ router.put('/:id', auth, upload.array('images', 7), async (req, res) => {
     // 새 이미지 처리
     if (req.files && req.files.length > 0) {
       const baseUrl = process.env.NODE_ENV === 'production' 
-        ? (process.env.BACKEND_URL || 'https://actscript-1.onrender.com')
+        ? (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`)
         : `${req.protocol}://${req.get('host')}`;
 
       const newImages = req.files.map(file => {
-        // 파일 확장자 확인 및 추가
+        // Render 환경에서는 placeholder URL 생성
+        if (process.env.NODE_ENV === 'production' && process.env.RENDER) {
+          console.log(`🏭 [Render 환경 UPDATE] 파일 ${file.filename} → placeholder URL 생성`);
+          return {
+            url: `${baseUrl}/uploads/profiles/${file.filename}`,
+            filename: file.filename,
+            originalFilename: file.filename,
+            size: file.size,
+            mimetype: file.mimetype,
+            isPlaceholder: true,
+            uploadedAt: new Date().toISOString()
+          };
+        }
+
+        // 로컬 환경에서는 실제 파일 처리
         let filename = file.filename;
         const hasExtension = filename.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
         
@@ -383,7 +414,8 @@ router.put('/:id', auth, upload.array('images', 7), async (req, res) => {
           filename: filename,
           originalFilename: file.filename,
           size: file.size,
-          mimetype: file.mimetype
+          mimetype: file.mimetype,
+          isPlaceholder: false
         };
       });
       

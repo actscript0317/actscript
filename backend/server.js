@@ -127,12 +127,53 @@ subDirs.forEach(dir => {
   }
 });
 
-// 정적 파일 요청 로깅 및 처리 미들웨어
+// Render 환경에서 정적 파일 처리를 위한 개선된 미들웨어
 app.use('/uploads', (req, res, next) => {
   const urlPath = req.url;
-  console.log(`📷 [정적파일 요청] ${req.method} ${urlPath} from ${req.ip}`);
+  console.log(`📷 [정적파일 요청] ${req.method} ${urlPath} from ${req.ip || req.connection.remoteAddress}`);
   
-  // 실제 파일 경로 확인
+  // Render 환경에서는 파일이 휘발성이므로 항상 placeholder 응답
+  if (process.env.NODE_ENV === 'production' && process.env.RENDER) {
+    console.log(`🏭 [Render 환경] 파일 요청 → placeholder 응답: ${urlPath}`);
+    
+    // 요청된 URL에서 예상 크기 추출
+    let width = 300, height = 400;
+    if (urlPath.includes('wide') || urlPath.includes('recruitment') || urlPath.includes('community')) {
+      width = 300;
+      height = 200;
+    }
+    
+    // Render 환경에서는 항상 SVG placeholder 응답
+    const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#e3f2fd;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#bbdefb;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#bg)"/>
+      <circle cx="${width/2}" cy="${height*0.3}" r="${Math.min(width,height)*0.08}" fill="#2196f3" opacity="0.8"/>
+      <rect x="${width*0.35}" y="${height*0.35}" width="${width*0.3}" height="${height*0.15}" rx="5" fill="#1976d2" opacity="0.7"/>
+      <text x="50%" y="${height*0.6}" font-family="Arial, sans-serif" font-size="14" fill="#1565c0" text-anchor="middle" font-weight="bold">
+        ActScript
+      </text>
+      <text x="50%" y="${height*0.72}" font-family="Arial, sans-serif" font-size="12" fill="#424242" text-anchor="middle">
+        업로드된 이미지
+      </text>
+      <text x="50%" y="${height*0.82}" font-family="Arial, sans-serif" font-size="10" fill="#757575" text-anchor="middle">
+        Render 환경에서는 임시 저장
+      </text>
+      <text x="50%" y="${height*0.9}" font-family="Arial, sans-serif" font-size="10" fill="#757575" text-anchor="middle">
+        ${width} × ${height}
+      </text>
+    </svg>`;
+    
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(svg);
+  }
+  
+  // 로컬 개발 환경에서는 기존 로직 사용
   const fullPath = path.join(__dirname, 'uploads', urlPath.substring(1));
   const exists = fs.existsSync(fullPath);
   

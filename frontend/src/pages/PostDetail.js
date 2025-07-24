@@ -85,8 +85,43 @@ const PostDetail = () => {
         if (!id || id === 'undefined') {
           throw new Error('유효하지 않은 게시글 ID입니다.');
         }
+
+        // URL에서 boardType 파라미터 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlBoardType = urlParams.get('boardType');
         
-        const postData = await fetchPostByType(id);
+        let postData;
+        if (urlBoardType) {
+          // boardType이 지정된 경우 해당 API만 호출
+          console.log('🎯 지정된 boardType으로 직접 조회:', urlBoardType);
+          const apis = {
+            'actor-profile': actorProfileAPI,
+            'actor-recruitment': actorRecruitmentAPI,
+            'model-recruitment': modelRecruitmentAPI,
+            'community': communityPostAPI
+          };
+          
+          const api = apis[urlBoardType];
+          if (api) {
+            try {
+              const response = await api.getById(id);
+              if (response.data.success && response.data.data) {
+                postData = response.data.data;
+                setBoardType(urlBoardType);
+              } else {
+                throw new Error(`${urlBoardType}에서 게시글을 찾을 수 없습니다.`);
+              }
+            } catch (error) {
+              throw new Error(`${urlBoardType} 게시글 조회 실패: ${error.message}`);
+            }
+          } else {
+            throw new Error('지원하지 않는 게시판 타입입니다.');
+          }
+        } else {
+          // boardType이 없는 경우 기존 방식으로 모든 API 시도
+          postData = await fetchPostByType(id);
+        }
+        
         setPost(postData);
         
         // 좋아요와 북마크 상태 확인 (로그인된 경우만)

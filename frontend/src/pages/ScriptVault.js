@@ -118,9 +118,13 @@ const ScriptVault = () => {
     try {
       setLoading(true);
       const response = await bookmarkAPI.getMyBookmarks();
+      console.log('🔍 북마크 API 응답:', response.data);
+      
       if (response.data.success) {
         // 북마크 데이터 처리 - postType을 boardType으로 변환하고 실제 게시글 데이터 추출
         const processedBookmarks = response.data.bookmarks.map(bookmark => {
+          console.log('🔍 개별 북마크 데이터:', bookmark);
+          
           // postId가 populate된 경우와 아닌 경우 모두 처리
           let postData;
           let actualPostId;
@@ -129,14 +133,27 @@ const ScriptVault = () => {
             // postId가 populate된 경우 (실제 게시글 객체)
             postData = bookmark.postId;
             actualPostId = postData._id;
+            console.log('✅ populate된 postId:', actualPostId, postData);
           } else if (typeof bookmark.postId === 'string') {
-            // postId가 단순 문자열 ID인 경우
+            // postId가 단순 문자열 ID인 경우 - 실제 게시글 정보를 API로 가져와야 함
             actualPostId = bookmark.postId;
-            postData = { _id: actualPostId, title: '제목 없음', content: '내용 없음' };
+            console.log('⚠️ 문자열 postId (populate 안됨), API 호출 필요:', actualPostId);
+            
+            // 해당 게시글이 삭제되었거나 존재하지 않을 수 있으므로 기본값 설정
+            postData = { 
+              _id: actualPostId, 
+              title: '삭제된 게시글일 수 있습니다', 
+              content: '게시글 정보를 불러올 수 없습니다',
+              createdAt: bookmark.createdAt 
+            };
+          } else {
+            console.error('❌ 유효하지 않은 postId:', bookmark.postId);
+            return null;
           }
           
           // postType을 boardType으로 변환
-          const boardType = bookmark.postType?.replace('_', '-') || 'community';
+          const boardType = bookmark.postType?.replace(/_/g, '-') || 'community';
+          console.log('🔄 postType 변환:', bookmark.postType, '→', boardType);
           
           return {
             ...postData,
@@ -147,8 +164,9 @@ const ScriptVault = () => {
             // 북마크 데이터임을 표시
             isBookmark: true
           };
-        });
+        }).filter(Boolean); // null 제거
         
+        console.log('✅ 처리된 북마크 데이터:', processedBookmarks);
         setMySavedPosts(processedBookmarks);
       }
     } catch (error) {
@@ -497,7 +515,10 @@ const ScriptVault = () => {
       // 저장한 글이나 내가 작성한 글의 경우 상세 페이지로 이동
       // 이미 처리된 데이터이므로 script._id를 바로 사용
       if (script._id) {
-        navigate(`/posts/${script._id}`);
+        // boardType 정보와 함께 URL 파라미터로 전달
+        const boardTypeParam = script.boardType ? `?boardType=${script.boardType}` : '';
+        navigate(`/posts/${script._id}${boardTypeParam}`);
+        console.log('🔗 게시글 페이지로 이동:', `/posts/${script._id}${boardTypeParam}`);
       } else {
         console.error('게시글 ID가 없습니다:', script);
         toast.error('게시글 정보가 올바르지 않습니다.');

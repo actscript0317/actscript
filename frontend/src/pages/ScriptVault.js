@@ -465,14 +465,15 @@ const ScriptVault = () => {
       setShowDetailModal(true);
     } else {
       // 저장한 글이나 내가 작성한 글의 경우 상세 페이지로 이동
-      navigate(`/posts/${script._id}`);
+      // 저장한 글의 경우 실제 게시글 ID는 postId 안에 있을 수 있음
+      const actualPost = script.postId || script;
+      navigate(`/posts/${actualPost._id}`);
     }
   };
 
   // 게시글 카드 렌더링 (저장한 글, 내가 작성한 글용)
   const renderPostCard = (post) => {
     const isWritten = activeTab === 'written';
-    const cardColor = isWritten ? 'border-green-200 hover:border-green-300' : 'border-blue-200 hover:border-blue-300';
     
     // 저장한 글의 경우 실제 게시글 데이터는 postId 안에 있을 수 있음
     const actualPost = post.postId || post;
@@ -482,7 +483,7 @@ const ScriptVault = () => {
         key={post._id}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-white rounded-xl shadow-md border-2 ${cardColor} overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer`}
+        className="bg-white rounded-xl shadow-md border-2 border-green-200 hover:border-green-300 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
         onClick={() => handleScriptClick(actualPost)}
       >
         <div className="p-6">
@@ -493,21 +494,12 @@ const ScriptVault = () => {
                 {actualPost.title}
               </h3>
               <div className="flex items-center gap-2 mb-3">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  isWritten ? getBoardTypeColor(actualPost.boardType) : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {isWritten ? getBoardTypeName(actualPost.boardType) : (actualPost.category || '일반')}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {isWritten ? getBoardTypeName(actualPost.boardType) : (actualPost.boardName || '게시판')}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(actualPost.boardType)}`}>
+                  {getBoardTypeName(actualPost.boardType)}
                 </span>
               </div>
             </div>
-            {isWritten ? (
-              <Edit3 className="w-5 h-5 text-green-500 flex-shrink-0" />
-            ) : (
-              <Bookmark className="w-5 h-5 text-blue-500 flex-shrink-0" />
-            )}
+            <Edit3 className="w-5 h-5 text-green-500 flex-shrink-0" />
           </div>
 
           {/* 내용 미리보기 */}

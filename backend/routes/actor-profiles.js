@@ -8,10 +8,11 @@ const path = require('path');
 // 이미지 업로드 설정
 const fs = require('fs');
 
-// uploads 디렉토리 생성 (없으면 생성)
-const uploadsDir = 'uploads/profiles/';
+// uploads 디렉토리 생성 (절대 경로 사용)
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'profiles');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 [actor-profiles] uploads/profiles 디렉토리 생성됨:', uploadsDir);
 }
 
 const storage = multer.diskStorage({
@@ -203,11 +204,20 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
 
     // 이미지 처리
     if (req.files && req.files.length > 0) {
+      console.log('📷 [actor-profiles] 이미지 파일 처리:', {
+        count: req.files.length,
+        files: req.files.map(f => ({ filename: f.filename, size: f.size, path: f.path }))
+      });
+      
       profileData.images = req.files.map(file => ({
         url: `/uploads/profiles/${file.filename}`,
         filename: file.filename,
         size: file.size
       }));
+      
+      console.log('✅ [actor-profiles] 이미지 URL 생성 완료:', profileData.images);
+    } else {
+      console.log('📷 [actor-profiles] 업로드된 이미지 없음');
     }
 
     console.log('🔄 최종 프로필 데이터:', profileData);
@@ -219,6 +229,20 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
       .populate('userId', 'email');
 
     console.log('✅ 프로필 생성 성공:', populatedProfile._id);
+
+    // 생성된 이미지 파일 실제 존재 여부 확인
+    if (populatedProfile.images && populatedProfile.images.length > 0) {
+      populatedProfile.images.forEach((image, index) => {
+        const fullPath = path.join(__dirname, '..', 'uploads', 'profiles', image.filename);
+        const exists = fs.existsSync(fullPath);
+        console.log(`📷 [생성완료] 이미지 ${index + 1} 파일 존재 확인:`, {
+          filename: image.filename,
+          url: image.url,
+          exists: exists,
+          fullPath: exists ? fullPath : '파일 없음'
+        });
+      });
+    }
 
     res.status(201).json({
       success: true,

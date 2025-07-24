@@ -342,7 +342,15 @@ const ActorProfile = () => {
                       alt={profile.name}
                       className="w-full h-full object-cover"
                       onError={(e) => {
+                        console.log('❌ [ActorProfile] 이미지 로드 실패:', {
+                          originalSrc: profile.images[0].url,
+                          profileId: profile._id,
+                          profileName: profile.name
+                        });
                         e.target.src = '/default-image.svg';
+                      }}
+                      onLoad={() => {
+                        console.log('✅ [ActorProfile] 이미지 로드 성공:', profile.images[0].url);
                       }}
                     />
                   ) : (

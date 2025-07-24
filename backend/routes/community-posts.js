@@ -8,10 +8,11 @@ const path = require('path');
 // 이미지 업로드 설정
 const fs = require('fs');
 
-// uploads 디렉토리 생성 (없으면 생성)
-const uploadsDir = 'uploads/community/';
+// uploads 디렉토리 생성 (절대 경로 사용)
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'community');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 [community-posts] uploads/community 디렉토리 생성됨:', uploadsDir);
 }
 
 const storage = multer.diskStorage({

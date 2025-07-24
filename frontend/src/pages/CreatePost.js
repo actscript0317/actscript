@@ -333,75 +333,38 @@ const CreatePost = () => {
       return;
     }
 
-    // 게시판별 최소 필수 검증 (임시로 완화)
-    if (isActorProfile) {
-      if (!formData.name.trim()) {
-        // 기본값 설정
-        formData.name = formData.name.trim() || '이름 미입력';
-        formData.gender = formData.gender || '기타';
-        formData.experience = formData.experience || '신인';
-        formData.location = formData.location || '서울';
-      }
-    } else if (isActorRecruitment) {
-      if (!formData.contactEmail && !formData.applicationMethod) {
-        toast.error('연락처 이메일 또는 지원방법 중 하나는 필수입니다.');
-        return;
-      }
-      // 기본값 설정
-      formData.projectType = formData.projectType || '상업';
-      formData.location = formData.location || '서울';
-      formData.applicationMethod = formData.applicationMethod || '이메일';
-      formData.paymentType = formData.paymentType || '협의';
-      // deadline이 없으면 30일 후로 설정
-      if (!formData.deadline) {
-        const futureDate = new Date();
-        futureDate.setDate(futureDate.getDate() + 30);
-        formData.deadline = futureDate.toISOString().split('T')[0];
-      }
-    } else if (isModelRecruitment) {
-      if (!formData.contactEmail && !formData.applicationMethod) {
-        toast.error('연락처 이메일 또는 지원방법 중 하나는 필수입니다.');
-        return;
-      }
-      // 기본값 설정
-      formData.modelType = formData.modelType || '패션모델';
-      formData.location = formData.location || '서울';
-      formData.applicationMethod = formData.applicationMethod || '이메일';
-      formData.paymentType = formData.paymentType || '협의';
-      // deadline이 없으면 30일 후로 설정
-      if (!formData.deadline) {
-        const futureDate = new Date();
-        futureDate.setDate(futureDate.getDate() + 30);
-        formData.deadline = futureDate.toISOString().split('T')[0];
-      }
+    // 이미지 업로드 상태 확인
+    if (images.length > 0) {
+      console.log('📷 [CreatePost] 업로드할 이미지:', {
+        count: images.length,
+        totalSize: images.reduce((sum, img) => sum + img.size, 0),
+        files: images.map(img => ({ name: img.name, size: img.size }))
+      });
     }
 
     setIsSubmitting(true);
 
     try {
-      // FormData 객체 생성
       const submitData = new FormData();
-      
+
       // 기본 데이터 추가
       submitData.append('title', formData.title);
       submitData.append('content', formData.content);
       submitData.append('category', formData.category);
-      
-      if (formData.tags) {
-        submitData.append('tags', JSON.stringify(formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)));
-      }
 
       // 이미지 파일 추가
       images.forEach((image, index) => {
-        submitData.append('images', image.file);
+        console.log(`📷 [CreatePost] 이미지 ${index + 1} 추가:`, {
+          name: image.name,
+          size: image.size,
+          type: image.file.type
+        });
+        submitData.append('images', image.file, image.name);
       });
 
-      // 디버깅: 전송할 데이터 확인
-      console.log('📤 전송할 데이터:', {
+      console.log('🚀 [CreatePost] 게시글 생성 요청 시작:', {
         boardType,
-        formData: Object.fromEntries(
-          Object.entries(formData).filter(([key, value]) => value !== '' && value !== null && value !== undefined)
-        ),
+        hasImages: images.length > 0,
         imageCount: images.length
       });
 

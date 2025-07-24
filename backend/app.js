@@ -73,6 +73,16 @@ if (!fs.existsSync(uploadsPath)) {
   console.log('📁 [app.js] uploads 디렉토리 생성됨:', uploadsPath);
 }
 
+// 하위 디렉토리들도 확인 및 생성
+const subDirs = ['profiles', 'recruitments', 'community'];
+subDirs.forEach(dir => {
+  const subPath = path.join(uploadsPath, dir);
+  if (!fs.existsSync(subPath)) {
+    fs.mkdirSync(subPath, { recursive: true });
+    console.log(`📁 [app.js] ${dir} 하위 디렉토리 생성됨:`, subPath);
+  }
+});
+
 app.use('/uploads', express.static(uploadsPath));
 console.log('📁 [app.js] 정적 파일 제공 설정:', uploadsPath);
 

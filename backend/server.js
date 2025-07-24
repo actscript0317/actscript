@@ -114,11 +114,27 @@ app.use(cookieParser()); // 쿠키 파싱
 const uploadsPath = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
-  console.log('📁 uploads 디렉토리 생성됨:', uploadsPath);
+  console.log('📁 [server.js] uploads 디렉토리 생성됨:', uploadsPath);
 }
 
+// 하위 디렉토리들도 확인 및 생성
+const subDirs = ['profiles', 'recruitments', 'community'];
+subDirs.forEach(dir => {
+  const subPath = path.join(uploadsPath, dir);
+  if (!fs.existsSync(subPath)) {
+    fs.mkdirSync(subPath, { recursive: true });
+    console.log(`📁 [server.js] ${dir} 하위 디렉토리 생성됨:`, subPath);
+  }
+});
+
+// 정적 파일 요청 로깅 미들웨어 추가 (static보다 먼저)
+app.use('/uploads', (req, res, next) => {
+  console.log(`📷 [정적파일 요청] ${req.method} ${req.url} from ${req.ip}`);
+  next();
+});
+
 app.use('/uploads', express.static(uploadsPath));
-console.log('📁 정적 파일 제공 설정:', uploadsPath);
+console.log('📁 [server.js] 정적 파일 제공 설정 완료:', uploadsPath);
 
 // 데이터베이스 연결 확인 미들웨어
 app.use('/api', checkDBConnection);
@@ -225,19 +241,58 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 서버 시작
-app.listen(PORT, () => {
-  const serverUrl = config.NODE_ENV === 'production'
-    ? 'https://actscript-1.onrender.com'
-    : `http://localhost:${PORT}`;
+// 서버 시작 함수
+const startServer = async () => {
+  try {
+    await connectDB();
+    
+    // uploads 디렉토리 상태 확인
+    const uploadsPath = path.join(__dirname, 'uploads');
+    console.log('\n📁 [서버 시작] uploads 디렉토리 상태 확인:');
+    console.log('- 메인 디렉토리:', uploadsPath, fs.existsSync(uploadsPath) ? '✅ 존재' : '❌ 없음');
+    
+    const subDirs = ['profiles', 'recruitments', 'community'];
+    subDirs.forEach(dir => {
+      const subPath = path.join(uploadsPath, dir);
+      const exists = fs.existsSync(subPath);
+      console.log(`- ${dir} 디렉토리:`, subPath, exists ? '✅ 존재' : '❌ 없음');
+      
+      if (exists) {
+        try {
+          const files = fs.readdirSync(subPath);
+          const imageFiles = files.filter(f => !f.startsWith('.'));
+          console.log(`  └ 업로드된 파일 수: ${imageFiles.length}개`);
+        } catch (err) {
+          console.log(`  └ 파일 목록 읽기 실패: ${err.message}`);
+        }
+      }
+    });
+    
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
+      console.log(`📍 환경: ${config.NODE_ENV}`);
+      console.log(`🌐 CORS 허용 도메인: ${config.CORS_ORIGIN}`);
+      console.log('📁 정적 파일 제공: /uploads -> ' + uploadsPath);
+      console.log(`💾 MongoDB 연결: ${config.MONGODB_URI ? '설정됨' : '미설정'}`);
+      console.log('==================================================\n');
+    });
 
-  console.log(`
-🚀 서버가 포트 ${PORT}에서 실행 중입니다.
-🌐 환경: ${config.NODE_ENV}
-📖 API 문서: ${serverUrl}/
-🔐 인증 API: ${serverUrl}/api/auth
-🔄 CORS 허용 도메인: ${config.CORS_ORIGIN}
-  `);
-});
+    // 서버 종료 시 정리
+    process.on('SIGINT', () => {
+      console.log('\n⚡ 서버 종료 중...');
+      server.close(() => {
+        console.log('✅ 서버 종료 완료');
+        process.exit(0);
+      });
+    });
+
+  } catch (error) {
+    console.error('❌ 서버 시작 실패:', error);
+    process.exit(1);
+  }
+};
+
+// 서버 시작 실행
+startServer();
 
 module.exports = app; 

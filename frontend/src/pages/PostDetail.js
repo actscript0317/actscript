@@ -474,7 +474,15 @@ const PostDetail = () => {
                     alt={`첨부 이미지 ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg border border-gray-200"
                     onError={(e) => {
+                      console.log(`❌ [PostDetail] 이미지 ${index + 1} 로드 실패:`, {
+                        originalSrc: image.url,
+                        postId: post._id,
+                        imageIndex: index
+                      });
                       e.target.src = '/default-image-wide.svg';
+                    }}
+                    onLoad={() => {
+                      console.log(`✅ [PostDetail] 이미지 ${index + 1} 로드 성공:`, image.url);
                     }}
                   />
                 ))}

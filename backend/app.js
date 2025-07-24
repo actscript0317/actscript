@@ -65,6 +65,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
+// 업로드된 파일을 위한 정적 파일 제공 설정
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+console.log('📁 [app.js] 정적 파일 제공 설정:', path.join(__dirname, 'uploads'));
+
 // 플레이스홀더 이미지 API (다른 라우트보다 먼저 등록)
 app.get('/api/placeholder/:width/:height', (req, res) => {
   const { width, height } = req.params;

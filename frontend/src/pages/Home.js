@@ -79,7 +79,7 @@ const Home = () => {
                   alt="연기 무대 - Stories come to life" 
                   className="w-full h-auto aspect-[3/4] object-cover rounded-2xl shadow-2xl"
                   onError={(e) => {
-                    e.target.src = "https://images.unsplash.com/photo-1503095396549-807759245b35?w=600&h=800&fit=crop";
+                    e.target.src = "https://images.unsplash.com/photo-1503095396549-807759245b35?w=600&h=800&fit=crop&auto=format";
                   }}
                 />
                 {/* 장식용 배경 요소 */}

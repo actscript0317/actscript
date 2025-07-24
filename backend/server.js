@@ -6,6 +6,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 const connectDB = require('./config/database');
 const checkDBConnection = require('./middleware/dbCheck');
 const mongoose = require('mongoose');
@@ -108,26 +109,20 @@ app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱
 app.use(cookieParser()); // 쿠키 파싱
 
+// 업로드된 파일을 위한 정적 파일 제공 설정
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+console.log('📁 정적 파일 제공 설정:', path.join(__dirname, 'uploads'));
+
 // 데이터베이스 연결 확인 미들웨어
 app.use('/api', checkDBConnection);
-
-// API 라우트 설정
-app.use('/api/auth', authRoutes);
-app.use('/api/scripts', scriptRoutes);
-app.use('/api/emotions', emotionRoutes);
-app.use('/api/ai-script', aiScriptRoutes);
-app.use('/api/actor-profiles', actorProfileRoutes);
-app.use('/api/actor-recruitments', actorRecruitmentRoutes);
-app.use('/api/community-posts', communityPostRoutes);
-app.use('/api/model-recruitments', modelRecruitmentRoutes);
-app.use('/api/likes', likeRoutes);
-app.use('/api/bookmarks', bookmarkRoutes);
 
 // 플레이스홀더 이미지 API
 app.get('/api/placeholder/:width/:height', (req, res) => {
   const { width, height } = req.params;
   const w = parseInt(width) || 300;
   const h = parseInt(height) || 200;
+  
+  console.log(`📷 플레이스홀더 이미지 요청: ${w}x${h}`);
   
   // SVG 플레이스홀더 이미지 생성
   const svg = `
@@ -144,6 +139,17 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
   res.send(svg);
 });
 
+// API 라우트 설정
+app.use('/api/auth', authRoutes);
+app.use('/api/scripts', scriptRoutes);
+app.use('/api/emotions', emotionRoutes);
+app.use('/api/ai-script', aiScriptRoutes);
+app.use('/api/actor-profiles', actorProfileRoutes);
+app.use('/api/actor-recruitments', actorRecruitmentRoutes);
+app.use('/api/community-posts', communityPostRoutes);
+app.use('/api/model-recruitments', modelRecruitmentRoutes);
+app.use('/api/likes', likeRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
 
 // 응답 로깅 미들웨어
 app.use((req, res, next) => {

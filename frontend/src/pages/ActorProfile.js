@@ -337,22 +337,34 @@ const ActorProfile = () => {
                 {/* 프로필 이미지 */}
                 <div className="h-64 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
                   {profile.images && profile.images.length > 0 ? (
-                    <img 
-                      src={profile.images[0].url} 
-                      alt={profile.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        console.log('❌ [ActorProfile] 이미지 로드 실패:', {
-                          originalSrc: profile.images[0].url,
-                          profileId: profile._id,
-                          profileName: profile.name
-                        });
-                        e.target.src = '/default-image.svg';
-                      }}
-                      onLoad={() => {
-                        console.log('✅ [ActorProfile] 이미지 로드 성공:', profile.images[0].url);
-                      }}
-                    />
+                    (() => {
+                      // 확장자가 없는 URL 처리
+                      let imageUrl = profile.images[0].url;
+                      const hasExtension = imageUrl.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(imageUrl);
+                      if (!hasExtension && imageUrl.startsWith('/uploads/')) {
+                        console.log(`🔧 [ActorProfile] 확장자 없는 URL 수정: ${imageUrl} → ${imageUrl}.jpg`);
+                        imageUrl = imageUrl + '.jpg';
+                      }
+                      
+                      return (
+                        <img 
+                          src={imageUrl}
+                          alt={profile.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.log('❌ [ActorProfile] 이미지 로드 실패:', {
+                              originalSrc: imageUrl,
+                              profileId: profile._id,
+                              profileName: profile.name
+                            });
+                            e.target.src = '/default-image.svg';
+                          }}
+                          onLoad={() => {
+                            console.log('✅ [ActorProfile] 이미지 로드 성공:', imageUrl);
+                          }}
+                        />
+                      );
+                    })()
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <User className="w-16 h-16 text-gray-400" />

@@ -21,7 +21,38 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'community-' + uniqueSuffix + path.extname(file.originalname));
+    
+    // 파일 정보 상세 로깅
+    console.log('📷 [community-posts] multer 파일 정보:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    });
+    
+    // 확장자 추출
+    let ext = path.extname(file.originalname);
+    
+    // 확장자가 없는 경우 mimetype으로 추정
+    if (!ext) {
+      console.log('⚠️ [community-posts] 확장자 없음, mimetype으로 추정:', file.mimetype);
+      if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg')) {
+        ext = '.jpg';
+      } else if (file.mimetype.includes('png')) {
+        ext = '.png';
+      } else if (file.mimetype.includes('webp')) {
+        ext = '.webp';
+      } else if (file.mimetype.includes('gif')) {
+        ext = '.gif';
+      } else {
+        ext = '.jpg'; // 기본값
+      }
+      console.log('✅ [community-posts] 추정된 확장자:', ext);
+    }
+    
+    const filename = 'community-' + uniqueSuffix + ext;
+    console.log('📁 [community-posts] 최종 파일명:', filename);
+    
+    cb(null, filename);
   }
 });
 

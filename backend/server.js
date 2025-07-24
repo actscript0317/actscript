@@ -130,6 +130,33 @@ subDirs.forEach(dir => {
 // 정적 파일 요청 로깅 미들웨어 추가 (static보다 먼저)
 app.use('/uploads', (req, res, next) => {
   console.log(`📷 [정적파일 요청] ${req.method} ${req.url} from ${req.ip}`);
+  
+  // 확장자 없는 이미지 파일 요청 처리
+  const urlPath = req.url;
+  const hasExtension = path.extname(urlPath);
+  
+  if (!hasExtension && (urlPath.includes('profile-') || urlPath.includes('recruitment-') || urlPath.includes('model-') || urlPath.includes('community-'))) {
+    console.log('⚠️ [확장자 없는 파일 요청 감지]:', urlPath);
+    
+    // 가능한 확장자들로 파일 존재 여부 확인
+    const possibleExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    const baseDir = path.join(__dirname, 'uploads');
+    
+    for (const ext of possibleExts) {
+      const testPath = path.join(baseDir, urlPath.substring(1) + ext); // /uploads 제거
+      console.log('🔍 [파일 존재 확인]:', testPath);
+      
+      if (fs.existsSync(testPath)) {
+        console.log('✅ [파일 발견, 리다이렉트]:', urlPath + ext);
+        return res.redirect(urlPath + ext);
+      }
+    }
+    
+    console.log('❌ [파일 없음, 기본 이미지로]:', urlPath);
+    // 파일이 없으면 기본 이미지로 리다이렉트
+    return res.redirect('/default-image.svg');
+  }
+  
   next();
 });
 

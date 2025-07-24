@@ -467,25 +467,35 @@ const PostDetail = () => {
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold mb-4">첨부 이미지</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {post.images.map((image, index) => (
-                  <img
-                    key={index}
-                    src={image.url}
-                    alt={`첨부 이미지 ${index + 1}`}
-                    className="w-full h-48 object-cover rounded-lg border border-gray-200"
-                    onError={(e) => {
-                      console.log(`❌ [PostDetail] 이미지 ${index + 1} 로드 실패:`, {
-                        originalSrc: image.url,
-                        postId: post._id,
-                        imageIndex: index
-                      });
-                      e.target.src = '/default-image-wide.svg';
-                    }}
-                    onLoad={() => {
-                      console.log(`✅ [PostDetail] 이미지 ${index + 1} 로드 성공:`, image.url);
-                    }}
-                  />
-                ))}
+                {post.images.map((image, index) => {
+                  // 확장자가 없는 URL 처리
+                  let imageUrl = image.url;
+                  const hasExtension = imageUrl.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(imageUrl);
+                  if (!hasExtension && imageUrl.startsWith('/uploads/')) {
+                    console.log(`🔧 [PostDetail] 확장자 없는 URL 수정: ${imageUrl} → ${imageUrl}.jpg`);
+                    imageUrl = imageUrl + '.jpg';
+                  }
+                  
+                  return (
+                    <img
+                      key={index}
+                      src={imageUrl}
+                      alt={`첨부 이미지 ${index + 1}`}
+                      className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                      onError={(e) => {
+                        console.log(`❌ [PostDetail] 이미지 ${index + 1} 로드 실패:`, {
+                          originalSrc: imageUrl,
+                          postId: post._id,
+                          imageIndex: index
+                        });
+                        e.target.src = '/default-image-wide.svg';
+                      }}
+                      onLoad={() => {
+                        console.log(`✅ [PostDetail] 이미지 ${index + 1} 로드 성공:`, imageUrl);
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}

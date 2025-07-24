@@ -79,6 +79,27 @@ app.use('/api/actor-recruitments', require('./routes/actor-recruitments'));
 app.use('/api/model-recruitments', require('./routes/model-recruitments'));
 app.use('/api/community-posts', require('./routes/community-posts'));
 
+// 플레이스홀더 이미지 API
+app.get('/api/placeholder/:width/:height', (req, res) => {
+  const { width, height } = req.params;
+  const w = parseInt(width) || 300;
+  const h = parseInt(height) || 200;
+  
+  // SVG 플레이스홀더 이미지 생성
+  const svg = `
+    <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#f3f4f6"/>
+      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="14" fill="#9ca3af" text-anchor="middle" dy=".3em">
+        ${w} × ${h}
+      </text>
+    </svg>
+  `;
+  
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1년 캐시
+  res.send(svg);
+});
+
 // 프로덕션 환경에서 정적 파일 제공
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));

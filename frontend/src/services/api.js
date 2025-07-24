@@ -271,7 +271,8 @@ export const likeAPI = {
 export const bookmarkAPI = {
   toggle: (postId, postType) => api.post('/bookmarks/toggle', { postId, postType }),
   getStatus: (postId, postType) => api.get(`/bookmarks/status/${postId}/${postType}`),
-  getMyBookmarks: (params) => api.get('/bookmarks/my-bookmarks', { params })
+  getMyBookmarks: (params) => api.get('/bookmarks/my-bookmarks', { params }),
+  deleteBookmark: (postId) => api.delete(`/bookmarks/${postId}`)
 };
 
 // 배우 프로필 API

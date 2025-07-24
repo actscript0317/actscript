@@ -166,43 +166,52 @@ const PostDetail = () => {
   };
 
   const handleEdit = () => {
-    // 수정 페이지로 이동 (추후 구현)
-    toast.info('수정 기능은 준비 중입니다.');
+    // 게시판별 수정 페이지로 이동
+    const editPaths = {
+      'actor-profile': `/posts/new?board=actor-profile&edit=${post._id}`,
+      'actor-recruitment': `/posts/new?board=actor-recruitment&edit=${post._id}`,
+      'model-recruitment': `/posts/new?board=model-recruitment&edit=${post._id}`,
+      'community': `/posts/new?board=community&edit=${post._id}`
+    };
+    
+    const editPath = editPaths[boardType];
+    if (editPath) {
+      navigate(editPath);
+    } else {
+      toast.error('해당 게시판의 수정 기능은 지원하지 않습니다.');
+    }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
+    if (!window.confirm('정말로 이 글을 삭제하시겠습니까?')) {
       return;
     }
 
     try {
-      let response;
-      switch (boardType) {
-        case 'actor-profile':
-          response = await actorProfileAPI.delete(post._id);
-          break;
-        case 'actor-recruitment':
-          response = await actorRecruitmentAPI.delete(post._id);
-          break;
-        case 'model-recruitment':
-          response = await modelRecruitmentAPI.delete(post._id);
-          break;
-        case 'community':
-          response = await communityPostAPI.delete(post._id);
-          break;
-        default:
-          throw new Error('알 수 없는 게시판 타입');
+      const apis = {
+        'actor-profile': actorProfileAPI,
+        'actor-recruitment': actorRecruitmentAPI,
+        'model-recruitment': modelRecruitmentAPI,
+        'community': communityPostAPI
+      };
+
+      const api = apis[boardType];
+      if (!api) {
+        throw new Error('지원하지 않는 게시판 타입입니다.');
       }
 
-      if (response.data.success) {
+      console.log('🗑️ 게시글 삭제 시도:', { postId: post._id, boardType });
+      const response = await api.delete(post._id);
+      
+      if (response.success) {
         toast.success('게시글이 삭제되었습니다.');
         navigate(getBackPath(boardType));
       } else {
-        throw new Error(response.data.message || '삭제 실패');
+        throw new Error(response.message || '삭제에 실패했습니다.');
       }
     } catch (error) {
-      console.error('삭제 오류:', error);
-      toast.error('삭제 중 오류가 발생했습니다: ' + error.message);
+      console.error('❌ 게시글 삭제 오류:', error);
+      toast.error('게시글 삭제 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -297,7 +306,12 @@ const PostDetail = () => {
               </div>
               
               {/* 수정/삭제 버튼 (작성자만 보임) */}
-              {isAuthenticated && user?.id === post.userId?._id && (
+              {isAuthenticated && (
+                user?._id === post.userId?._id || 
+                user?.id === post.userId?._id ||
+                user?._id === post.userId ||
+                user?.id === post.userId
+              ) && (
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={handleEdit}

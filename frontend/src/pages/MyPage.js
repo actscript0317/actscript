@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { User, Heart, Settings, Eye, Calendar, Users, Bookmark, Sparkles, Palette, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { 
+  actorProfileAPI, 
+  actorRecruitmentAPI, 
+  modelRecruitmentAPI, 
+  communityPostAPI,
+  bookmarkAPI 
+} from '../services/api';
+import { toast } from 'react-hot-toast';
 
 const MyPage = () => {
   const { 
@@ -14,50 +22,94 @@ const MyPage = () => {
     removeAIGeneratedScript
   } = useAuth();
 
-  // 저장한 글 더미 데이터 (실제로는 localStorage나 API에서 가져올 예정)
-  const getSavedPosts = () => {
-    return [
-      {
-        id: 1,
-        title: '소속사 오디션 정보 공유',
-        category: '매니지먼트',
-        categoryColor: 'bg-blue-100 text-blue-700',
-        content: '이번 달에 있는 소속사 오디션 정보들을 정리해서 공유드립니다. 도움이 되길 바랍니다.',
-        author: '정보공유',
-        likes: 89,
-        bookmarks: 156,
-        board: 'actor-info',
-        boardName: '연기자 정보방',
-        savedAt: '2024-01-20'
-      },
-      {
-        id: 2,
-        title: '강남 연기 스터디 그룹 멤버 모집',
-        category: '스터디 그룹',
-        categoryColor: 'bg-blue-100 text-blue-700',
-        content: '매주 토요일 강남에서 모이는 연기 스터디 그룹입니다. 함께 대본 연습하고 피드백 나눠요!',
-        author: '연기사랑',
-        likes: 42,
-        bookmarks: 28,
-        board: 'actor-info',
-        boardName: '연기자 정보방',
-        savedAt: '2024-01-18'
-      },
-      {
-        id: 3,
-        title: '화장품 광고 모델 모집',
-        category: '광고/홍보',
-        categoryColor: 'bg-pink-100 text-pink-700',
-        content: '새로운 화장품 브랜드의 광고 모델을 모집합니다. 깔끔한 이미지의 모델을 찾고 있습니다.',
-        author: '광고대행사',
-        likes: 34,
-        bookmarks: 28,
-        board: 'model-recruitment',
-        boardName: '모델/출연자 모집',
-        savedAt: '2024-01-15'
-      }
-    ];
+  const [myPosts, setMyPosts] = useState([]);
+  const [mySavedPosts, setMySavedPosts] = useState([]);
+
+  // 게시판 타입별 색상 설정
+  const getBoardTypeColor = (boardType) => {
+    const colors = {
+      'actor-profile': 'bg-purple-100 text-purple-700',
+      'actor-recruitment': 'bg-green-100 text-green-700',
+      'model-recruitment': 'bg-pink-100 text-pink-700',
+      'community': 'bg-blue-100 text-blue-700'
+    };
+    return colors[boardType] || 'bg-gray-100 text-gray-700';
   };
+
+  // 게시판 타입별 이름 설정
+  const getBoardTypeName = (boardType) => {
+    const names = {
+      'actor-profile': '배우 프로필',
+      'actor-recruitment': '배우 모집',
+      'model-recruitment': '모델 모집',
+      'community': '커뮤니티'
+    };
+    return names[boardType] || '기타';
+  };
+
+  // 날짜 포매팅
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  useEffect(() => {
+    const fetchMyPosts = async () => {
+      try {
+        // 여러 게시판에서 내가 작성한 글 가져오기
+        const [actorProfiles, actorRecruitments, modelRecruitments, communityPosts] = await Promise.allSettled([
+          actorProfileAPI.getMy(),
+          actorRecruitmentAPI.getMy(), 
+          modelRecruitmentAPI.getMy(),
+          communityPostAPI.getMy()
+        ]);
+
+        const allMyPosts = [];
+
+        // 각 결과를 처리하고 게시판 타입 추가
+        if (actorProfiles.status === 'fulfilled' && actorProfiles.value.data.success) {
+          allMyPosts.push(...actorProfiles.value.data.data.map(post => ({ ...post, boardType: 'actor-profile' })));
+        }
+        if (actorRecruitments.status === 'fulfilled' && actorRecruitments.value.data.success) {
+          allMyPosts.push(...actorRecruitments.value.data.data.map(post => ({ ...post, boardType: 'actor-recruitment' })));
+        }
+        if (modelRecruitments.status === 'fulfilled' && modelRecruitments.value.data.success) {
+          allMyPosts.push(...modelRecruitments.value.data.data.map(post => ({ ...post, boardType: 'model-recruitment' })));
+        }
+        if (communityPosts.status === 'fulfilled' && communityPosts.value.data.success) {
+          allMyPosts.push(...communityPosts.value.data.data.map(post => ({ ...post, boardType: 'community' })));
+        }
+
+        // 작성일 기준으로 정렬
+        allMyPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setMyPosts(allMyPosts);
+      } catch (error) {
+        console.error('내가 작성한 글 불러오기 실패:', error);
+        // 실패해도 빈 배열로 설정하여 에러 토스트는 표시하지 않음
+      }
+    };
+
+    const fetchMySavedPosts = async () => {
+      try {
+        const response = await bookmarkAPI.getMyBookmarks();
+        if (response.data.success) {
+          setMySavedPosts(response.data.bookmarks || []);
+        }
+      } catch (error) {
+        console.error('저장한 글 불러오기 실패:', error);
+        // 실패해도 빈 배열로 설정하여 에러 토스트는 표시하지 않음
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchMyPosts();
+      fetchMySavedPosts();
+    }
+  }, [isAuthenticated]);
 
   // 게시판 경로 가져오기
   const getBoardPath = (board) => {
@@ -71,10 +123,15 @@ const MyPage = () => {
   };
 
   // 저장한 글 삭제
-  const removeSavedPost = (postId) => {
-    // 실제로는 localStorage나 API를 통해 삭제 처리
-    console.log('삭제할 게시글 ID:', postId);
-    // TODO: 실제 삭제 로직 구현
+  const removeSavedPost = async (postId) => {
+    try {
+      await bookmarkAPI.deleteBookmark(postId);
+      setMySavedPosts(mySavedPosts.filter(post => post._id !== postId));
+      toast.success('저장 취소되었습니다.');
+    } catch (error) {
+      toast.error('저장 취소에 실패했습니다.');
+      console.error(error);
+    }
   };
 
   if (loading) {
@@ -143,7 +200,12 @@ const MyPage = () => {
                   
                   <div>
                     <label className="text-sm font-medium text-gray-500">저장한 대본</label>
-                    <p className="text-2xl font-bold text-emerald-600">{savedScripts.length}개</p>
+                    <p className="text-2xl font-bold text-emerald-600">{mySavedPosts.length}개</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">내가 작성한 글</label>
+                    <p className="text-2xl font-bold text-blue-600">{myPosts.length}개</p>
                   </div>
                   
                   <div>
@@ -157,14 +219,79 @@ const MyPage = () => {
             {/* 대본 섹션들 */}
             <div className="lg:col-span-2 space-y-8">
               
+              {/* 내가 작성한 글 섹션 */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                  <User className="w-5 h-5 mr-2 text-blue-500" />
+                  내가 작성한 글 ({myPosts.length})
+                </h2>
+                
+                {myPosts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-4">아직 작성한 글이 없습니다.</p>
+                    <Link 
+                      to="/actor-recruitment" 
+                      className="text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      글 작성하기 →
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {myPosts.map((post) => (
+                      <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType)}`}>
+                                {getBoardTypeName(post.boardType)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatDate(post.createdAt)}
+                              </span>
+                            </div>
+                            <Link 
+                              to={`/posts/${post._id}`}
+                              className="block"
+                            >
+                              <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">
+                                {post.title}
+                              </h3>
+                              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                {post.content}
+                              </p>
+                              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                <span className="flex items-center">
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  {post.views || 0}
+                                </span>
+                                <span className="flex items-center">
+                                  <Heart className="w-3 h-3 mr-1 text-red-500" />
+                                  {post.likes || 0}
+                                </span>
+                                <span className="flex items-center">
+                                  <Bookmark className="w-3 h-3 mr-1 text-blue-500" />
+                                  {post.bookmarks || 0}
+                                </span>
+                              </div>
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* 저장한 글 섹션 */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                   <Bookmark className="w-5 h-5 mr-2 text-emerald-500" />
-                  저장한 글 ({getSavedPosts().length})
+                  저장한 글 ({mySavedPosts.length})
                 </h2>
                 
-                {getSavedPosts().length === 0 ? (
+                {mySavedPosts.length === 0 ? (
                   <div className="text-center py-12">
                     <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-4">아직 저장한 글이 없습니다.</p>
@@ -177,8 +304,8 @@ const MyPage = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {getSavedPosts().map((post) => (
-                      <div key={post.id} className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 transition-colors">
+                    {mySavedPosts.map((post) => (
+                      <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
@@ -214,7 +341,7 @@ const MyPage = () => {
                             </Link>
                           </div>
                             <button
-                            onClick={() => removeSavedPost(post.id)}
+                            onClick={() => removeSavedPost(post._id)}
                             className="text-red-600 hover:text-red-700 text-sm ml-4"
                             >
                               삭제

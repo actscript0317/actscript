@@ -2,73 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ActorProfile = require('../models/ActorProfile');
 const auth = require('../middleware/auth');
-const multer = require('multer');
-const path = require('path');
-
-// 이미지 업로드 설정
-const fs = require('fs');
-
-// uploads 디렉토리 생성 (절대 경로 사용)
-const uploadsDir = path.join(__dirname, '..', 'uploads', 'profiles');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('📁 [actor-profiles] uploads/profiles 디렉토리 생성됨:', uploadsDir);
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir)
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    
-    // 파일 정보 상세 로깅
-    console.log('📷 [actor-profiles] multer 파일 정보:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size
-    });
-    
-    // 확장자 추출
-    let ext = path.extname(file.originalname);
-    
-    // 확장자가 없는 경우 mimetype으로 추정
-    if (!ext) {
-      console.log('⚠️ [actor-profiles] 확장자 없음, mimetype으로 추정:', file.mimetype);
-      if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg')) {
-        ext = '.jpg';
-      } else if (file.mimetype.includes('png')) {
-        ext = '.png';
-      } else if (file.mimetype.includes('webp')) {
-        ext = '.webp';
-      } else if (file.mimetype.includes('gif')) {
-        ext = '.gif';
-      } else {
-        ext = '.jpg'; // 기본값
-      }
-      console.log('✅ [actor-profiles] 추정된 확장자:', ext);
-    }
-    
-    const filename = 'profile-' + uniqueSuffix + ext;
-    console.log('📁 [actor-profiles] 최종 파일명:', filename);
-    
-    cb(null, filename);
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
-  },
-  fileFilter: function (req, file, cb) {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('이미지 파일만 업로드 가능합니다.'), false);
-    }
-  }
-});
+const { profileUpload, deleteImage, getPublicIdFromUrl } = require('../config/cloudinary');
 
 // 모든 프로필 조회 (필터링, 검색, 정렬 지원)
 router.get('/', async (req, res) => {
@@ -173,7 +107,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // 프로필 생성
-router.post('/', auth, upload.array('images', 7), async (req, res) => {
+router.post('/', auth, profileUpload.array('images', 7), async (req, res) => {
   try {
     console.log('📥 프로필 생성 요청 데이터:', {
       body: req.body,
@@ -233,64 +167,28 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
     if (profileData.height) profileData.height = parseInt(profileData.height);
     if (profileData.weight) profileData.weight = parseInt(profileData.weight);
 
-    // 이미지 처리
+    // Cloudinary 이미지 처리
     if (req.files && req.files.length > 0) {
-      console.log('📷 [actor-profiles] 이미지 파일 처리:', {
+      console.log('📷 [Cloudinary] 이미지 업로드 완료:', {
         count: req.files.length,
-        files: req.files.map(f => ({ filename: f.filename, size: f.size, path: f.path }))
+        files: req.files.map(f => ({ 
+          filename: f.filename, 
+          url: f.path, 
+          size: f.size,
+          public_id: f.public_id
+        }))
       });
       
-      // Render 환경에 맞춘 이미지 URL 생성
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`)
-        : `${req.protocol}://${req.get('host')}`;
-
-      console.log(`🌐 [actor-profiles] 기본 URL: ${baseUrl}, 환경: ${process.env.NODE_ENV}, Render: ${process.env.RENDER}`);
-
-      profileData.images = req.files.map(file => {
-        // Render 환경에서는 실제 파일 저장하지 않고 placeholder URL 생성
-        if (process.env.NODE_ENV === 'production' && process.env.RENDER) {
-          console.log(`🏭 [Render 환경] 파일 ${file.filename} → placeholder URL 생성`);
-          return {
-            url: `${baseUrl}/uploads/profiles/${file.filename}`,
-            filename: file.filename,
-            originalFilename: file.filename,
-            size: file.size,
-            mimetype: file.mimetype,
-            isPlaceholder: true,
-            uploadedAt: new Date().toISOString()
-          };
-        }
-
-        // 로컬 환경에서는 실제 파일 처리
-        let filename = file.filename;
-        const hasExtension = filename.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
-        
-        if (!hasExtension) {
-          // MIME 타입에 따라 확장자 추가
-          const mimeToExt = {
-            'image/jpeg': '.jpg',
-            'image/jpg': '.jpg', 
-            'image/png': '.png',
-            'image/webp': '.webp',
-            'image/gif': '.gif'
-          };
-          const ext = mimeToExt[file.mimetype] || '.jpg';
-          filename = filename + ext;
-          console.log(`🔧 [actor-profiles] 확장자 추가: ${file.filename} → ${filename}`);
-        }
-        
-        return {
-          url: `${baseUrl}/uploads/profiles/${filename}`,
-          filename: filename,
-          originalFilename: file.filename,
-          size: file.size,
-          mimetype: file.mimetype,
-          isPlaceholder: false
-        };
-      });
+      profileData.images = req.files.map(file => ({
+        url: file.path, // Cloudinary URL
+        filename: file.filename,
+        publicId: file.public_id, // Cloudinary public_id (삭제 시 필요)
+        size: file.size,
+        mimetype: file.mimetype || 'image/jpeg',
+        uploadedAt: new Date().toISOString()
+      }));
       
-      console.log('✅ [actor-profiles] 이미지 URL 생성 완료:', profileData.images);
+      console.log('✅ [Cloudinary] 이미지 메타데이터 저장 완료:', profileData.images);
     } else {
       console.log('📷 [actor-profiles] 업로드된 이미지 없음');
     }
@@ -304,20 +202,6 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
       .populate('userId', 'email');
 
     console.log('✅ 프로필 생성 성공:', populatedProfile._id);
-
-    // 생성된 이미지 파일 실제 존재 여부 확인
-    if (populatedProfile.images && populatedProfile.images.length > 0) {
-      populatedProfile.images.forEach((image, index) => {
-        const fullPath = path.join(__dirname, '..', 'uploads', 'profiles', image.filename);
-        const exists = fs.existsSync(fullPath);
-        console.log(`📷 [생성완료] 이미지 ${index + 1} 파일 존재 확인:`, {
-          filename: image.filename,
-          url: image.url,
-          exists: exists,
-          fullPath: exists ? fullPath : '파일 없음'
-        });
-      });
-    }
 
     res.status(201).json({
       success: true,
@@ -350,7 +234,7 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
 });
 
 // 프로필 수정
-router.put('/:id', auth, upload.array('images', 7), async (req, res) => {
+router.put('/:id', auth, profileUpload.array('images', 7), async (req, res) => {
   try {
     const profile = await ActorProfile.findById(req.params.id);
 
@@ -371,56 +255,23 @@ router.put('/:id', auth, upload.array('images', 7), async (req, res) => {
 
     const updateData = { ...req.body };
 
-    // 새 이미지 처리
+    // 새 이미지 처리 (Cloudinary)
     if (req.files && req.files.length > 0) {
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`)
-        : `${req.protocol}://${req.get('host')}`;
-
-      const newImages = req.files.map(file => {
-        // Render 환경에서는 placeholder URL 생성
-        if (process.env.NODE_ENV === 'production' && process.env.RENDER) {
-          console.log(`🏭 [Render 환경 UPDATE] 파일 ${file.filename} → placeholder URL 생성`);
-          return {
-            url: `${baseUrl}/uploads/profiles/${file.filename}`,
-            filename: file.filename,
-            originalFilename: file.filename,
-            size: file.size,
-            mimetype: file.mimetype,
-            isPlaceholder: true,
-            uploadedAt: new Date().toISOString()
-          };
-        }
-
-        // 로컬 환경에서는 실제 파일 처리
-        let filename = file.filename;
-        const hasExtension = filename.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
-        
-        if (!hasExtension) {
-          const mimeToExt = {
-            'image/jpeg': '.jpg',
-            'image/jpg': '.jpg', 
-            'image/png': '.png',
-            'image/webp': '.webp',
-            'image/gif': '.gif'
-          };
-          const ext = mimeToExt[file.mimetype] || '.jpg';
-          filename = filename + ext;
-          console.log(`🔧 [actor-profiles UPDATE] 확장자 추가: ${file.filename} → ${filename}`);
-        }
-        
-        return {
-          url: `${baseUrl}/uploads/profiles/${filename}`,
-          filename: filename,
-          originalFilename: file.filename,
-          size: file.size,
-          mimetype: file.mimetype,
-          isPlaceholder: false
-        };
-      });
+      console.log('📷 [Cloudinary UPDATE] 새 이미지 업로드:', req.files.length);
+      
+      const newImages = req.files.map(file => ({
+        url: file.path, // Cloudinary URL
+        filename: file.filename,
+        publicId: file.public_id,
+        size: file.size,
+        mimetype: file.mimetype || 'image/jpeg',
+        uploadedAt: new Date().toISOString()
+      }));
       
       // 기존 이미지와 합치기 (최대 7개)
       updateData.images = [...(profile.images || []), ...newImages].slice(0, 7);
+      
+      console.log('✅ [Cloudinary UPDATE] 이미지 메타데이터 업데이트 완료');
     }
 
     // specialty 배열 처리
@@ -468,6 +319,21 @@ router.delete('/:id', auth, async (req, res) => {
         success: false,
         message: '삭제 권한이 없습니다.'
       });
+    }
+
+    // Cloudinary 이미지 삭제
+    if (profile.images && profile.images.length > 0) {
+      console.log('🗑️ [Cloudinary] 프로필 삭제 시 이미지 삭제 시작');
+      for (const image of profile.images) {
+        if (image.publicId) {
+          try {
+            await deleteImage(image.publicId);
+            console.log(`✅ [Cloudinary] 이미지 삭제 완료: ${image.publicId}`);
+          } catch (error) {
+            console.error(`❌ [Cloudinary] 이미지 삭제 실패: ${image.publicId}`, error);
+          }
+        }
+      }
     }
 
     await ActorProfile.findByIdAndDelete(req.params.id);

@@ -2,73 +2,7 @@ const express = require('express');
 const router = express.Router();
 const CommunityPost = require('../models/CommunityPost');
 const auth = require('../middleware/auth');
-const multer = require('multer');
-const path = require('path');
-
-// 이미지 업로드 설정
-const fs = require('fs');
-
-// uploads 디렉토리 생성 (절대 경로 사용)
-const uploadsDir = path.join(__dirname, '..', 'uploads', 'community');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('📁 [community-posts] uploads/community 디렉토리 생성됨:', uploadsDir);
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir)
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    
-    // 파일 정보 상세 로깅
-    console.log('📷 [community-posts] multer 파일 정보:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size
-    });
-    
-    // 확장자 추출
-    let ext = path.extname(file.originalname);
-    
-    // 확장자가 없는 경우 mimetype으로 추정
-    if (!ext) {
-      console.log('⚠️ [community-posts] 확장자 없음, mimetype으로 추정:', file.mimetype);
-      if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg')) {
-        ext = '.jpg';
-      } else if (file.mimetype.includes('png')) {
-        ext = '.png';
-      } else if (file.mimetype.includes('webp')) {
-        ext = '.webp';
-      } else if (file.mimetype.includes('gif')) {
-        ext = '.gif';
-      } else {
-        ext = '.jpg'; // 기본값
-      }
-      console.log('✅ [community-posts] 추정된 확장자:', ext);
-    }
-    
-    const filename = 'community-' + uniqueSuffix + ext;
-    console.log('📁 [community-posts] 최종 파일명:', filename);
-    
-    cb(null, filename);
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB
-  },
-  fileFilter: function (req, file, cb) {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('이미지 파일만 업로드 가능합니다.'), false);
-    }
-  }
-});
+const { communityUpload, deleteImage } = require('../config/cloudinary');
 
 // 모든 커뮤니티 게시글 조회
 router.get('/', async (req, res) => {
@@ -177,7 +111,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // 게시글 생성
-router.post('/', auth, upload.array('images', 10), async (req, res) => {
+router.post('/', auth, communityUpload.array('images', 10), async (req, res) => {
   try {
     console.log('📥 커뮤니티 게시글 생성 요청:', {
       body: req.body,
@@ -198,35 +132,27 @@ router.post('/', auth, upload.array('images', 10), async (req, res) => {
       postData.category = '자유';
     }
 
-    // 이미지 처리 - Render 환경 대응
+    // Cloudinary 이미지 처리
     if (req.files && req.files.length > 0) {
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`)
-        : `${req.protocol}://${req.get('host')}`;
-
-      postData.images = req.files.map(file => {
-        // Render 환경에서는 placeholder URL 생성
-        if (process.env.NODE_ENV === 'production' && process.env.RENDER) {
-          console.log(`🏭 [Render 환경 community] 파일 ${file.filename} → placeholder URL 생성`);
-          return {
-            url: `${baseUrl}/uploads/community/${file.filename}`,
-            filename: file.filename,
-            size: file.size,
-            mimetype: file.mimetype,
-            isPlaceholder: true,
-            uploadedAt: new Date().toISOString()
-          };
-        }
-
-        // 로컬 환경에서는 실제 파일 처리
-        return {
-          url: `${baseUrl}/uploads/community/${file.filename}`,
-          filename: file.filename,
-          size: file.size,
-          mimetype: file.mimetype,
-          isPlaceholder: false
-        };
+      console.log('📷 [Cloudinary Community] 이미지 업로드 완료:', {
+        count: req.files.length,
+        files: req.files.map(f => ({ 
+          filename: f.filename, 
+          url: f.path, 
+          public_id: f.public_id
+        }))
       });
+      
+      postData.images = req.files.map(file => ({
+        url: file.path, // Cloudinary URL
+        filename: file.filename,
+        publicId: file.public_id,
+        size: file.size,
+        mimetype: file.mimetype || 'image/jpeg',
+        uploadedAt: new Date().toISOString()
+      }));
+      
+      console.log('✅ [Cloudinary Community] 이미지 메타데이터 저장 완료');
     }
 
     // JSON 문자열 파싱 및 기본값 처리

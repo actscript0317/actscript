@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const fs = require('fs');
 const connectDB = require('./config/database');
 const checkDBConnection = require('./middleware/dbCheck');
 const mongoose = require('mongoose');
@@ -110,8 +111,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩
 app.use(cookieParser()); // 쿠키 파싱
 
 // 업로드된 파일을 위한 정적 파일 제공 설정
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-console.log('📁 정적 파일 제공 설정:', path.join(__dirname, 'uploads'));
+const uploadsPath = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+  console.log('📁 uploads 디렉토리 생성됨:', uploadsPath);
+}
+
+app.use('/uploads', express.static(uploadsPath));
+console.log('📁 정적 파일 제공 설정:', uploadsPath);
 
 // 데이터베이스 연결 확인 미들웨어
 app.use('/api', checkDBConnection);

@@ -127,34 +127,66 @@ subDirs.forEach(dir => {
   }
 });
 
-// 정적 파일 요청 로깅 미들웨어 추가 (static보다 먼저)
+// 정적 파일 요청 로깅 및 처리 미들웨어
 app.use('/uploads', (req, res, next) => {
-  console.log(`📷 [정적파일 요청] ${req.method} ${req.url} from ${req.ip}`);
-  
-  // 확장자 없는 이미지 파일 요청 처리
   const urlPath = req.url;
-  const hasExtension = path.extname(urlPath);
+  console.log(`📷 [정적파일 요청] ${req.method} ${urlPath} from ${req.ip}`);
   
-  if (!hasExtension && (urlPath.includes('profile-') || urlPath.includes('recruitment-') || urlPath.includes('model-') || urlPath.includes('community-'))) {
-    console.log('⚠️ [확장자 없는 파일 요청 감지]:', urlPath);
+  // 실제 파일 경로 확인
+  const fullPath = path.join(__dirname, 'uploads', urlPath.substring(1));
+  const exists = fs.existsSync(fullPath);
+  
+  console.log(`🔍 [파일 존재 확인] ${fullPath} → ${exists ? '✅ 존재' : '❌ 없음'}`);
+  
+  if (!exists) {
+    console.log(`❌ [파일 없음] ${urlPath} → 기본 이미지 SVG 응답`);
     
-    // 가능한 확장자들로 파일 존재 여부 확인
-    const possibleExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-    const baseDir = path.join(__dirname, 'uploads');
-    
-    for (const ext of possibleExts) {
-      const testPath = path.join(baseDir, urlPath.substring(1) + ext); // /uploads 제거
-      console.log('🔍 [파일 존재 확인]:', testPath);
-      
-      if (fs.existsSync(testPath)) {
-        console.log('✅ [파일 발견, 리다이렉트]:', urlPath + ext);
-        return res.redirect(urlPath + ext);
-      }
+    // 요청된 URL에서 예상 크기 추출
+    let width = 300, height = 400;
+    if (urlPath.includes('wide') || urlPath.includes('recruitment') || urlPath.includes('community')) {
+      width = 300;
+      height = 200;
     }
     
-    console.log('❌ [파일 없음, 기본 이미지로]:', urlPath);
-    // 파일이 없으면 기본 이미지로 리다이렉트
-    return res.redirect('/default-image.svg');
+    // 파일이 없으면 직접 SVG 응답
+    const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#e3f2fd;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#bbdefb;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#bg)"/>
+      <circle cx="${width/2}" cy="${height*0.3}" r="${Math.min(width,height)*0.08}" fill="#2196f3" opacity="0.8"/>
+      <rect x="${width*0.35}" y="${height*0.35}" width="${width*0.3}" height="${height*0.15}" rx="5" fill="#1976d2" opacity="0.7"/>
+      <text x="50%" y="${height*0.65}" font-family="Arial, sans-serif" font-size="14" fill="#1565c0" text-anchor="middle" font-weight="bold">
+        ActScript
+      </text>
+      <text x="50%" y="${height*0.75}" font-family="Arial, sans-serif" font-size="12" fill="#424242" text-anchor="middle">
+        이미지 없음
+      </text>
+      <text x="50%" y="${height*0.9}" font-family="Arial, sans-serif" font-size="10" fill="#757575" text-anchor="middle">
+        ${width} × ${height}
+      </text>
+    </svg>`;
+    
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(svg);
+  }
+  
+  // 파일이 존재하는 경우 확장자에 따라 Content-Type 설정
+  const ext = path.extname(urlPath).toLowerCase();
+  if (ext === '.svg') {
+    res.setHeader('Content-Type', 'image/svg+xml');
+  } else if (ext === '.jpg' || ext === '.jpeg') {
+    res.setHeader('Content-Type', 'image/jpeg');
+  } else if (ext === '.png') {
+    res.setHeader('Content-Type', 'image/png');
+  } else if (ext === '.webp') {
+    res.setHeader('Content-Type', 'image/webp');
+  } else if (ext === '.gif') {
+    res.setHeader('Content-Type', 'image/gif');
   }
   
   next();

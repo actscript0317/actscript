@@ -1,5 +1,30 @@
 require('dotenv').config();
 
+// 환경 변수 기본값 설정 (개발/테스트용)
+if (!process.env.MONGODB_URI) {
+  process.env.MONGODB_URI = 'mongodb+srv://mcstudio0317:51145114ee@cluster0.esputxc.mongodb.net/actscript?retryWrites=true&w=majority&appName=Cluster0';
+}
+
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'actscript_jwt_secret_key_2025_secure_token';
+}
+
+if (!process.env.JWT_EXPIRE) {
+  process.env.JWT_EXPIRE = '7d';
+}
+
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'production';
+}
+
+if (!process.env.CORS_ORIGIN) {
+  process.env.CORS_ORIGIN = 'https://actscript-1.onrender.com';
+}
+
+if (!process.env.CLIENT_URL) {
+  process.env.CLIENT_URL = 'https://actscript-1.onrender.com';
+}
+
 // 환경 변수 검증
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);

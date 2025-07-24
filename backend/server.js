@@ -141,6 +141,18 @@ app.use('/uploads', (req, res, next) => {
   if (!exists) {
     console.log(`❌ [파일 없음] ${urlPath} → 기본 이미지 SVG 응답`);
     
+    // 파일명에서 확장자 제거 후 다른 확장자로 시도
+    const filePathWithoutExt = fullPath.replace(/\.[^/.]+$/, "");
+    const possibleExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    
+    for (const ext of possibleExtensions) {
+      const alternativePath = filePathWithoutExt + ext;
+      if (fs.existsSync(alternativePath)) {
+        console.log(`✅ [대체 파일 발견] ${alternativePath}`);
+        return res.sendFile(alternativePath);
+      }
+    }
+    
     // 요청된 URL에서 예상 크기 추출
     let width = 300, height = 400;
     if (urlPath.includes('wide') || urlPath.includes('recruitment') || urlPath.includes('community')) {

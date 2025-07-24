@@ -240,15 +240,38 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
         files: req.files.map(f => ({ filename: f.filename, size: f.size, path: f.path }))
       });
       
+      // 환경에 따른 기본 URL 설정 개선
       const baseUrl = process.env.NODE_ENV === 'production' 
-  ? 'https://actscript-1.onrender.com' 
-  : `${req.protocol}://${req.get('host')}`;
+        ? (process.env.BACKEND_URL || 'https://actscript-1.onrender.com')
+        : `${req.protocol}://${req.get('host')}`;
 
-profileData.images = req.files.map(file => ({
-  url: `${baseUrl}/uploads/profiles/${file.filename}`,
-  filename: file.filename,
-  size: file.size
-}));
+      profileData.images = req.files.map(file => {
+        // 파일 확장자 확인 및 추가
+        let filename = file.filename;
+        const hasExtension = filename.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
+        
+        if (!hasExtension) {
+          // MIME 타입에 따라 확장자 추가
+          const mimeToExt = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg', 
+            'image/png': '.png',
+            'image/webp': '.webp',
+            'image/gif': '.gif'
+          };
+          const ext = mimeToExt[file.mimetype] || '.jpg';
+          filename = filename + ext;
+          console.log(`🔧 [actor-profiles] 확장자 추가: ${file.filename} → ${filename}`);
+        }
+        
+        return {
+          url: `${baseUrl}/uploads/profiles/${filename}`,
+          filename: filename,
+          originalFilename: file.filename,
+          size: file.size,
+          mimetype: file.mimetype
+        };
+      });
       
       console.log('✅ [actor-profiles] 이미지 URL 생성 완료:', profileData.images);
     } else {
@@ -334,14 +357,35 @@ router.put('/:id', auth, upload.array('images', 7), async (req, res) => {
     // 새 이미지 처리
     if (req.files && req.files.length > 0) {
       const baseUrl = process.env.NODE_ENV === 'production' 
-  ? 'https://actscript-1.onrender.com' 
-  : `${req.protocol}://${req.get('host')}`;
+        ? (process.env.BACKEND_URL || 'https://actscript-1.onrender.com')
+        : `${req.protocol}://${req.get('host')}`;
 
-const newImages = req.files.map(file => ({
-  url: `${baseUrl}/uploads/profiles/${file.filename}`,
-  filename: file.filename,
-  size: file.size
-}));
+      const newImages = req.files.map(file => {
+        // 파일 확장자 확인 및 추가
+        let filename = file.filename;
+        const hasExtension = filename.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(filename);
+        
+        if (!hasExtension) {
+          const mimeToExt = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg', 
+            'image/png': '.png',
+            'image/webp': '.webp',
+            'image/gif': '.gif'
+          };
+          const ext = mimeToExt[file.mimetype] || '.jpg';
+          filename = filename + ext;
+          console.log(`🔧 [actor-profiles UPDATE] 확장자 추가: ${file.filename} → ${filename}`);
+        }
+        
+        return {
+          url: `${baseUrl}/uploads/profiles/${filename}`,
+          filename: filename,
+          originalFilename: file.filename,
+          size: file.size,
+          mimetype: file.mimetype
+        };
+      });
       
       // 기존 이미지와 합치기 (최대 7개)
       updateData.images = [...(profile.images || []), ...newImages].slice(0, 7);

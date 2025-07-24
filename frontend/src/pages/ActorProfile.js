@@ -338,12 +338,19 @@ const ActorProfile = () => {
                 <div className="h-64 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
                   {profile.images && profile.images.length > 0 ? (
                     (() => {
-                      // 확장자가 없는 URL 처리
+                      // 이미지 URL 처리 로직 개선
                       let imageUrl = profile.images[0].url;
-                      const hasExtension = imageUrl.includes('.') && /\.(jpg|jpeg|png|webp|gif)$/i.test(imageUrl);
-                      if (!hasExtension && imageUrl.startsWith('/uploads/')) {
-                        console.log(`🔧 [ActorProfile] 확장자 없는 URL 수정: ${imageUrl} → ${imageUrl}.jpg`);
-                        imageUrl = imageUrl + '.jpg';
+                      
+                      // 절대 URL인 경우 그대로 사용
+                      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+                        // Production 환경에서는 이미지가 제대로 로드되지 않을 수 있으므로 fallback 처리
+                        console.log(`🌐 [ActorProfile] 절대 URL 사용: ${imageUrl}`);
+                      } 
+                      // 상대 URL인 경우 API 기본 URL과 결합
+                      else if (imageUrl.startsWith('/uploads/')) {
+                        const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.origin;
+                        imageUrl = `${API_BASE_URL}${imageUrl}`;
+                        console.log(`🔧 [ActorProfile] 상대 URL을 절대 URL로 변환: ${imageUrl}`);
                       }
                       
                       return (
@@ -355,9 +362,23 @@ const ActorProfile = () => {
                             console.log('❌ [ActorProfile] 이미지 로드 실패:', {
                               originalSrc: imageUrl,
                               profileId: profile._id,
-                              profileName: profile.name
+                              profileName: profile.name,
+                              errorEvent: e
                             });
-                            e.target.src = '/default-image.svg';
+                            
+                            // 다양한 fallback 시도
+                            const fallbackUrls = [
+                              '/default-image.svg',
+                              '/api/placeholder/300/400',
+                              'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuydtOuvuOyngCDsl4bsnYw8L3RleHQ+PC9zdmc+'
+                            ];
+                            
+                            const currentIndex = fallbackUrls.indexOf(e.target.src);
+                            const nextIndex = currentIndex + 1;
+                            
+                            if (nextIndex < fallbackUrls.length) {
+                              e.target.src = fallbackUrls[nextIndex];
+                            }
                           }}
                           onLoad={() => {
                             console.log('✅ [ActorProfile] 이미지 로드 성공:', imageUrl);

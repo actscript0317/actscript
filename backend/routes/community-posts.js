@@ -237,7 +237,7 @@ router.post('/', auth, communityUpload.array('images', 10), async (req, res) => 
 });
 
 // 게시글 수정
-router.put('/:id', auth, upload.array('images', 10), async (req, res) => {
+router.put('/:id', auth, communityUpload.array('images', 10), async (req, res) => {
   try {
     const post = await CommunityPost.findById(req.params.id);
 

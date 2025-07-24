@@ -183,7 +183,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // 모집공고 생성
-router.post('/', auth, upload.array('images', 5), async (req, res) => {
+router.post('/', auth, require('../config/cloudinary').recruitmentUpload.array('images', 5), async (req, res) => {
   try {
     console.log('📥 배우 모집공고 생성 요청:', {
       body: req.body,
@@ -386,7 +386,7 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
 });
 
 // 모집공고 수정
-router.put('/:id', auth, upload.array('images', 5), async (req, res) => {
+router.put('/:id', auth, require('../config/cloudinary').recruitmentUpload.array('images', 5), async (req, res) => {
   try {
     const recruitment = await ActorRecruitment.findById(req.params.id);
 

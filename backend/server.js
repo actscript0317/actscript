@@ -123,6 +123,27 @@ app.use('/api/model-recruitments', modelRecruitmentRoutes);
 app.use('/api/likes', likeRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 
+// 플레이스홀더 이미지 API
+app.get('/api/placeholder/:width/:height', (req, res) => {
+  const { width, height } = req.params;
+  const w = parseInt(width) || 300;
+  const h = parseInt(height) || 200;
+  
+  // SVG 플레이스홀더 이미지 생성
+  const svg = `
+    <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#f3f4f6"/>
+      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="14" fill="#9ca3af" text-anchor="middle" dy=".3em">
+        ${w} × ${h}
+      </text>
+    </svg>
+  `;
+  
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1년 캐시
+  res.send(svg);
+});
+
 
 // 응답 로깅 미들웨어
 app.use((req, res, next) => {

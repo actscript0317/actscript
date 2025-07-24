@@ -18,12 +18,21 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { 
+  actorProfileAPI, 
+  actorRecruitmentAPI, 
+  modelRecruitmentAPI, 
+  communityPostAPI,
+  bookmarkAPI 
+} from '../services/api';
+import { toast } from 'react-hot-toast';
 
 const ScriptVault = () => {
   const { 
     aiGeneratedScripts, 
     loadAIGeneratedScripts, 
-    removeAIGeneratedScript
+    removeAIGeneratedScript,
+    isAuthenticated
   } = useAuth();
   
   const navigate = useNavigate();
@@ -34,77 +43,114 @@ const ScriptVault = () => {
   const [filterGenre, setFilterGenre] = useState('');
   const [sortBy, setSortBy] = useState('createdAt'); // 'createdAt', 'likes', 'views'
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc', 'desc'
+  
+  // 실제 데이터를 위한 state 추가
+  const [myPosts, setMyPosts] = useState([]);
+  const [mySavedPosts, setMySavedPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // 저장한 글 데이터 (더미)
-  const getSavedPosts = () => {
-    return [
-      {
-        _id: 'saved1',
-        title: '소속사 오디션 정보 공유',
-        content: '이번 달에 있는 소속사 오디션 정보들을 정리해서 공유드립니다...',
-        author: '정보공유',
-        category: '매니지먼트',
-        boardName: '연기자 정보방',
-        createdAt: '2024-01-11',
-        savedAt: '2024-01-20',
-        likes: 89,
-        bookmarks: 156,
-        views: 445,
-        comments: 23
-      },
-      {
-        _id: 'saved2',
-        title: '강남 연기 스터디 그룹 멤버 모집',
-        content: '매주 토요일 강남에서 모이는 연기 스터디 그룹입니다...',
-        author: '연기사랑',
-        category: '스터디 그룹',
-        boardName: '연기자 정보방',
-        createdAt: '2024-01-15',
-        savedAt: '2024-01-18',
-        likes: 42,
-        bookmarks: 28,
-        views: 234,
-        comments: 15
-      }
-    ];
+  // 게시판 타입별 색상 설정
+  const getBoardTypeColor = (boardType) => {
+    const colors = {
+      'actor-profile': 'bg-purple-100 text-purple-700',
+      'actor-recruitment': 'bg-green-100 text-green-700',
+      'model-recruitment': 'bg-pink-100 text-pink-700',
+      'community': 'bg-blue-100 text-blue-700'
+    };
+    return colors[boardType] || 'bg-gray-100 text-gray-700';
   };
 
-  // 내가 작성한 글 데이터 (더미)
-  const getMyPosts = () => {
-    return [
-      {
-        _id: 'my1',
-        title: '신인 배우 자기소개',
-        content: '안녕하세요! 연기에 열정을 가진 신인 배우입니다...',
-        author: '사용자', // 실제로는 로그인한 사용자
-        category: '자기소개',
-        boardName: '배우 프로필',
-        createdAt: '2024-01-16',
-        likes: 15,
-        bookmarks: 8,
-        views: 67,
-        comments: 5
-      },
-      {
-        _id: 'my2',
-        title: '단편영화 제작팀 모집합니다',
-        content: '대학생 단편영화 제작을 위해 스태프를 모집합니다...',
-        author: '사용자',
-        category: '단편영화',
-        boardName: '배우 모집',
-        createdAt: '2024-01-10',
-        likes: 23,
-        bookmarks: 12,
-        views: 156,
-        comments: 8
-      }
-    ];
+  // 게시판 타입별 이름 설정
+  const getBoardTypeName = (boardType) => {
+    const names = {
+      'actor-profile': '배우 프로필',
+      'actor-recruitment': '배우 모집',
+      'model-recruitment': '모델 모집',
+      'community': '커뮤니티'
+    };
+    return names[boardType] || '기타';
   };
+
+  // 내가 작성한 글 가져오기
+  const fetchMyPosts = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      setLoading(true);
+      // 여러 게시판에서 내가 작성한 글 가져오기
+      const [actorProfiles, actorRecruitments, modelRecruitments, communityPosts] = await Promise.allSettled([
+        actorProfileAPI.getMy(),
+        actorRecruitmentAPI.getMy(), 
+        modelRecruitmentAPI.getMy(),
+        communityPostAPI.getMy()
+      ]);
+
+      const allMyPosts = [];
+
+      // 각 결과를 처리하고 게시판 타입 추가
+      if (actorProfiles.status === 'fulfilled' && actorProfiles.value.data.success) {
+        allMyPosts.push(...actorProfiles.value.data.data.map(post => ({ ...post, boardType: 'actor-profile' })));
+      }
+      if (actorRecruitments.status === 'fulfilled' && actorRecruitments.value.data.success) {
+        allMyPosts.push(...actorRecruitments.value.data.data.map(post => ({ ...post, boardType: 'actor-recruitment' })));
+      }
+      if (modelRecruitments.status === 'fulfilled' && modelRecruitments.value.data.success) {
+        allMyPosts.push(...modelRecruitments.value.data.data.map(post => ({ ...post, boardType: 'model-recruitment' })));
+      }
+      if (communityPosts.status === 'fulfilled' && communityPosts.value.data.success) {
+        allMyPosts.push(...communityPosts.value.data.data.map(post => ({ ...post, boardType: 'community' })));
+      }
+
+      // 작성일 기준으로 정렬
+      allMyPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setMyPosts(allMyPosts);
+    } catch (error) {
+      console.error('내가 작성한 글 불러오기 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 저장한 글 가져오기
+  const fetchMySavedPosts = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      setLoading(true);
+      const response = await bookmarkAPI.getMyBookmarks();
+      if (response.data.success) {
+        setMySavedPosts(response.data.bookmarks || []);
+      }
+    } catch (error) {
+      console.error('저장한 글 불러오기 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 저장한 글 데이터 (더미) - 제거됨
+  // const getSavedPosts = () => { ... }
+
+  // 내가 작성한 글 데이터 (더미) - 제거됨  
+  // const getMyPosts = () => { ... }
 
   // 컴포넌트 마운트 시 대본 목록 로드
   useEffect(() => {
     loadAIGeneratedScripts();
-  }, [loadAIGeneratedScripts]);
+    if (isAuthenticated) {
+      fetchMyPosts();
+      fetchMySavedPosts();
+    }
+  }, [loadAIGeneratedScripts, isAuthenticated]);
+
+  // 탭 변경 시 데이터 새로고침
+  useEffect(() => {
+    if (activeTab === 'written' && isAuthenticated) {
+      fetchMyPosts();
+    } else if (activeTab === 'saved' && isAuthenticated) {
+      fetchMySavedPosts();
+    }
+  }, [activeTab, isAuthenticated]);
 
   // 모달 열기/닫기 시 body 스크롤 제어
   useEffect(() => {
@@ -339,9 +385,9 @@ const ScriptVault = () => {
     if (activeTab === 'ai') {
       scripts = aiGeneratedScripts;
     } else if (activeTab === 'saved') {
-      scripts = getSavedPosts();
+      scripts = mySavedPosts;
     } else if (activeTab === 'written') {
-      scripts = getMyPosts();
+      scripts = myPosts;
     } else {
       scripts = [];
     }
@@ -445,12 +491,12 @@ const ScriptVault = () => {
               </h3>
               <div className="flex items-center gap-2 mb-3">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  isWritten ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                  isWritten ? getBoardTypeColor(post.boardType) : 'bg-blue-100 text-blue-700'
                 }`}>
-                  {post.category}
+                  {isWritten ? getBoardTypeName(post.boardType) : (post.category || '일반')}
                 </span>
                 <span className="text-xs text-gray-500">
-                  {post.boardName}
+                  {isWritten ? getBoardTypeName(post.boardType) : (post.boardName || '게시판')}
                 </span>
               </div>
             </div>
@@ -471,15 +517,15 @@ const ScriptVault = () => {
             <div className="flex items-center gap-3">
               <span className="flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
-                {post.views}
+                {post.views || 0}
               </span>
               <span className="flex items-center">
                 <Heart className="w-3 h-3 mr-1" />
-                {post.likes}
+                {post.likes || 0}
               </span>
               <span className="flex items-center">
                 <MessageCircle className="w-3 h-3 mr-1" />
-                {post.comments}
+                {post.comments || 0}
               </span>
             </div>
             <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
@@ -488,7 +534,7 @@ const ScriptVault = () => {
           {/* 작성자 정보 */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              작성자: {post.author}
+              작성자: {post.userId?.email || post.author || '익명'}
             </span>
             {!isWritten && post.savedAt && (
               <span className="text-xs text-gray-400">
@@ -557,7 +603,7 @@ const ScriptVault = () => {
                   <Bookmark className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">저장한 글</span>
                   <span className="sm:hidden">저장글</span>
-                  <span className="ml-1">({getSavedPosts().length})</span>
+                  <span className="ml-1">({mySavedPosts.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('written')}
@@ -570,7 +616,7 @@ const ScriptVault = () => {
                   <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">내가 작성한 글</span>
                   <span className="sm:hidden">작성글</span>
-                  <span className="ml-1">({getMyPosts().length})</span>
+                  <span className="ml-1">({myPosts.length})</span>
                 </button>
               </div>
 

@@ -240,11 +240,15 @@ router.post('/', auth, upload.array('images', 7), async (req, res) => {
         files: req.files.map(f => ({ filename: f.filename, size: f.size, path: f.path }))
       });
       
-      profileData.images = req.files.map(file => ({
-        url: `/uploads/profiles/${file.filename}`,
-        filename: file.filename,
-        size: file.size
-      }));
+      const baseUrl = process.env.NODE_ENV === 'production' 
+  ? 'https://actscript-1.onrender.com' 
+  : `${req.protocol}://${req.get('host')}`;
+
+profileData.images = req.files.map(file => ({
+  url: `${baseUrl}/uploads/profiles/${file.filename}`,
+  filename: file.filename,
+  size: file.size
+}));
       
       console.log('✅ [actor-profiles] 이미지 URL 생성 완료:', profileData.images);
     } else {
@@ -329,11 +333,15 @@ router.put('/:id', auth, upload.array('images', 7), async (req, res) => {
 
     // 새 이미지 처리
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => ({
-        url: `/uploads/profiles/${file.filename}`,
-        filename: file.filename,
-        size: file.size
-      }));
+      const baseUrl = process.env.NODE_ENV === 'production' 
+  ? 'https://actscript-1.onrender.com' 
+  : `${req.protocol}://${req.get('host')}`;
+
+const newImages = req.files.map(file => ({
+  url: `${baseUrl}/uploads/profiles/${file.filename}`,
+  filename: file.filename,
+  size: file.size
+}));
       
       // 기존 이미지와 합치기 (최대 7개)
       updateData.images = [...(profile.images || []), ...newImages].slice(0, 7);

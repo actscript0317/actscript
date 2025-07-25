@@ -93,6 +93,12 @@ app.use(helmet({
         "https://accounts.google.com",
         "https://apis.google.com"
       ],
+      scriptSrcElem: [
+        "'self'", 
+        "'unsafe-inline'",
+        "https://accounts.google.com",
+        "https://apis.google.com"
+      ],
       styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"], // blob: 추가
       connectSrc: [

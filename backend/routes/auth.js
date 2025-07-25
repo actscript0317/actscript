@@ -1009,4 +1009,122 @@ router.get('/verification-status', protect, async (req, res) => {
   }
 });
 
+// 회원가입용 이메일 인증 코드 요청
+router.post('/request-verification-code', [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('올바른 이메일 형식을 입력해주세요.')
+], async (req, res) => {
+  try {
+    debug('이메일 인증 코드 요청 시작');
+
+    // 유효성 검사
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      debug('유효성 검사 실패', { errors: errors.array() });
+      return res.status(400).json({
+        success: false,
+        message: errors.array()[0].msg,
+        errors: errors.array()
+      });
+    }
+
+    const { email } = req.body;
+    debug('이메일 인증 코드 요청', { email });
+
+    // 기존 사용자 확인
+    const existingUser = await User.findOne({ email, isEmailVerified: true });
+    if (existingUser) {
+      debug('이미 인증된 이메일', { email });
+      return res.status(400).json({
+        success: false,
+        message: '이미 사용중인 이메일입니다.'
+      });
+    }
+
+    // 임시 사용자 찾기 또는 생성
+    let tempUser = await User.findOne({ email, isEmailVerified: false });
+    
+    if (!tempUser) {
+      debug('새 임시 사용자 생성', { email });
+      tempUser = new User({
+        email,
+        isEmailVerified: false
+      });
+    }
+
+    // 인증 코드 생성
+    const verificationCode = tempUser.generateEmailVerificationCode();
+    debug('인증 코드 생성 완료');
+
+    // 사용자 저장
+    await tempUser.save();
+    debug('임시 사용자 저장 완료');
+
+    // 이메일 발송
+    const emailHtml = `
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #4F46E5; margin: 0;">ActScript</h1>
+          <p style="color: #666; margin: 5px 0;">연기 대본 라이브러리</p>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 10px; text-align: center;">
+          <h2 style="color: #333; margin-bottom: 20px;">이메일 인증 코드</h2>
+          <p style="color: #666; margin-bottom: 30px;">
+            회원가입을 완료하기 위해 아래 인증 코드를 입력해주세요.
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <div style="font-size: 32px; font-weight: bold; color: #4F46E5; letter-spacing: 5px; font-family: 'Courier New', monospace;">
+              ${verificationCode}
+            </div>
+          </div>
+          
+          <p style="color: #999; font-size: 14px; margin-top: 30px;">
+            이 코드는 10분 후에 만료됩니다.<br>
+            만약 회원가입을 요청하지 않으셨다면, 이 이메일을 무시하세요.
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+          <p style="color: #999; font-size: 12px;">
+            © 2024 ActScript. All rights reserved.
+          </p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail({
+      email,
+      subject: '[ActScript] 회원가입 인증 코드',
+      html: emailHtml
+    });
+
+    debug('인증 코드 이메일 발송 완료', { email });
+
+    res.status(200).json({
+      success: true,
+      message: '인증 코드가 이메일로 전송되었습니다.',
+      data: {
+        email,
+        expiresIn: '10분'
+      }
+    });
+
+  } catch (error) {
+    debug('이메일 인증 코드 요청 실패', { 
+      error: error.message,
+      stack: error.stack 
+    });
+    console.error('인증 코드 요청 에러:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
 module.exports = router; 

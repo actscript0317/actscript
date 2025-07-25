@@ -24,8 +24,16 @@ const GoogleSignup = ({ onSuccess, onError }) => {
     const initializeGoogleSignIn = () => {
       if (!window.google) return;
 
+      const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      
+      if (!clientId) {
+        console.error('Google Client ID가 설정되지 않았습니다.');
+        // 프로덕션에서는 일시적으로 비활성화 상태로 유지
+        return;
+      }
+
       window.google.accounts.id.initialize({
-        client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+        client_id: clientId,
         callback: handleGoogleResponse,
         auto_select: false,
         cancel_on_tap_outside: true,

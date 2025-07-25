@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
+const TempUser = require('../models/TempUser');
 const { protect } = require('../middleware/auth');
 const config = require('../config/env');
 const sendEmail = require('../utils/sendEmail');
@@ -12,6 +13,11 @@ const router = express.Router();
 
 // Google OAuth 클라이언트 설정
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Google Client ID 확인
+if (!process.env.GOOGLE_CLIENT_ID) {
+  console.warn('⚠️ GOOGLE_CLIENT_ID 환경변수가 설정되지 않았습니다. Google 로그인이 비활성화됩니다.');
+}
 
 // 디버그 로그 유틸리티
 const debug = (message, data = {}) => {
@@ -86,10 +92,7 @@ router.post('/register', [
     debug('회원가입 완료 요청', { email, username, name });
 
     // 임시 사용자 찾기 및 인증 코드 검증
-    const tempUser = await User.findOne({ 
-      email: email.toLowerCase(), 
-      isEmailVerified: false 
-    }).select('+emailVerificationCode +emailVerificationCodeExpire');
+    const tempUser = await TempUser.findOne({ email: email.toLowerCase() });
 
     if (!tempUser) {
       debug('임시 사용자를 찾을 수 없음', { email });
@@ -121,18 +124,23 @@ router.post('/register', [
       });
     }
 
-    // 임시 사용자를 정규 사용자로 업데이트
-    tempUser.username = username.toLowerCase();
-    tempUser.password = password;
-    tempUser.name = name;
-    tempUser.isEmailVerified = true;
-    tempUser.emailVerificationCode = undefined;
-    tempUser.emailVerificationCodeExpire = undefined;
-    tempUser.isActive = true;
-    tempUser.role = 'user';
+    // 새 사용자 생성
+    const newUser = new User({
+      email: email.toLowerCase(),
+      username: username.toLowerCase(), 
+      password,
+      name,
+      isEmailVerified: true,
+      isActive: true,
+      role: 'user'
+    });
 
-    const savedUser = await tempUser.save();
-    debug('사용자 업데이트 완료', { userId: savedUser._id });
+    const savedUser = await newUser.save();
+    debug('새 사용자 생성 완료', { userId: savedUser._id });
+
+    // 임시 사용자 정보 삭제
+    await TempUser.deleteOne({ email: email.toLowerCase() });
+    debug('임시 사용자 정보 삭제 완료');
 
     // JWT 토큰 생성
     const token = savedUser.getSignedJwtToken();
@@ -270,12 +278,20 @@ router.post('/login', [
 
 // Google 로그인
 router.post('/google', [
-  body('token')
+  body('credential')
     .notEmpty()
-    .withMessage('Google 토큰이 필요합니다.')
+    .withMessage('Google credential이 필요합니다.')
 ], async (req, res) => {
   try {
     debug('Google 로그인 시도', { ip: req.ip });
+
+    // Google Client ID 설정 확인
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.status(503).json({
+        success: false,
+        message: 'Google 로그인이 현재 사용할 수 없습니다.'
+      });
+    }
 
     // 유효성 검사
     const errors = validationResult(req);
@@ -287,12 +303,12 @@ router.post('/google', [
       });
     }
 
-    const { token } = req.body;
+    const { credential } = req.body; // Google Sign-In에서는 credential을 사용
 
     // Google 토큰 검증
     debug('Google 토큰 검증 중');
     const ticket = await googleClient.verifyIdToken({
-      idToken: token,
+      idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
     });
 
@@ -982,16 +998,11 @@ router.post('/request-verification-code', [
     }
 
     // 임시 사용자 찾기 또는 생성
-    let tempUser = await User.findOne({ email, isEmailVerified: false });
+    let tempUser = await TempUser.findOne({ email });
     
     if (!tempUser) {
       debug('새 임시 사용자 생성', { email });
-      tempUser = new User({
-        email,
-        username: `temp_${Date.now()}`, // 임시 사용자명
-        name: `임시사용자_${Date.now()}`, // 임시 이름
-        isEmailVerified: false
-      });
+      tempUser = new TempUser({ email });
     }
 
     // 인증 코드 생성
@@ -1068,13 +1079,25 @@ router.post('/request-verification-code', [
   } catch (error) {
     debug('이메일 인증 코드 요청 실패', { 
       error: error.message,
-      stack: error.stack 
+      stack: error.stack,
+      name: error.name,
+      code: error.code
     });
-    console.error('인증 코드 요청 에러:', error);
+    console.error('인증 코드 요청 상세 에러:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      mongooseConnectionState: mongoose.connection.readyState
+    });
     
     res.status(500).json({
       success: false,
-      message: '서버 오류가 발생했습니다.'
+      message: '서버 오류가 발생했습니다.',
+      ...(process.env.NODE_ENV !== 'production' && { 
+        error: error.message,
+        stack: error.stack 
+      })
     });
   }
 });

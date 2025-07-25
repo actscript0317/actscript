@@ -13,6 +13,7 @@ import AIScript from './pages/AIScript';
 import ScriptVault from './pages/ScriptVault';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import GoogleRegister from './pages/GoogleRegister';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
@@ -86,6 +87,11 @@ function App() {
               <Route path="/register" element={
                 <PublicRoute>
                   <Register />
+                </PublicRoute>
+              } />
+              <Route path="/google-register" element={
+                <PublicRoute>
+                  <GoogleRegister />
                 </PublicRoute>
               } />
               <Route path="/forgot-password" element={

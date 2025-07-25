@@ -988,6 +988,8 @@ router.post('/request-verification-code', [
       debug('새 임시 사용자 생성', { email });
       tempUser = new User({
         email,
+        username: `temp_${Date.now()}`, // 임시 사용자명
+        name: `임시사용자_${Date.now()}`, // 임시 이름
         isEmailVerified: false
       });
     }

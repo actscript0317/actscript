@@ -113,8 +113,7 @@ router.post('/register', [
 
     // 사용자명 중복 확인
     const existingUsername = await User.findOne({ 
-      username: username.toLowerCase(),
-      isEmailVerified: true 
+      username: username.toLowerCase()
     });
     if (existingUsername) {
       debug('사용자명 중복', { username });
@@ -125,6 +124,12 @@ router.post('/register', [
     }
 
     // 새 사용자 생성
+    debug('새 사용자 생성 시작', {
+      email: email.toLowerCase(),
+      username: username.toLowerCase(),
+      name
+    });
+    
     const newUser = new User({
       email: email.toLowerCase(),
       username: username.toLowerCase(), 
@@ -135,8 +140,9 @@ router.post('/register', [
       role: 'user'
     });
 
+    debug('User 객체 생성 완료, 저장 시작');
     const savedUser = await newUser.save();
-    debug('새 사용자 생성 완료', { userId: savedUser._id });
+    debug('새 사용자 저장 완료', { userId: savedUser._id });
 
     // 임시 사용자 정보 삭제
     await TempUser.deleteOne({ email: email.toLowerCase() });
@@ -157,13 +163,49 @@ router.post('/register', [
   } catch (error) {
     debug('3단계 회원가입 완료 실패', { 
       error: error.message,
-      stack: error.stack 
+      stack: error.stack,
+      name: error.name,
+      code: error.code
     });
-    console.error('회원가입 완료 에러:', error);
+    console.error('회원가입 완료 상세 에러:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      mongooseConnectionState: mongoose.connection.readyState,
+      requestData: {
+        email: req.body.email,
+        username: req.body.username,
+        name: req.body.name
+      }
+    });
+    
+    // MongoDB 중복 키 에러 처리
+    if (error.name === 'MongoServerError' && error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const message = field === 'email' ? '이미 사용 중인 이메일입니다.' : '이미 사용 중인 사용자명입니다.';
+      return res.status(400).json({
+        success: false,
+        message
+      });
+    }
+    
+    // Mongoose 유효성 검사 에러
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages[0] || '입력 데이터가 올바르지 않습니다.'
+      });
+    }
     
     res.status(500).json({
       success: false,
-      message: '회원가입 중 오류가 발생했습니다.'
+      message: '회원가입 중 오류가 발생했습니다.',
+      ...(process.env.NODE_ENV !== 'production' && { 
+        error: error.message,
+        stack: error.stack 
+      })
     });
   }
 });
@@ -997,12 +1039,14 @@ router.post('/request-verification-code', [
       });
     }
 
-    // 임시 사용자 찾기 또는 생성
+    // 임시 사용자 찾기 또는 생성 (upsert 방식)
     let tempUser = await TempUser.findOne({ email });
     
     if (!tempUser) {
       debug('새 임시 사용자 생성', { email });
       tempUser = new TempUser({ email });
+    } else {
+      debug('기존 임시 사용자 찾음, 코드 갱신', { email });
     }
 
     // 인증 코드 생성
@@ -1072,7 +1116,9 @@ router.post('/request-verification-code', [
       message: '인증 코드가 이메일로 전송되었습니다.',
       data: {
         email,
-        expiresIn: '10분'
+        expiresIn: '10분',
+        // 개발용 - 프로덕션에서는 제거 필요
+        ...(process.env.NODE_ENV !== 'production' && { verificationCode })
       }
     });
 

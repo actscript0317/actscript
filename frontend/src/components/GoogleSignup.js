@@ -26,9 +26,11 @@ const GoogleSignup = ({ onSuccess, onError }) => {
 
       const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
       
+      console.log('Google Client ID 확인:', clientId ? '설정됨' : '설정 안됨');
+      
       if (!clientId) {
         console.error('Google Client ID가 설정되지 않았습니다.');
-        // 프로덕션에서는 일시적으로 비활성화 상태로 유지
+        onError && onError('Google Client ID가 설정되지 않았습니다. 환경변수 REACT_APP_GOOGLE_CLIENT_ID를 확인해주세요.');
         return;
       }
 

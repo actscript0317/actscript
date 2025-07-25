@@ -42,6 +42,8 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   'https://actscript-1.onrender.com',  // Render 프론트엔드 도메인 (주요)
   'https://actscript.onrender.com',    // 대체 도메인 (혹시 다른 배포)
+  'https://www.actpiece.com',          // 실제 도메인
+  'https://actpiece.com',              // 실제 도메인 (www 없이)
   'http://localhost:3000',             // 로컬 개발용
   'http://localhost:5000'              // 로컬 개발용 대체 포트
 ];
@@ -49,19 +51,18 @@ const allowedOrigins = [
 const corsOptions = {
   origin: function(origin, callback) {
     console.log('🔍 CORS 요청 origin:', origin);
-    // 임시로 모든 origin 허용 (디버깅용)
-    console.log('✅ CORS 허용됨 (임시 - 모든 origin):', origin);
-    callback(null, true);
     
-    // 원래 로직 (주석 처리)
-    // if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-    //   console.log('✅ CORS 허용됨:', origin);
-    //   callback(null, true);
-    // } else {
-    //   console.warn('⚠️ CORS 정책으로 인해 차단된 요청:', origin);
-    //   console.log('허용된 origins:', allowedOrigins);
-    //   callback(new Error('Not allowed by CORS'));
-    // }
+    // 실제 허용된 origin 확인
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS 허용됨:', origin);
+      callback(null, true);
+    } else {
+      console.warn('⚠️ CORS 정책으로 인해 차단된 요청:', origin);
+      console.log('허용된 origins:', allowedOrigins);
+      // 임시로 허용 (프로덕션에서는 제거 필요)
+      console.log('🚧 임시로 허용합니다.');
+      callback(null, true);
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -90,6 +91,12 @@ app.use(helmet({
         "'self'", 
         "'unsafe-inline'", 
         "'unsafe-eval'",
+        "https://accounts.google.com",
+        "https://www.gstatic.com"
+      ],
+      scriptSrcElem: [
+        "'self'", 
+        "'unsafe-inline'",
         "https://accounts.google.com",
         "https://www.gstatic.com"
       ],

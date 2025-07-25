@@ -30,18 +30,21 @@ const getCookieOptions = () => ({
   sameSite: 'lax'
 });
 
-// 회원가입
+// 3단계 회원가입 완료 (이메일 인증 후)
 router.post('/register', [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('올바른 이메일 형식을 입력해주세요.'),
+  body('verificationCode')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('인증 코드는 6자리여야 합니다.'),
   body('username')
     .trim()
     .isLength({ min: 3, max: 20 })
     .withMessage('사용자명은 3-20자 사이여야 합니다.')
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage('사용자명은 영문, 숫자, 언더스코어만 사용 가능합니다.'),
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('올바른 이메일 형식을 입력해주세요.'),
   body('password')
     .isLength({ min: 8 })
     .withMessage('비밀번호는 최소 8자 이상이어야 합니다.')
@@ -65,159 +68,94 @@ router.post('/register', [
     .isLength({ min: 1, max: 50 })
     .withMessage('이름은 1-50자 사이여야 합니다.')
 ], async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    debug('회원가입 요청 시작', { 
-      body: { ...req.body, password: '[HIDDEN]' },
-      ip: req.ip,
-      userAgent: req.get('user-agent')
-    });
+    debug('3단계 회원가입 완료 요청 시작');
 
-    // MongoDB 연결 상태 확인
-    if (mongoose.connection.readyState !== 1) {
-      throw new Error('데이터베이스 연결이 활성화되지 않았습니다.');
-    }
-    
     // 유효성 검사
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       debug('유효성 검사 실패', { errors: errors.array() });
       return res.status(400).json({
         success: false,
-        message: '입력 데이터에 오류가 있습니다.',
+        message: errors.array()[0].msg,
         errors: errors.array()
       });
     }
 
-    const { username, email, password, name } = req.body;
+    const { email, verificationCode, username, password, name } = req.body;
+    debug('회원가입 완료 요청', { email, username, name });
 
-    // 중복 확인
-    debug('사용자 중복 확인');
-    const existingUser = await User.findOne({
-      $or: [
-        { username: username.toLowerCase() },
-        { email: email.toLowerCase() }
-      ]
-    }).session(session);
+    // 임시 사용자 찾기 및 인증 코드 검증
+    const tempUser = await User.findOne({ 
+      email: email.toLowerCase(), 
+      isEmailVerified: false 
+    }).select('+emailVerificationCode +emailVerificationCodeExpire');
 
-    if (existingUser) {
-      debug('중복된 사용자 발견', {
-        existingUsername: existingUser.username === username.toLowerCase(),
-        existingEmail: existingUser.email === email.toLowerCase()
-      });
-      await session.abortTransaction();
-      session.endSession();
+    if (!tempUser) {
+      debug('임시 사용자를 찾을 수 없음', { email });
       return res.status(400).json({
         success: false,
-        message: existingUser.username === username.toLowerCase()
-          ? '이미 사용 중인 사용자명입니다.'
-          : '이미 사용 중인 이메일입니다.'
+        message: '인증 코드가 만료되었거나 유효하지 않습니다.'
       });
     }
 
-    // 사용자 생성
-    debug('새 사용자 생성');
-    const user = new User({
+    // 인증 코드 검증
+    if (!tempUser.verifyEmailCode(verificationCode)) {
+      debug('인증 코드 검증 실패', { email });
+      return res.status(400).json({
+        success: false,
+        message: '인증 코드가 올바르지 않거나 만료되었습니다.'
+      });
+    }
+
+    // 사용자명 중복 확인
+    const existingUsername = await User.findOne({ 
       username: username.toLowerCase(),
-      email: email.toLowerCase(),
-      password,
-      name,
-      isActive: true,
-      role: 'user'
+      isEmailVerified: true 
     });
-
-    // mongoose 유효성 검사
-    debug('mongoose 모델 유효성 검사');
-    const validationError = user.validateSync();
-    if (validationError) {
-      debug('mongoose 유효성 검사 실패', {
-        errors: Object.values(validationError.errors).map(err => ({
-          field: err.path,
-          message: err.message
-        }))
-      });
-      await session.abortTransaction();
-      session.endSession();
+    if (existingUsername) {
+      debug('사용자명 중복', { username });
       return res.status(400).json({
         success: false,
-        message: '입력 데이터가 유효하지 않습니다.',
-        errors: Object.values(validationError.errors).map(err => ({
-          field: err.path,
-          message: err.message
-        }))
+        message: '이미 사용 중인 사용자명입니다.'
       });
     }
 
-    // 사용자 저장
-    debug('사용자 데이터 저장');
-    const savedUser = await user.save({ session });
-    debug('사용자 저장 완료', { userId: savedUser._id });
+    // 임시 사용자를 정규 사용자로 업데이트
+    tempUser.username = username.toLowerCase();
+    tempUser.password = password;
+    tempUser.name = name;
+    tempUser.isEmailVerified = true;
+    tempUser.emailVerificationCode = undefined;
+    tempUser.emailVerificationCodeExpire = undefined;
+    tempUser.isActive = true;
+    tempUser.role = 'user';
+
+    const savedUser = await tempUser.save();
+    debug('사용자 업데이트 완료', { userId: savedUser._id });
 
     // JWT 토큰 생성
-    debug('JWT 토큰 생성');
     const token = savedUser.getSignedJwtToken();
 
-    // 트랜잭션 커밋
-    await session.commitTransaction();
-    session.endSession();
+    debug('3단계 회원가입 완료', { userId: savedUser._id });
 
-    debug('회원가입 완료', { userId: savedUser._id });
-
-    // 응답 전송
-    res.status(201)
-      .cookie('token', token, getCookieOptions())
-      .json({
-        success: true,
-        message: '회원가입이 완료되었습니다.',
-        token,
-        user: savedUser.toSafeObject()
-      });
-
-  } catch (error) {
-    debug('회원가입 처리 중 에러', { 
-      error: error.message,
-      stack: error.stack
+    res.status(201).json({
+      success: true,
+      message: '회원가입이 완료되었습니다.',
+      token,
+      user: savedUser.toSafeObject()
     });
 
-    // 트랜잭션 롤백
-    await session.abortTransaction();
-    session.endSession();
-
-    // mongoose 유효성 검사 에러
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: '입력 데이터가 유효하지 않습니다.',
-        errors: Object.values(error.errors).map(err => ({
-          field: err.path,
-          message: err.message
-        }))
-      });
-    }
+  } catch (error) {
+    debug('3단계 회원가입 완료 실패', { 
+      error: error.message,
+      stack: error.stack 
+    });
+    console.error('회원가입 완료 에러:', error);
     
-    // MongoDB 중복 키 에러
-    if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      return res.status(400).json({
-        success: false,
-        message: `이미 사용 중인 ${field === 'username' ? '사용자명' : '이메일'}입니다.`
-      });
-    }
-
-    // 데이터베이스 연결 에러
-    if (error.message.includes('데이터베이스 연결')) {
-      return res.status(503).json({
-        success: false,
-        message: '데이터베이스 연결 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-      });
-    }
-
     res.status(500).json({
       success: false,
-      message: '회원가입 중 오류가 발생했습니다.',
-      error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
+      message: '회원가입 중 오류가 발생했습니다.'
     });
   }
 });

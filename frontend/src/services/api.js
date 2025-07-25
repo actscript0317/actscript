@@ -243,6 +243,8 @@ export const emotionAPI = {
 
 // 인증 API
 export const authAPI = {
+  // 이메일 인증 코드 요청
+  requestVerificationCode: (data) => withRetry(() => api.post('/auth/request-verification-code', data)),
   // 회원가입
   register: (data) => withRetry(() => api.post('/auth/register', data)),
   // 로그인

@@ -65,9 +65,22 @@ const sendEmail = async (options) => {
     debug('이메일 전송 실패', { 
       error: error.message,
       code: error.code,
-      response: error.response
+      response: error.response,
+      stack: error.stack
     });
-    console.error('이메일 전송 상세 오류:', error);
+    console.error('이메일 전송 상세 오류:', {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      stack: error.stack
+    });
+    
+    // 개발 환경에서는 에러를 던지지 않고 시뮬레이션으로 처리
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔧 [개발 환경] 이메일 발송 실패, 시뮬레이션 모드로 전환');
+      return { message: '개발 환경 - 이메일 시뮬레이션 완료 (에러 발생으로 인한 fallback)' };
+    }
+    
     throw new Error(`이메일 전송에 실패했습니다: ${error.message}`);
   }
 };

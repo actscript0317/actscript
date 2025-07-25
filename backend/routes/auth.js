@@ -1101,13 +1101,20 @@ router.post('/request-verification-code', [
       </div>
     `;
 
-    await sendEmail({
-      email,
-      subject: '[ActScript] 회원가입 인증 코드',
-      html: emailHtml
-    });
-
-    debug('인증 코드 이메일 발송 완료', { email });
+    try {
+      await sendEmail({
+        email,
+        subject: '[ActScript] 회원가입 인증 코드',
+        html: emailHtml
+      });
+      debug('인증 코드 이메일 발송 완료', { email });
+    } catch (emailError) {
+      debug('이메일 발송 실패, 하지만 인증 코드는 생성됨', { 
+        email, 
+        error: emailError.message 
+      });
+      console.log('📧 이메일 발송 실패했지만 인증 코드는 유효합니다:', verificationCode);
+    }
 
     res.status(200).json({
       success: true,

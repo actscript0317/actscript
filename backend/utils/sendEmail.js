@@ -1,4 +1,5 @@
-const nodemailer = require('nodemailer');
+const Mailgun = require('mailgun.js');
+const FormData = require('form-data');
 const config = require('../config/env');
 
 // 디버그 로그 유틸리티
@@ -15,61 +16,55 @@ const sendEmail = async (options) => {
       subject: options.subject
     });
 
-    // Gmail SMTP 설정 (기본)
-    const transporter = nodemailer.createTransporter({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_FROM || 'your-email@gmail.com',
-        pass: process.env.EMAIL_PASSWORD || 'your-app-password'
-      }
-    });
+    // Mailgun 설정 (환경변수에서만 가져옴)
+    const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
+    const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'actpiece.com';
+    const FROM_EMAIL = process.env.EMAIL_FROM || 'ActScript <noreply@actpiece.com>';
 
-    // 개발 환경에서는 Ethereal Email 사용 (테스트용)
-    if (config.NODE_ENV === 'development' && !process.env.EMAIL_FROM) {
-      debug('개발 환경: Ethereal Email 사용');
-      
-      const testAccount = await nodemailer.createTestAccount();
-      
-      const devTransporter = nodemailer.createTransporter({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass
-        }
-      });
-
-      const message = {
-        from: `ActScript <${testAccount.user}>`,
-        to: options.email,
-        subject: options.subject,
-        html: options.html
-      };
-
-      const info = await devTransporter.sendMail(message);
-      debug('개발용 이메일 전송 완료', {
-        messageId: info.messageId,
-        previewURL: nodemailer.getTestMessageUrl(info)
-      });
-      
-      console.log('📧 테스트 이메일 미리보기:', nodemailer.getTestMessageUrl(info));
-      return;
+    if (!MAILGUN_API_KEY) {
+      throw new Error('MAILGUN_API_KEY 환경변수가 설정되지 않았습니다.');
     }
 
-    // 프로덕션 환경에서 Gmail 사용
-    const message = {
-      from: `ActScript <${process.env.EMAIL_FROM}>`,
-      to: options.email,
+    // Mailgun 클라이언트 초기화
+    const mailgun = new Mailgun(FormData);
+    const mg = mailgun.client({
+      username: 'api',
+      key: MAILGUN_API_KEY,
+      url: 'https://api.mailgun.net'
+    });
+
+    // 이메일 전송 데이터
+    const messageData = {
+      from: FROM_EMAIL,
+      to: [options.email],
       subject: options.subject,
       html: options.html
     };
 
-    const info = await transporter.sendMail(message);
-    debug('이메일 전송 완료', { messageId: info.messageId });
+    debug('Mailgun으로 이메일 전송 시도', {
+      domain: MAILGUN_DOMAIN,
+      to: options.email,
+      from: FROM_EMAIL
+    });
+
+    // Mailgun을 통해 이메일 전송
+    const result = await mg.messages.create(MAILGUN_DOMAIN, messageData);
+    
+    debug('이메일 전송 완료', { 
+      messageId: result.id,
+      message: result.message 
+    });
+
+    console.log('✅ Mailgun 이메일 전송 성공:', result.message);
+    return result;
 
   } catch (error) {
-    debug('이메일 전송 실패', { error: error.message });
+    debug('이메일 전송 실패', { 
+      error: error.message,
+      code: error.code,
+      response: error.response
+    });
+    console.error('이메일 전송 상세 오류:', error);
     throw new Error(`이메일 전송에 실패했습니다: ${error.message}`);
   }
 };

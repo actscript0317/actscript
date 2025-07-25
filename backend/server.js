@@ -82,43 +82,53 @@ connectDB().then(() => {
 });
 
 // 미들웨어 설정
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'", 
-        "'unsafe-inline'", 
-        "'unsafe-eval'",
-        "https://accounts.google.com",
-        "https://apis.google.com"
-      ],
-      scriptSrcElem: [
-        "'self'", 
-        "'unsafe-inline'",
-        "https://accounts.google.com",
-        "https://apis.google.com"
-      ],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"], // blob: 추가
-      connectSrc: [
-        "'self'",
-        "https://actscript.onrender.com",
-        "https://actscript-1.onrender.com",
-        "http://localhost:10000",
-        "http://localhost:3000",
-        "https://accounts.google.com",
-        "https://oauth2.googleapis.com"
-      ],
-      fontSrc: ["'self'", "https:", "data:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'", "blob:"], // blob: 추가
-      frameSrc: ["'self'", "https://accounts.google.com"],
+if (config.NODE_ENV === 'production') {
+  // 프로덕션에서만 CSP 적용
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'", 
+          "'unsafe-inline'", 
+          "'unsafe-eval'",
+          "https://accounts.google.com",
+          "https://apis.google.com"
+        ],
+        scriptSrcElem: [
+          "'self'", 
+          "'unsafe-inline'",
+          "https://accounts.google.com",
+          "https://apis.google.com"
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        connectSrc: [
+          "'self'",
+          "https://actscript.onrender.com",
+          "https://actscript-1.onrender.com",
+          "http://localhost:10000",
+          "http://localhost:3000",
+          "https://accounts.google.com",
+          "https://oauth2.googleapis.com"
+        ],
+        fontSrc: ["'self'", "https:", "data:"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'", "blob:"],
+        frameSrc: ["'self'", "https://accounts.google.com"],
+      },
     },
-  },
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
-})); // 보안 헤더 설정
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+  }));
+} else {
+  // 개발 환경에서는 기본 helmet만 사용 (CSP 비활성화)
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+  }));
+}
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱

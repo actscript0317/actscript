@@ -1057,6 +1057,11 @@ router.post('/request-verification-code', [
     // 인증 코드 생성
     const verificationCode = tempUser.generateEmailVerificationCode();
     debug('인증 코드 생성 완료');
+    
+    // 개발 환경에서 콘솔에 인증 코드 출력
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`🔐 [개발용] 인증 코드: ${verificationCode} (${email})`);
+    }
 
     // 사용자 저장
     await tempUser.save();

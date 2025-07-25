@@ -22,7 +22,10 @@ const sendEmail = async (options) => {
     const FROM_EMAIL = process.env.EMAIL_FROM || 'ActScript <noreply@actpiece.com>';
 
     if (!MAILGUN_API_KEY) {
-      throw new Error('MAILGUN_API_KEY 환경변수가 설정되지 않았습니다.');
+      debug('MAILGUN_API_KEY 환경변수 누락 - 개발용 이메일 시뮬레이션');
+      console.log('🔐 [개발용] 인증 코드:', options.subject, 'to:', options.email);
+      console.log('📧 실제 이메일은 발송되지 않았습니다 (MAILGUN_API_KEY 누락)');
+      return { message: '개발 환경 - 이메일 시뮬레이션 완료' };
     }
 
     // Mailgun 클라이언트 초기화

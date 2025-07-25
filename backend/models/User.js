@@ -115,6 +115,20 @@ const userSchema = new mongoose.Schema({
   emailVerificationExpire: {
     type: Date,
     select: false
+  },
+  // 회원가입용 이메일 인증 코드
+  emailVerificationCode: {
+    type: String,
+    select: false
+  },
+  emailVerificationCodeExpire: {
+    type: Date,
+    select: false
+  },
+  // 임시 사용자 데이터 (인증 완료 전)
+  tempUserData: {
+    type: Object,
+    select: false
   }
 }, {
   timestamps: true,
@@ -375,6 +389,44 @@ userSchema.methods.getEmailVerificationToken = function() {
   this.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000;
   
   return verificationToken;
+};
+
+// 회원가입용 이메일 인증 코드 생성 (6자리 숫자)
+userSchema.methods.generateEmailVerificationCode = function() {
+  // 6자리 랜덤 숫자 생성
+  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // 코드를 해싱해서 저장
+  this.emailVerificationCode = require('crypto')
+    .createHash('sha256')
+    .update(verificationCode)
+    .digest('hex');
+  
+  // 코드 만료시간 설정 (10분)
+  this.emailVerificationCodeExpire = Date.now() + 10 * 60 * 1000;
+  
+  return verificationCode;
+};
+
+// 인증 코드 검증
+userSchema.methods.verifyEmailCode = function(inputCode) {
+  if (!inputCode || !this.emailVerificationCode || !this.emailVerificationCodeExpire) {
+    return false;
+  }
+  
+  // 만료 시간 확인
+  if (Date.now() > this.emailVerificationCodeExpire) {
+    return false;
+  }
+  
+  // 입력된 코드 해싱
+  const hashedInputCode = require('crypto')
+    .createHash('sha256')
+    .update(inputCode)
+    .digest('hex');
+  
+  // 저장된 코드와 비교
+  return hashedInputCode === this.emailVerificationCode;
 };
 
 // 인덱스 생성

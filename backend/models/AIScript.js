@@ -35,9 +35,6 @@ const aiScriptSchema = new mongoose.Schema({
   style: {
     type: String
   },
-  location: {
-    type: String
-  },
   // 사용자 정보
   userId: {
     type: mongoose.Schema.Types.ObjectId,

@@ -65,7 +65,7 @@ router.post('/generate', protect, async (req, res) => {
     
     console.log('✅ OpenAI 클라이언트 초기화 완료');
 
-    const { characterCount, genre, length, location, gender } = req.body;
+    const { characterCount, genre, length, gender } = req.body;
 
     // 입력값 검증
     if (!characterCount || !genre || !length || !gender) {
@@ -93,8 +93,6 @@ router.post('/generate', protect, async (req, res) => {
     
     const genderText = genderMap[gender] || gender;
     
-    const locationText = location?.trim() ? location : "자유롭게 설정";
-
     // 장르별 지시사항
     const genreDirectives = {
       '로맨스': 'Focus on tender emotions, heart-fluttering moments, and sincere dialogue.',
@@ -123,22 +121,6 @@ router.post('/generate', protect, async (req, res) => {
     
     const characterDirectives = characterDirectivesMap[characterCount] || 'Structure dialogue appropriate for the number of characters.';
 
-    // 장소별 지시사항
-    const locationDirective = (() => {
-      const locationMap = {
-        '카페': 'Describe to feel the cafe atmosphere and ambient noise.',
-        '병원': 'Reflect the quiet and tense atmosphere of a hospital.',
-        '거리': 'Express outdoor atmosphere with car sounds, footsteps, etc.',
-        '경찰서': 'Reflect the rigid atmosphere and speech patterns of police/suspects.',
-        '학교': 'Naturally incorporate students\' daily life and classroom atmosphere.',
-        '집': 'Include the private atmosphere of home and small details.',
-        '사무실': 'Reflect professional workplace atmosphere and formal speech.',
-        '공원': 'Include natural outdoor setting with peaceful or lively atmosphere.',
-        '버스': 'Show confined space with background noise and passenger interactions.',
-        '지하철': 'Reflect urban transit atmosphere with announcements and crowd sounds.'
-      };
-      return locationMap[location] || `Include atmospheric descriptions suitable for ${location} setting.`;
-    })();
 
     // OpenAI에 보낼 프롬프트 생성
     const prompt = `당신은 한국에서 활동하는 전문 독백 작가입니다.
@@ -148,7 +130,6 @@ router.post('/generate', protect, async (req, res) => {
 **작성 조건:**
 - 장르: ${genre}  
 - 분량: ${lengthText}
-- 배경: ${locationText}
 - 성별: ${genderText}
 
 —
@@ -244,7 +225,6 @@ ${characterDirectives}
       genre,
       length,
       gender,
-      location: location || '',
       metadata: {
         model: "gpt-4o",
         generateTime: new Date(),
@@ -266,7 +246,6 @@ ${characterDirectives}
         genre,
         gender: genderText,
         length: lengthText,
-        location: locationText,
         generatedAt: new Date().toISOString()
       }
     });

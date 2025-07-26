@@ -12,7 +12,6 @@ import {
   RefreshCw,
   ChevronDown,
   X,
-  MapPin,
   Film,
   ArrowRight,
   Check,
@@ -33,7 +32,6 @@ const AIScript = () => {
     characterCount: '1',
     genre: '',
     length: '',
-    location: '',
     gender: ''
   });
 
@@ -42,7 +40,6 @@ const AIScript = () => {
   const [generatedScriptId, setGeneratedScriptId] = useState(null); // MongoDB에 저장된 스크립트 ID
   const [error, setError] = useState('');
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
-  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   
   // 리라이팅 관련 상태
   const [selectedText, setSelectedText] = useState('');
@@ -74,9 +71,6 @@ const AIScript = () => {
     { value: 'long', label: '길게', time: '5~10분', icon: '📝' }
   ];
 
-  const locations = [
-    '병원', '카페', '거리', '경찰서', '학교', '집', '사무실', '공원', '버스', '지하철'
-  ];
 
   const genders = [
     { value: 'male', label: '남자', icon: '👨' },
@@ -343,7 +337,6 @@ const AIScript = () => {
         characterCount: formData.characterCount,
         genre: formData.genre,
         length: formData.length,
-        location: formData.location,
         gender: formData.gender
       });
 
@@ -580,21 +573,6 @@ const AIScript = () => {
                 </div>
               </div>
 
-              {/* 배경 장소 */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <MapPin className="w-6 h-6 mr-3 text-purple-500" />
-                  배경 장소 <span className="text-sm text-gray-500 ml-2">(선택사항)</span>
-                </label>
-                <Dropdown
-                  options={locations}
-                  value={formData.location}
-                  onChange={(value) => handleInputChange('location', value)}
-                  placeholder="장소를 선택하세요"
-                  isOpen={showLocationDropdown}
-                  setIsOpen={setShowLocationDropdown}
-                />
-              </div>
 
               {/* 생성 버튼 */}
               <div className="pt-6">
@@ -689,11 +667,6 @@ const AIScript = () => {
                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
                         {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
                       </span>
-                      {formData.location && (
-                        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
-                          {formData.location}
-                        </span>
-                      )}
                     </div>
                   </div>
                   
@@ -988,11 +961,6 @@ const AIScript = () => {
                           <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
                             {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
                           </span>
-                          {formData.location && (
-                            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
-                              {formData.location}
-                            </span>
-                          )}
                         </div>
                         <button
                           onClick={() => setShowDetailModal(false)}

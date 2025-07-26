@@ -82,9 +82,58 @@ connectDB().then(() => {
   process.exit(1);
 });
 
-// 미들웨어 설정 - 임시로 CSP 완전 비활성화 (Google OAuth 문제 해결용)
+// 미들웨어 설정 - CSP 설정으로 Google OAuth 허용
 app.use(helmet({
-  contentSecurityPolicy: false, // 완전 비활성화
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'", // React 개발 환경용
+        "'unsafe-eval'", // React 개발 환경용
+        "https://accounts.google.com",
+        "https://apis.google.com",
+        "https://www.gstatic.com"
+      ],
+      scriptSrcElem: [
+        "'self'",
+        "https://accounts.google.com",
+        "https://apis.google.com",
+        "https://www.gstatic.com"
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://accounts.google.com",
+        "https://www.gstatic.com"
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "https://www.gstatic.com"
+      ],
+      imgSrc: [
+        "'self'", 
+        "data:", 
+        "blob:",
+        "https:",
+        "http:"
+      ],
+      connectSrc: [
+        "'self'",
+        "https://accounts.google.com",
+        "https://apis.google.com",
+        "https://www.googleapis.com"
+      ],
+      frameSrc: [
+        "'self'",
+        "https://accounts.google.com",
+        "https://www.google.com"
+      ],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: config.NODE_ENV === 'production' ? [] : null
+    }
+  },
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
@@ -287,25 +336,24 @@ app.use((req, res, next) => {
   next();
 });
 
-// 기본 라우트
-app.get('/', (req, res) => {
-  // User-Agent 확인
-  const userAgent = req.get('user-agent');
+// 프로덕션 환경에서 React 앱 제공 설정
+if (config.NODE_ENV === 'production') {
+  const frontendBuildPath = path.join(__dirname, '../frontend/build');
   
-  // Render의 헬스 체크 요청인 경우
-  if (userAgent && (userAgent.includes('Go-http-client') || userAgent.includes('render'))) {
-    return res.status(200).json({
-      status: 'healthy',
-      timestamp: new Date().toISOString()
-    });
-  }
+  // React 앱의 빌드된 정적 파일들 제공
+  app.use(express.static(frontendBuildPath));
+  
+  console.log('🎯 [프로덕션] React 빌드 파일 제공:', frontendBuildPath);
+}
 
-  // 일반 요청인 경우
+// 기본 라우트 (API 전용)
+app.get('/api', (req, res) => {
   res.json({
     message: '연기 대본 라이브러리 API',
     version: '1.0.0',
     environment: config.NODE_ENV,
     status: 'running',
+    timestamp: new Date().toISOString(),
     endpoints: {
       auth: '/api/auth',
       scripts: '/api/scripts',
@@ -315,11 +363,67 @@ app.get('/', (req, res) => {
   });
 });
 
-// 404 에러 핸들링
-app.use('*', (req, res) => {
-  console.log('❌ 404 에러:', req.originalUrl);
+// 헬스 체크 라우트
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: config.NODE_ENV
+  });
+});
+
+// SPA 라우팅을 위한 catch-all 핸들러 (모든 API가 아닌 요청을 React 앱으로 라우팅)
+app.get('*', (req, res, next) => {
+  // API 요청이나 uploads 요청은 제외
+  if (req.url.startsWith('/api/') || req.url.startsWith('/uploads/')) {
+    return next();
+  }
+  
+  // User-Agent 확인 (Render 헬스 체크)
+  const userAgent = req.get('user-agent');
+  if (userAgent && (userAgent.includes('Go-http-client') || userAgent.includes('render'))) {
+    return res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // 프로덕션 환경에서는 React 앱 제공
+  if (config.NODE_ENV === 'production') {
+    const frontendBuildPath = path.join(__dirname, '../frontend/build');
+    const indexPath = path.join(frontendBuildPath, 'index.html');
+    
+    if (fs.existsSync(indexPath)) {
+      console.log(`🎯 [SPA 라우팅] ${req.url} → React 앱 제공`);
+      return res.sendFile(indexPath);
+    } else {
+      console.log(`❌ [SPA 라우팅] React 빌드 파일 없음: ${indexPath}`);
+    }
+  }
+  
+  // 개발 환경이거나 빌드 파일이 없는 경우 기본 API 응답
+  res.json({
+    message: '연기 대본 라이브러리 API',
+    version: '1.0.0',
+    environment: config.NODE_ENV,
+    status: 'running',
+    note: config.NODE_ENV === 'development' 
+      ? '개발 환경에서는 프론트엔드를 별도로 실행해주세요 (npm run dev)'
+      : 'React 빌드 파일을 찾을 수 없습니다.',
+    endpoints: {
+      auth: '/api/auth',
+      scripts: '/api/scripts',
+      emotions: '/api/emotions',
+      aiScript: '/api/ai-script'
+    }
+  });
+});
+
+// API 404 에러 핸들링 (위의 catch-all에서 처리되지 않은 API 요청들)
+app.use('/api/*', (req, res) => {
+  console.log('❌ API 404 에러:', req.originalUrl);
   res.status(404).json({
-    message: '요청하신 페이지를 찾을 수 없습니다.',
+    message: '요청하신 API 엔드포인트를 찾을 수 없습니다.',
     path: req.originalUrl
   });
 });

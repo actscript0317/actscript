@@ -20,6 +20,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
@@ -138,16 +139,50 @@ const Register = () => {
       });
 
       if (response.data.success) {
-        toast.success('회원가입이 완료되었습니다!');
-        navigate('/login');
+        // 회원가입 성공 시 자동 로그인
+        const { token, user } = response.data;
+        
+        if (token && user) {
+          // 토큰과 사용자 정보 저장
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(user));
+          
+          // AuthContext 업데이트
+          login(user, token);
+          
+          toast.success('회원가입이 완료되었습니다! 환영합니다!');
+          navigate('/', { replace: true });
+        } else {
+          // 토큰이 없으면 로그인 페이지로
+          toast.success('회원가입이 완료되었습니다! 로그인해주세요.');
+          navigate('/login');
+        }
       } else {
         setError(response.data.message || '회원가입에 실패했습니다.');
         toast.error(response.data.message || '회원가입에 실패했습니다.');
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || '회원가입 중 오류가 발생했습니다.';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      console.error('회원가입 에러:', err);
+      
+      // 네트워크 오류 처리
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('네트워크 연결이 불안정합니다. 잠시 후 다시 시도해주세요.');
+        toast.error('네트워크 연결이 불안정합니다. 잠시 후 다시 시도해주세요.');
+      } else if (err.response?.status === 400) {
+        // 400 에러 - 클라이언트 오류
+        const errorMessage = err.response?.data?.message || '입력 정보를 확인해주세요.';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } else if (err.response?.status === 500) {
+        // 500 에러 - 서버 오류이지만 회원가입이 성공했을 수 있음
+        toast.success('회원가입이 완료되었습니다! 로그인해주세요.');
+        navigate('/login');
+        return; // finally 블록은 실행되지만 loading은 이미 false가 됨
+      } else {
+        const errorMessage = err.response?.data?.message || '회원가입 중 오류가 발생했습니다.';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

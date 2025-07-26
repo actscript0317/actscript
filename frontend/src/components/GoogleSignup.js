@@ -13,30 +13,39 @@ const GoogleSignup = ({ onSuccess, onError }) => {
         return;
       }
 
-      // CSP 에러 방지를 위한 대안적 스크립트 로딩
+      // CSP 정책에 맞는 스크립트 로딩
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.crossOrigin = 'anonymous';
+      
+      // CSP 정책에 따라 속성 설정
+      script.setAttribute('crossorigin', 'anonymous');
+      script.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
       
       script.onload = () => {
-        console.log('Google GSI 스크립트 로드 성공');
+        console.log('✅ Google GSI 스크립트 로드 성공');
         initializeGoogleSignIn();
       };
       
       script.onerror = (error) => {
-        console.error('Google GSI 스크립트 로드 실패:', error);
-        onError && onError('Google 로그인 서비스를 불러올 수 없습니다. CSP 정책을 확인해주세요.');
+        console.error('❌ Google GSI 스크립트 로드 실패:', error);
+        console.error('CSP 정책을 확인하거나 서버 재배포가 필요할 수 있습니다.');
+        onError && onError('Google 로그인 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
       };
       
-      // 기존 스크립트가 있으면 제거
+      // 기존 스크립트 정리
       const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
       if (existingScript) {
         existingScript.remove();
+        console.log('🔄 기존 Google GSI 스크립트 제거 후 재로드');
       }
       
+      // 스크립트 추가 전 CSP 확인
+      console.log('🔐 현재 CSP 정책:', document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content || 'CSP 메타 태그 없음');
+      
       document.head.appendChild(script);
+      console.log('📜 Google GSI 스크립트 추가 시도:', script.src);
     };
 
     const initializeGoogleSignIn = () => {

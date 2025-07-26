@@ -82,61 +82,81 @@ connectDB().then(() => {
   process.exit(1);
 });
 
-// 미들웨어 설정 - CSP 설정으로 Google OAuth 허용
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'",
-        "'unsafe-inline'", // React 개발 환경용
-        "'unsafe-eval'", // React 개발 환경용
-        "https://accounts.google.com",
-        "https://apis.google.com",
-        "https://www.gstatic.com"
-      ],
-      scriptSrcElem: [
-        "'self'",
-        "https://accounts.google.com",
-        "https://apis.google.com",
-        "https://www.gstatic.com"
-      ],
-      styleSrc: [
-        "'self'",
-        "'unsafe-inline'",
-        "https://accounts.google.com",
-        "https://www.gstatic.com"
-      ],
-      fontSrc: [
-        "'self'",
-        "https://fonts.gstatic.com",
-        "https://www.gstatic.com"
-      ],
-      imgSrc: [
-        "'self'", 
-        "data:", 
-        "blob:",
-        "https:",
-        "http:"
-      ],
-      connectSrc: [
-        "'self'",
-        "https://accounts.google.com",
-        "https://apis.google.com",
-        "https://www.googleapis.com"
-      ],
-      frameSrc: [
-        "'self'",
-        "https://accounts.google.com",
-        "https://www.google.com"
-      ],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: config.NODE_ENV === 'production' ? [] : null
-    }
-  },
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
-}));
+// 미들웨어 설정 - 환경별 CSP 설정
+if (config.NODE_ENV === 'development') {
+  // 개발 환경에서는 CSP를 비활성화하여 개발 편의성 확보
+  console.log('🔓 [개발 환경] CSP 비활성화 - Google OAuth 개발 테스트용');
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+  }));
+} else {
+  // 프로덕션 환경에서는 Google OAuth를 위한 정확한 CSP 설정
+  console.log('🔐 [프로덕션 환경] Google OAuth용 CSP 설정 적용');
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'", // React용
+          "'unsafe-eval'", // React용  
+          "https://accounts.google.com",
+          "https://apis.google.com",
+          "https://www.gstatic.com",
+          "https://ssl.gstatic.com"
+        ],
+        scriptSrcElem: [
+          "'self'",
+          "'unsafe-inline'", // 동적 스크립트 생성 허용
+          "https://accounts.google.com",
+          "https://apis.google.com", 
+          "https://www.gstatic.com",
+          "https://ssl.gstatic.com"
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "https://accounts.google.com",
+          "https://www.gstatic.com",
+          "https://fonts.googleapis.com"
+        ],
+        fontSrc: [
+          "'self'",
+          "https://fonts.gstatic.com",
+          "https://www.gstatic.com"
+        ],
+        imgSrc: [
+          "'self'", 
+          "data:", 
+          "blob:",
+          "https:",
+          "http:",
+          "https://lh3.googleusercontent.com", // Google 프로필 이미지
+          "https://accounts.google.com"
+        ],
+        connectSrc: [
+          "'self'",
+          "https://accounts.google.com",
+          "https://apis.google.com",
+          "https://www.googleapis.com",
+          "https://oauth2.googleapis.com"
+        ],
+        frameSrc: [
+          "'self'",
+          "https://accounts.google.com",
+          "https://www.google.com"
+        ],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"]
+      }
+    },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+  }));
+}
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱

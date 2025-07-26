@@ -249,8 +249,6 @@ export const authAPI = {
   register: (data) => withRetry(() => api.post('/auth/register', data)),
   // 로그인
   login: (data) => withRetry(() => api.post('/auth/login', data)),
-  // Google 로그인
-  googleLogin: (data) => withRetry(() => api.post('/auth/google', data)),
   // 로그아웃
   logout: () => withRetry(() => api.post('/auth/logout')),
   // 현재 사용자 정보 조회

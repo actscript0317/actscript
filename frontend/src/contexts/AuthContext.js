@@ -94,50 +94,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Google 로그인
-  const googleLogin = async (googleToken) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await authAPI.googleLogin({ token: googleToken });
-      
-      if (res.data.success && res.data.token && res.data.user) {
-        // 즉시 인증 상태 업데이트
-        setAuthState(res.data.user, res.data.token);
-        
-        // 강제로 모든 컴포넌트 리렌더링 트리거
-        setLoading(false);
-        
-        // 새 사용자인지 기존 사용자인지에 따라 다른 메시지
-        const welcomeMessage = res.data.isNewUser 
-          ? `환영합니다, ${res.data.user.name}님! 회원가입이 완료되었습니다.`
-          : `안녕하세요, ${res.data.user.name}님!`;
-        
-        toast.success(welcomeMessage);
-        
-        return { 
-          success: true,
-          user: res.data.user,
-          isNewUser: res.data.isNewUser
-        };
-      }
-
-      throw new Error('Google 로그인 응답에 필요한 데이터가 없습니다.');
-    } catch (error) {
-      console.error('[Google 로그인 실패]', error);
-      const errorMessage = error.response?.data?.message || 'Google 로그인에 실패했습니다.';
-      setError(errorMessage);
-      setAuthState(null, null);
-      toast.error(errorMessage);
-      return { 
-        success: false, 
-        message: errorMessage
-      };
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 로그아웃
   const logout = useCallback(async () => {
@@ -282,7 +238,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     login,
-    googleLogin,
     logout,
     checkAuth,
     setUserAuth, // 추가

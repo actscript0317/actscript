@@ -1,7 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
-const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const TempUser = require('../models/TempUser');
 const { protect } = require('../middleware/auth');
@@ -10,14 +9,6 @@ const sendEmail = require('../utils/sendEmail');
 const mongoose = require('mongoose');
 
 const router = express.Router();
-
-// Google OAuth 클라이언트 설정
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-// Google Client ID 확인
-if (!process.env.GOOGLE_CLIENT_ID) {
-  console.warn('⚠️ GOOGLE_CLIENT_ID 환경변수가 설정되지 않았습니다. Google 로그인이 비활성화됩니다.');
-}
 
 // 디버그 로그 유틸리티
 const debug = (message, data = {}) => {
@@ -318,122 +309,6 @@ router.post('/login', [
   }
 });
 
-// Google 로그인
-router.post('/google', [
-  body('credential')
-    .notEmpty()
-    .withMessage('Google credential이 필요합니다.')
-], async (req, res) => {
-  try {
-    debug('Google 로그인 시도', { ip: req.ip });
-
-    // Google Client ID 설정 확인
-    if (!process.env.GOOGLE_CLIENT_ID) {
-      return res.status(503).json({
-        success: false,
-        message: 'Google 로그인이 현재 사용할 수 없습니다.'
-      });
-    }
-
-    // 유효성 검사
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: '잘못된 요청입니다.',
-        errors: errors.array()
-      });
-    }
-
-    const { credential } = req.body; // Google Sign-In에서는 credential을 사용
-
-    // Google 토큰 검증
-    debug('Google 토큰 검증 중');
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID
-    });
-
-    const payload = ticket.getPayload();
-    debug('Google 토큰 검증 완료', {
-      googleId: payload.sub,
-      email: payload.email,
-      name: payload.name
-    });
-
-    const { sub: googleId, email, name, picture } = payload;
-
-    // 기존 사용자 확인 (Google ID 또는 이메일로)
-    let user = await User.findOne({
-      $or: [
-        { googleId },
-        { email }
-      ]
-    });
-
-    if (user) {
-      // 기존 사용자 - Google ID 업데이트 (이메일로만 가입한 경우)
-      if (!user.googleId) {
-        user.googleId = googleId;
-        user.provider = 'google';
-        await user.save({ validateBeforeSave: false });
-        debug('기존 사용자에 Google ID 연결', { userId: user._id });
-      }
-      
-      // 로그인 성공 처리
-      await user.resetLoginAttempts();
-    } else {
-      // 새 사용자 생성
-      debug('새 Google 사용자 생성 중');
-      
-      // 중복되지 않는 사용자명 생성
-      let username = email.split('@')[0];
-      const existingUser = await User.findOne({ username });
-      if (existingUser) {
-        username = `${username}_${Date.now()}`;
-      }
-
-      user = await User.create({
-        googleId,
-        email,
-        name,
-        username,
-        provider: 'google',
-        isActive: true
-      });
-
-      debug('새 Google 사용자 생성 완료', { userId: user._id });
-    }
-
-    // JWT 토큰 생성
-    const jwtToken = user.getSignedJwtToken();
-
-    debug('Google 로그인 성공', { userId: user._id });
-
-    res.status(200)
-      .cookie('token', jwtToken, getCookieOptions())
-      .json({
-        success: true,
-        message: 'Google 로그인이 완료되었습니다.',
-        token: jwtToken,
-        user: user.toSafeObject(),
-        isNewUser: !user.lastLogin // 새 사용자인지 여부
-      });
-
-  } catch (error) {
-    debug('Google 로그인 에러', { 
-      error: error.message,
-      stack: error.stack
-    });
-
-    res.status(500).json({
-      success: false,
-      message: 'Google 로그인 중 오류가 발생했습니다.',
-      error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
-    });
-  }
-});
-
 // 로그아웃
 router.post('/logout', (req, res) => {
   res.status(200)
@@ -668,13 +543,6 @@ router.post('/forgot-password', [
       });
     }
 
-    // Google 로그인 사용자는 비밀번호 재설정 불가
-    if (user.provider === 'google') {
-      return res.status(400).json({
-        success: false,
-        message: 'Google 계정은 Google에서 비밀번호를 관리해주세요.'
-      });
-    }
 
     // 재설정 토큰 생성
     const resetToken = user.getResetPasswordToken();

@@ -33,15 +33,10 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: function() {
-      // Google 로그인 사용자는 비밀번호가 필요하지 않음
-      return !this.googleId;
-    },
+    required: [true, '비밀번호는 필수입니다.'],
     minlength: [8, '비밀번호는 최소 8자 이상이어야 합니다.'],
     validate: {
       validator: function(password) {
-        // Google 로그인 사용자는 비밀번호 검증 스킵
-        if (this.googleId && !password) return true;
         if (!password) return false;
         
         // 영문 대소문자, 숫자, 특수문자 중 3가지 이상 포함
@@ -71,17 +66,6 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-  // Google OAuth 관련 필드
-  googleId: {
-    type: String,
-    unique: true,
-    sparse: true // null 값도 허용하면서 unique 유지
-  },
-  provider: {
-    type: String,
-    enum: ['local', 'google'],
-    default: 'local'
   },
   // 로그인 시도 제한 관련 필드
   loginAttempts: {
@@ -157,12 +141,7 @@ userSchema.pre('validate', function(next) {
       return next(error);
     }
     
-    // Google 로그인이 아닌 경우에만 비밀번호 필수
-    if (!this.googleId && !this.password) {
-      const error = new Error('일반 로그인의 경우 비밀번호는 필수입니다.');
-      debug('유효성 검사 실패 - 비밀번호 누락 (일반 로그인)');
-      return next(error);
-    }
+    // 비밀번호 필수 체크는 스키마에서 처리됨
     
     debug('유효성 검사 통과');
     next();

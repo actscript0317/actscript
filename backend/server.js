@@ -83,8 +83,8 @@ connectDB().then(() => {
   process.exit(1);
 });
 
-// 미들웨어 설정 - Google OAuth 지원을 위한 CSP 설정
-console.log('🔐 [CSP 설정] Google OAuth 지원 및 보안 정책 적용');
+// 미들웨어 설정 - 기본 보안 정책
+console.log('🔐 [CSP 설정] 기본 보안 정책 적용');
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -92,64 +92,40 @@ app.use(helmet({
       scriptSrc: [
         "'self'",
         "'unsafe-inline'", // React 개발용
-        "'unsafe-eval'", // React 개발용  
-        "https://accounts.google.com",
-        "https://apis.google.com",
-        "https://www.gstatic.com",
-        "https://ssl.gstatic.com",
-        "https://www.google.com"
+        "'unsafe-eval'" // React 개발용  
       ],
       scriptSrcElem: [
         "'self'",
-        "'unsafe-inline'", // 동적 스크립트 생성 허용
-        "https://accounts.google.com",
-        "https://apis.google.com", 
-        "https://www.gstatic.com",
-        "https://ssl.gstatic.com",
-        "https://www.google.com"
+        "'unsafe-inline'" // React 동적 스크립트 허용
       ],
       styleSrc: [
         "'self'",
-        "'unsafe-inline'",
-        "https://accounts.google.com",
-        "https://www.gstatic.com",
-        "https://fonts.googleapis.com"
+        "'unsafe-inline'"
       ],
       fontSrc: [
         "'self'",
-        "https://fonts.gstatic.com",
-        "https://www.gstatic.com"
+        "data:"
       ],
       imgSrc: [
         "'self'", 
         "data:", 
         "blob:",
         "https:",
-        "http:",
-        "https://lh3.googleusercontent.com", // Google 프로필 이미지
-        "https://accounts.google.com"
+        "http:"
       ],
       connectSrc: [
         "'self'",
-        "https://accounts.google.com",
-        "https://apis.google.com",
-        "https://www.googleapis.com",
-        "https://oauth2.googleapis.com",
         "https://actscript.onrender.com",
         "https://actscript-1.onrender.com"
       ],
-      frameSrc: [
-        "'self'",
-        "https://accounts.google.com",
-        "https://www.google.com"
-      ],
+      frameSrc: ["'self'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"]
     }
   },
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+  crossOriginOpenerPolicy: { policy: "same-origin" }
 }));
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
 app.use(express.json({ limit: '10mb' })); // JSON 파싱

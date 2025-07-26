@@ -13,11 +13,29 @@ const GoogleSignup = ({ onSuccess, onError }) => {
         return;
       }
 
+      // CSP 에러 방지를 위한 대안적 스크립트 로딩
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.onload = initializeGoogleSignIn;
+      script.crossOrigin = 'anonymous';
+      
+      script.onload = () => {
+        console.log('Google GSI 스크립트 로드 성공');
+        initializeGoogleSignIn();
+      };
+      
+      script.onerror = (error) => {
+        console.error('Google GSI 스크립트 로드 실패:', error);
+        onError && onError('Google 로그인 서비스를 불러올 수 없습니다. CSP 정책을 확인해주세요.');
+      };
+      
+      // 기존 스크립트가 있으면 제거
+      const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+      
       document.head.appendChild(script);
     };
 

@@ -505,9 +505,14 @@ const ActorProfile = () => {
                         imageUrl = `${API_BASE_URL}${imageUrl}`;
                         console.log(`🔧 [ActorProfile] 상대 URL 변환: ${imageUrl}`);
                       }
-                      // 기타 절대 URL
+                      // 기타 절대 URL - HTTP를 HTTPS로 강제 변환
                       else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-                        console.log(`🌐 [ActorProfile] 기타 절대 URL: ${imageUrl}`);
+                        if (imageUrl.startsWith('http://')) {
+                          imageUrl = imageUrl.replace('http://', 'https://');
+                          console.log(`🔒 [ActorProfile] HTTP → HTTPS 변환: ${imageUrl}`);
+                        } else {
+                          console.log(`🌐 [ActorProfile] HTTPS URL 사용: ${imageUrl}`);
+                        }
                       }
                       
                       return (

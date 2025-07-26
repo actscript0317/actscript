@@ -82,46 +82,9 @@ connectDB().then(() => {
   process.exit(1);
 });
 
-// 미들웨어 설정 - Google OAuth를 위한 CSP 설정
+// 미들웨어 설정 - 임시로 CSP 완전 비활성화 (Google OAuth 문제 해결용)
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'", 
-        "'unsafe-inline'", 
-        "'unsafe-eval'",
-        "https://accounts.google.com",
-        "https://www.gstatic.com"
-      ],
-      scriptSrcElem: [
-        "'self'", 
-        "'unsafe-inline'",
-        "'unsafe-eval'",
-        "https://accounts.google.com",
-        "https://www.gstatic.com",
-        "https://apis.google.com"
-      ],
-      styleSrc: [
-        "'self'", 
-        "'unsafe-inline'",
-        "https://accounts.google.com"
-      ],
-      imgSrc: [
-        "'self'", 
-        "data:", 
-        "https:",
-        "https://lh3.googleusercontent.com"
-      ],
-      connectSrc: [
-        "'self'",
-        "https://accounts.google.com"
-      ],
-      frameSrc: [
-        "https://accounts.google.com"
-      ]
-    }
-  },
+  contentSecurityPolicy: false, // 완전 비활성화
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));

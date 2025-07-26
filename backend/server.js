@@ -97,8 +97,10 @@ app.use(helmet({
       scriptSrcElem: [
         "'self'", 
         "'unsafe-inline'",
+        "'unsafe-eval'",
         "https://accounts.google.com",
-        "https://www.gstatic.com"
+        "https://www.gstatic.com",
+        "https://apis.google.com"
       ],
       styleSrc: [
         "'self'", 

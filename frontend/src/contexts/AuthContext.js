@@ -272,6 +272,11 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, loadAIGeneratedScripts, loadSavedScripts]);
 
+  // 직접 로그인 상태 설정 (회원가입 완료 후 사용)
+  const setUserAuth = useCallback((userData, token) => {
+    setAuthState(userData, token);
+  }, [setAuthState]);
+
   const value = {
     user,
     loading,
@@ -280,6 +285,7 @@ export const AuthProvider = ({ children }) => {
     googleLogin,
     logout,
     checkAuth,
+    setUserAuth, // 추가
     isAuthenticated: !!user,
     aiGeneratedScripts,
     savedScripts,

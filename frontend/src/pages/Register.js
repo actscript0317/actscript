@@ -20,7 +20,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { setUserAuth } = useAuth();
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
@@ -148,7 +148,7 @@ const Register = () => {
           localStorage.setItem('user', JSON.stringify(user));
           
           // AuthContext 업데이트
-          login(user, token);
+          setUserAuth(user, token);
           
           toast.success('회원가입이 완료되었습니다! 환영합니다!');
           navigate('/', { replace: true });

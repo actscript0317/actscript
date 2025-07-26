@@ -42,10 +42,11 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   'https://actscript-1.onrender.com',  // Render 프론트엔드 도메인 (주요)
   'https://actscript.onrender.com',    // 대체 도메인 (혹시 다른 배포)
-  'https://www.actpiece.com',          // 실제 도메인
+  'https://www.actpiece.com',          // 실제 도메인 (www)
   'https://actpiece.com',              // 실제 도메인 (www 없이)
   'http://localhost:3000',             // 로컬 개발용
-  'http://localhost:5000'              // 로컬 개발용 대체 포트
+  'http://localhost:5000',             // 로컬 개발용 대체 포트
+  'http://localhost:3001'              // 추가 로컬 포트
 ];
 
 const corsOptions = {
@@ -82,81 +83,74 @@ connectDB().then(() => {
   process.exit(1);
 });
 
-// 미들웨어 설정 - 환경별 CSP 설정
-if (config.NODE_ENV === 'development') {
-  // 개발 환경에서는 CSP를 비활성화하여 개발 편의성 확보
-  console.log('🔓 [개발 환경] CSP 비활성화 - Google OAuth 개발 테스트용');
-  app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
-  }));
-} else {
-  // 프로덕션 환경에서는 Google OAuth를 위한 정확한 CSP 설정
-  console.log('🔐 [프로덕션 환경] Google OAuth용 CSP 설정 적용');
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          "'unsafe-inline'", // React용
-          "'unsafe-eval'", // React용  
-          "https://accounts.google.com",
-          "https://apis.google.com",
-          "https://www.gstatic.com",
-          "https://ssl.gstatic.com"
-        ],
-        scriptSrcElem: [
-          "'self'",
-          "'unsafe-inline'", // 동적 스크립트 생성 허용
-          "https://accounts.google.com",
-          "https://apis.google.com", 
-          "https://www.gstatic.com",
-          "https://ssl.gstatic.com"
-        ],
-        styleSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "https://accounts.google.com",
-          "https://www.gstatic.com",
-          "https://fonts.googleapis.com"
-        ],
-        fontSrc: [
-          "'self'",
-          "https://fonts.gstatic.com",
-          "https://www.gstatic.com"
-        ],
-        imgSrc: [
-          "'self'", 
-          "data:", 
-          "blob:",
-          "https:",
-          "http:",
-          "https://lh3.googleusercontent.com", // Google 프로필 이미지
-          "https://accounts.google.com"
-        ],
-        connectSrc: [
-          "'self'",
-          "https://accounts.google.com",
-          "https://apis.google.com",
-          "https://www.googleapis.com",
-          "https://oauth2.googleapis.com"
-        ],
-        frameSrc: [
-          "'self'",
-          "https://accounts.google.com",
-          "https://www.google.com"
-        ],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"]
-      }
-    },
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
-  }));
-}
+// 미들웨어 설정 - Google OAuth 지원을 위한 CSP 설정
+console.log('🔐 [CSP 설정] Google OAuth 지원 및 보안 정책 적용');
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'", // React 개발용
+        "'unsafe-eval'", // React 개발용  
+        "https://accounts.google.com",
+        "https://apis.google.com",
+        "https://www.gstatic.com",
+        "https://ssl.gstatic.com",
+        "https://www.google.com"
+      ],
+      scriptSrcElem: [
+        "'self'",
+        "'unsafe-inline'", // 동적 스크립트 생성 허용
+        "https://accounts.google.com",
+        "https://apis.google.com", 
+        "https://www.gstatic.com",
+        "https://ssl.gstatic.com",
+        "https://www.google.com"
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://accounts.google.com",
+        "https://www.gstatic.com",
+        "https://fonts.googleapis.com"
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "https://www.gstatic.com"
+      ],
+      imgSrc: [
+        "'self'", 
+        "data:", 
+        "blob:",
+        "https:",
+        "http:",
+        "https://lh3.googleusercontent.com", // Google 프로필 이미지
+        "https://accounts.google.com"
+      ],
+      connectSrc: [
+        "'self'",
+        "https://accounts.google.com",
+        "https://apis.google.com",
+        "https://www.googleapis.com",
+        "https://oauth2.googleapis.com",
+        "https://actscript.onrender.com",
+        "https://actscript-1.onrender.com"
+      ],
+      frameSrc: [
+        "'self'",
+        "https://accounts.google.com",
+        "https://www.google.com"
+      ],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"]
+    }
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
 app.use(express.json({ limit: '10mb' })); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱

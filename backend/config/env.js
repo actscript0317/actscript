@@ -18,11 +18,11 @@ if (!process.env.NODE_ENV) {
 }
 
 if (!process.env.CORS_ORIGIN) {
-  process.env.CORS_ORIGIN = 'https://actscript-1.onrender.com';
+  process.env.CORS_ORIGIN = 'https://www.actpiece.com,https://actpiece.com,https://actscript-1.onrender.com';
 }
 
 if (!process.env.CLIENT_URL) {
-  process.env.CLIENT_URL = 'https://actscript-1.onrender.com';
+  process.env.CLIENT_URL = 'https://www.actpiece.com';
 }
 
 // Google OAuth 설정

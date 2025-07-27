@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   User, Heart, Settings, Eye, Calendar, Users, Bookmark, Sparkles, Palette, Clock,
   Crown, Shield, Bell, Download, Edit, Trash2, AlertTriangle, CreditCard, BarChart3,
-  Key, Mail, UserMinus
+  Key, Mail, UserMinus, Search, Copy, X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -32,9 +32,16 @@ const MyPage = () => {
 
   const [myPosts, setMyPosts] = useState([]);
   const [mySavedPosts, setMySavedPosts] = useState([]);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'content', 'settings', 'billing'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'vault', 'billing', 'settings'
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
+  
+  // 대본함 관련 상태
+  const [vaultTab, setVaultTab] = useState('ai'); // 'ai', 'saved', 'written'
+  const [selectedScript, setSelectedScript] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterGenre, setFilterGenre] = useState('');
 
   // 게시판 타입별 색상 설정
   const getBoardTypeColor = (boardType) => {
@@ -203,6 +210,36 @@ const MyPage = () => {
     }
   };
 
+  // 대본함 관련 함수들
+  const filteredAIScripts = aiGeneratedScripts.filter(script => {
+    const matchesSearch = script.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         script.content?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesGenre = !filterGenre || script.genre === filterGenre;
+    return matchesSearch && matchesGenre;
+  });
+
+  const filteredSavedPosts = mySavedPosts.filter(post => 
+    post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    post.content?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredMyPosts = myPosts.filter(post => 
+    post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    post.content?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // 대본 상세 보기
+  const handleScriptDetail = (script) => {
+    setSelectedScript(script);
+    setShowDetailModal(true);
+  };
+
+  // 클립보드 복사
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('클립보드에 복사되었습니다!');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -231,9 +268,16 @@ const MyPage = () => {
   // 탭 메뉴
   const tabs = [
     { id: 'overview', label: '대시보드', icon: BarChart3 },
-    { id: 'content', label: '내 콘텐츠', icon: Bookmark },
+    { id: 'vault', label: '내 대본함', icon: Bookmark },
     { id: 'billing', label: '요금제', icon: CreditCard },
     { id: 'settings', label: '계정 설정', icon: Settings }
+  ];
+
+  // 대본함 하위 탭 메뉴
+  const vaultTabs = [
+    { id: 'ai', label: 'AI 생성 대본', icon: Sparkles, count: aiGeneratedScripts.length },
+    { id: 'saved', label: '저장한 글', icon: Bookmark, count: mySavedPosts.length },
+    { id: 'written', label: '내가 작성한 글', icon: Users, count: myPosts.length }
   ];
 
   return (
@@ -366,140 +410,257 @@ const MyPage = () => {
             </div>
           )}
 
-          {/* 내 콘텐츠 탭 */}
-          {activeTab === 'content' && (
-            <div className="space-y-8">
-              {/* 내가 작성한 글 섹션 */}
+          {/* 내 대본함 탭 */}
+          {activeTab === 'vault' && (
+            <div className="space-y-6">
+              {/* 검색 및 필터 */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <Users className="w-5 h-5 mr-2 text-blue-500" />
-                  내가 작성한 글 ({myPosts.length})
-                </h2>
-                
-                {myPosts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">아직 작성한 글이 없습니다.</p>
-                    <Link 
-                      to="/actor-recruitment" 
-                      className="text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                      글 작성하기 →
-                    </Link>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="제목이나 내용으로 검색..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      />
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {myPosts.map((post) => (
-                      <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType)}`}>
-                                {getBoardTypeName(post.boardType)}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {formatDate(post.createdAt)}
-                              </span>
+                  {vaultTab === 'ai' && (
+                    <div className="w-full md:w-48">
+                      <select
+                        value={filterGenre}
+                        onChange={(e) => setFilterGenre(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      >
+                        <option value="">모든 장르</option>
+                        <option value="로맨스">로맨스</option>
+                        <option value="코미디">코미디</option>
+                        <option value="비극">비극</option>
+                        <option value="스릴러">스릴러</option>
+                        <option value="드라마">드라마</option>
+                        <option value="액션">액션</option>
+                        <option value="공포">공포</option>
+                        <option value="판타지">판타지</option>
+                        <option value="SF">SF</option>
+                        <option value="미스터리">미스터리</option>
+                        <option value="시대극">시대극</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 대본함 하위 탭 */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="border-b border-gray-200">
+                  <nav className="flex space-x-0" aria-label="Vault Tabs">
+                    {vaultTabs.map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setVaultTab(tab.id)}
+                          className={`${
+                            vaultTab === tab.id
+                              ? 'border-purple-500 text-purple-600 bg-purple-50'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                          } flex-1 py-4 px-4 border-b-2 font-medium text-sm flex items-center justify-center space-x-2`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span>{tab.label}</span>
+                          <span className={`${
+                            vaultTab === tab.id ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-600'
+                          } px-2 py-1 rounded-full text-xs font-medium`}>
+                            {tab.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+
+                <div className="p-6">
+                  {/* AI 생성 대본 */}
+                  {vaultTab === 'ai' && (
+                    <div>
+                      {filteredAIScripts.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 mb-4">
+                            {searchTerm || filterGenre ? '검색 조건에 맞는 대본이 없습니다.' : '아직 AI로 생성한 대본이 없습니다.'}
+                          </p>
+                          <Link 
+                            to="/ai-script" 
+                            className="text-purple-600 hover:text-purple-700 font-medium"
+                          >
+                            AI 대본 생성하기 →
+                          </Link>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {filteredAIScripts.map((script) => (
+                            <div key={script._id} className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{script.title}</h3>
+                                  <div className="flex flex-wrap gap-1 mb-2">
+                                    {script.genre && (
+                                      <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                        {script.genre}
+                                      </span>
+                                    )}
+                                    {script.length && (
+                                      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                        {script.length}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500">
+                                    {formatDate(script.createdAt)}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => removeAIGeneratedScript(script._id)}
+                                  className="text-red-600 hover:text-red-700 p-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                              
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleScriptDetail(script)}
+                                  className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                                >
+                                  보기
+                                </button>
+                                <button
+                                  onClick={() => copyToClipboard(script.content)}
+                                  className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
-                            <Link to={`/posts/${post._id}`} className="block">
-                              <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">
-                                {post.title}
-                              </h3>
-                              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                                {post.content}
-                              </p>
-                            </Link>
-                          </div>
+                          ))}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      )}
+                    </div>
+                  )}
 
-              {/* 저장한 글 섹션 */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <Bookmark className="w-5 h-5 mr-2 text-emerald-500" />
-                  저장한 글 ({mySavedPosts.length})
-                </h2>
-                
-                {mySavedPosts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">아직 저장한 글이 없습니다.</p>
-                    <Link 
-                      to="/actor-recruitment" 
-                      className="text-emerald-600 hover:text-emerald-700 font-medium"
-                    >
-                      게시판 둘러보기 →
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {mySavedPosts.map((post) => (
-                      <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <Link to={`/posts/${post._id}`} className="block">
-                              <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">
-                                {post.title}
-                              </h3>
-                            </Link>
-                          </div>
-                          <button
-                            onClick={() => removeSavedPost(post.bookmarkId)}
-                            className="text-red-600 hover:text-red-700 text-sm ml-4 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                  {/* 저장한 글 */}
+                  {vaultTab === 'saved' && (
+                    <div>
+                      {filteredSavedPosts.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 mb-4">
+                            {searchTerm ? '검색 조건에 맞는 글이 없습니다.' : '아직 저장한 글이 없습니다.'}
+                          </p>
+                          <Link 
+                            to="/actor-recruitment" 
+                            className="text-emerald-600 hover:text-emerald-700 font-medium"
                           >
-                            삭제
-                          </button>
+                            게시판 둘러보기 →
+                          </Link>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {filteredSavedPosts.map((post) => (
+                            <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 transition-colors">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType || post.board)}`}>
+                                      {getBoardTypeName(post.boardType || post.board)}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {formatDate(post.savedAt || post.createdAt)}
+                                    </span>
+                                  </div>
+                                  <Link to={`/posts/${post._id}`} className="block">
+                                    <h3 className="text-lg font-semibold text-gray-900 hover:text-emerald-600 transition-colors cursor-pointer mb-2">
+                                      {post.title}
+                                    </h3>
+                                    <p className="text-sm text-gray-600 line-clamp-2">
+                                      {post.content}
+                                    </p>
+                                  </Link>
+                                </div>
+                                <button
+                                  onClick={() => removeSavedPost(post.bookmarkId)}
+                                  className="text-red-600 hover:text-red-700 p-1 ml-4"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-              {/* AI 생성 대본 섹션 */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <Sparkles className="w-5 h-5 mr-2 text-purple-500" />
-                  AI 생성 대본 ({aiGeneratedScripts.length})
-                </h2>
-                
-                {aiGeneratedScripts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">아직 AI로 생성한 대본이 없습니다.</p>
-                    <Link 
-                      to="/ai-script" 
-                      className="text-purple-600 hover:text-purple-700 font-medium"
-                    >
-                      AI 대본 생성하기 →
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {aiGeneratedScripts.map((script) => (
-                      <div key={script._id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="text-lg font-semibold">{script.title}</h3>
-                            <p className="text-sm text-gray-600 mt-1">
-                              생성일: {new Date(script.generatedAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => removeAIGeneratedScript(script._id)}
-                            className="text-red-600 hover:text-red-700"
+                  {/* 내가 작성한 글 */}
+                  {vaultTab === 'written' && (
+                    <div>
+                      {filteredMyPosts.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 mb-4">
+                            {searchTerm ? '검색 조건에 맞는 글이 없습니다.' : '아직 작성한 글이 없습니다.'}
+                          </p>
+                          <Link 
+                            to="/actor-recruitment" 
+                            className="text-blue-600 hover:text-blue-700 font-medium"
                           >
-                            삭제
-                          </button>
+                            글 작성하기 →
+                          </Link>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ) : (
+                        <div className="space-y-4">
+                          {filteredMyPosts.map((post) => (
+                            <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType)}`}>
+                                  {getBoardTypeName(post.boardType)}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {formatDate(post.createdAt)}
+                                </span>
+                              </div>
+                              <Link to={`/posts/${post._id}`} className="block">
+                                <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer mb-2">
+                                  {post.title}
+                                </h3>
+                                <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                                  {post.content}
+                                </p>
+                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                  <span className="flex items-center">
+                                    <Eye className="w-3 h-3 mr-1" />
+                                    {post.views || 0}
+                                  </span>
+                                  <span className="flex items-center">
+                                    <Heart className="w-3 h-3 mr-1 text-red-500" />
+                                    {post.likes || 0}
+                                  </span>
+                                  <span className="flex items-center">
+                                    <Bookmark className="w-3 h-3 mr-1 text-blue-500" />
+                                    {post.bookmarks || 0}
+                                  </span>
+                                </div>
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -802,6 +963,95 @@ const MyPage = () => {
                   >
                     탈퇴하기
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 대본 상세 보기 모달 */}
+          {showDetailModal && selectedScript && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                {/* 모달 헤더 */}
+                <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
+                        <Sparkles className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900">{selectedScript.title}</h2>
+                        <p className="text-gray-600">AI 생성 대본</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex flex-wrap gap-2 text-sm">
+                        {selectedScript.genre && (
+                          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
+                            {selectedScript.genre}
+                          </span>
+                        )}
+                        {selectedScript.length && (
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
+                            {selectedScript.length}
+                          </span>
+                        )}
+                        {selectedScript.gender && (
+                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                            {selectedScript.gender === 'male' ? '남자' : selectedScript.gender === 'female' ? '여자' : '랜덤'}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setShowDetailModal(false)}
+                        className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
+                      >
+                        <X className="w-5 h-5 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 대본 내용 */}
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-8">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+                      <div className="prose max-w-none">
+                        <pre className="whitespace-pre-wrap font-serif text-base leading-relaxed text-gray-800">
+                          {selectedScript.content}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 하단 액션 버튼 */}
+                <div className="p-6 border-t border-gray-200 bg-gray-50">
+                  <div className="flex justify-center space-x-4">
+                    <button
+                      onClick={() => copyToClipboard(selectedScript.content)}
+                      className="flex items-center px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors shadow-md"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      복사하기
+                    </button>
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors shadow-md"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      인쇄하기
+                    </button>
+                    <button
+                      onClick={() => removeAIGeneratedScript(selectedScript._id)}
+                      className="flex items-center px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors shadow-md"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      삭제하기
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -78,6 +78,7 @@ const MyPage = () => {
   useEffect(() => {
     const fetchMyPosts = async () => {
       try {
+        console.log('🔍 내가 작성한 글 가져오기 시작');
         // 여러 게시판에서 내가 작성한 글 가져오기
         const [actorProfiles, actorRecruitments, modelRecruitments, communityPosts] = await Promise.allSettled([
           actorProfileAPI.getMy(),
@@ -104,16 +105,20 @@ const MyPage = () => {
 
         // 작성일 기준으로 정렬
         allMyPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        console.log('✅ 내가 작성한 글 로딩 완료:', allMyPosts.length, '개');
         setMyPosts(allMyPosts);
       } catch (error) {
-        console.error('내가 작성한 글 불러오기 실패:', error);
-        // 실패해도 빈 배열로 설정하여 에러 토스트는 표시하지 않음
+        console.error('❌ 내가 작성한 글 불러오기 실패:', error);
+        setMyPosts([]);
       }
     };
 
     const fetchMySavedPosts = async () => {
       try {
+        console.log('🔍 저장한 글 가져오기 시작');
         const response = await bookmarkAPI.getMyBookmarks();
+        console.log('📋 북마크 API 응답:', response.data);
+        
         if (response.data.success) {
           // 북마크 데이터를 가공하여 일관된 구조로 만들기
           const processedBookmarks = response.data.bookmarks.map(bookmark => {
@@ -130,7 +135,7 @@ const MyPage = () => {
             } else if (typeof bookmark.postId === 'string') {
               // postId가 단순 문자열 ID인 경우
               actualPostId = bookmark.postId;
-              postData = { _id: actualPostId };
+              postData = { _id: actualPostId, title: '제목 없음', content: '내용 없음' };
             } else {
               console.error('❌ 유효하지 않은 postId:', bookmark.postId);
               return null;
@@ -148,12 +153,15 @@ const MyPage = () => {
             return result;
           }).filter(Boolean); // null 값 제거
           
-          console.log('✅ 저장한 글 처리 완료:', processedBookmarks);
+          console.log('✅ 저장한 글 처리 완료:', processedBookmarks.length, '개');
           setMySavedPosts(processedBookmarks);
+        } else {
+          console.log('❌ 북마크 API 실패:', response.data);
+          setMySavedPosts([]);
         }
       } catch (error) {
-        console.error('저장한 글 불러오기 실패:', error);
-        // 실패해도 빈 배열로 설정하여 에러 토스트는 표시하지 않음
+        console.error('❌ 저장한 글 불러오기 실패:', error);
+        setMySavedPosts([]);
       }
     };
 
@@ -161,6 +169,11 @@ const MyPage = () => {
       fetchMyPosts();
       fetchMySavedPosts();
     }
+
+    // 컴포넌트 언마운트 시 바디 스크롤 복원
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [isAuthenticated]);
 
   // 게시판 경로 가져오기
@@ -232,6 +245,16 @@ const MyPage = () => {
   const handleScriptDetail = (script) => {
     setSelectedScript(script);
     setShowDetailModal(true);
+    // 모달이 열릴 때 바디 스크롤 비활성화
+    document.body.style.overflow = 'hidden';
+  };
+
+  // 모달 닫기
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedScript(null);
+    // 모달이 닫힐 때 바디 스크롤 복원
+    document.body.style.overflow = 'unset';
   };
 
   // 클립보드 복사
@@ -568,34 +591,37 @@ const MyPage = () => {
                           </Link>
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {filteredSavedPosts.map((post) => (
                             <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 transition-colors">
-                              <div className="flex items-start justify-between">
+                              <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType || post.board)}`}>
                                       {getBoardTypeName(post.boardType || post.board)}
                                     </span>
-                                    <span className="text-xs text-gray-500">
-                                      {formatDate(post.savedAt || post.createdAt)}
-                                    </span>
                                   </div>
-                                  <Link to={`/posts/${post._id}`} className="block">
-                                    <h3 className="text-lg font-semibold text-gray-900 hover:text-emerald-600 transition-colors cursor-pointer mb-2">
-                                      {post.title}
-                                    </h3>
-                                    <p className="text-sm text-gray-600 line-clamp-2">
-                                      {post.content}
-                                    </p>
-                                  </Link>
+                                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{post.title}</h3>
+                                  <p className="text-sm text-gray-600 mb-2 line-clamp-3">{post.content}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {formatDate(post.savedAt || post.createdAt)}
+                                  </p>
                                 </div>
                                 <button
                                   onClick={() => removeSavedPost(post.bookmarkId)}
-                                  className="text-red-600 hover:text-red-700 p-1 ml-4"
+                                  className="text-red-600 hover:text-red-700 p-1"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
+                              </div>
+                              
+                              <div className="flex space-x-2">
+                                <Link
+                                  to={`/posts/${post._id}`}
+                                  className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm text-center"
+                                >
+                                  보기
+                                </Link>
                               </div>
                             </div>
                           ))}
@@ -621,39 +647,52 @@ const MyPage = () => {
                           </Link>
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {filteredMyPosts.map((post) => (
                             <div key={post._id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType)}`}>
-                                  {getBoardTypeName(post.boardType)}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {formatDate(post.createdAt)}
-                                </span>
-                              </div>
-                              <Link to={`/posts/${post._id}`} className="block">
-                                <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer mb-2">
-                                  {post.title}
-                                </h3>
-                                <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                                  {post.content}
-                                </p>
-                                <div className="flex items-center gap-4 text-xs text-gray-500">
-                                  <span className="flex items-center">
-                                    <Eye className="w-3 h-3 mr-1" />
-                                    {post.views || 0}
-                                  </span>
-                                  <span className="flex items-center">
-                                    <Heart className="w-3 h-3 mr-1 text-red-500" />
-                                    {post.likes || 0}
-                                  </span>
-                                  <span className="flex items-center">
-                                    <Bookmark className="w-3 h-3 mr-1 text-blue-500" />
-                                    {post.bookmarks || 0}
-                                  </span>
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBoardTypeColor(post.boardType)}`}>
+                                      {getBoardTypeName(post.boardType)}
+                                    </span>
+                                  </div>
+                                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{post.title}</h3>
+                                  <p className="text-sm text-gray-600 mb-2 line-clamp-3">{post.content}</p>
+                                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                                    <span className="flex items-center">
+                                      <Eye className="w-3 h-3 mr-1" />
+                                      {post.views || 0}
+                                    </span>
+                                    <span className="flex items-center">
+                                      <Heart className="w-3 h-3 mr-1 text-red-500" />
+                                      {post.likes || 0}
+                                    </span>
+                                    <span className="flex items-center">
+                                      <Bookmark className="w-3 h-3 mr-1 text-blue-500" />
+                                      {post.bookmarks || 0}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500">
+                                    {formatDate(post.createdAt)}
+                                  </p>
                                 </div>
-                              </Link>
+                              </div>
+                              
+                              <div className="flex space-x-2">
+                                <Link
+                                  to={`/posts/${post._id}`}
+                                  className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm text-center"
+                                >
+                                  보기
+                                </Link>
+                                <Link
+                                  to={`/posts/${post._id}/edit`}
+                                  className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Link>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -970,8 +1009,14 @@ const MyPage = () => {
 
           {/* 대본 상세 보기 모달 */}
           {showDetailModal && selectedScript && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              onClick={closeDetailModal}
+            >
+              <div 
+                className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {/* 모달 헤더 */}
                 <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
                   <div className="flex items-center justify-between">
@@ -1003,7 +1048,7 @@ const MyPage = () => {
                         )}
                       </div>
                       <button
-                        onClick={() => setShowDetailModal(false)}
+                        onClick={closeDetailModal}
                         className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
                       >
                         <X className="w-5 h-5 text-gray-600" />
@@ -1045,7 +1090,10 @@ const MyPage = () => {
                       인쇄하기
                     </button>
                     <button
-                      onClick={() => removeAIGeneratedScript(selectedScript._id)}
+                      onClick={() => {
+                        removeAIGeneratedScript(selectedScript._id);
+                        closeDetailModal();
+                      }}
                       className="flex items-center px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors shadow-md"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />

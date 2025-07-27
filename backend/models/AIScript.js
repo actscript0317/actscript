@@ -29,6 +29,9 @@ const aiScriptSchema = new mongoose.Schema({
   gender: {
     type: String
   },
+  age: {
+    type: String
+  },
   situation: {
     type: String
   },

@@ -32,7 +32,8 @@ const AIScript = () => {
     characterCount: '1',
     genre: '',
     length: '',
-    gender: ''
+    gender: '',
+    age: ''
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -76,6 +77,14 @@ const AIScript = () => {
     { value: 'male', label: '남자', icon: '👨' },
     { value: 'female', label: '여자', icon: '👩' },
     { value: 'random', label: '랜덤', icon: '🎲' }
+  ];
+
+  const ages = [
+    { value: 'teens', label: '10대', description: '청소년기 고민과 생동감', icon: '🎓' },
+    { value: '20s', label: '20대', description: '사회 초년생의 열정과 방황', icon: '🌟' },
+    { value: '30s-40s', label: '30~40대', description: '성숙한 어른의 현실적 고민', icon: '💼' },
+    { value: '50s', label: '50대', description: '중년의 깊이 있는 성찰', icon: '🎯' },
+    { value: '70s+', label: '70대 이상', description: '인생 경험과 지혜', icon: '🎋' }
   ];
 
   // 폼 데이터 변경 핸들러
@@ -323,8 +332,8 @@ const AIScript = () => {
     e.preventDefault();
     
     // 입력값 검증
-    if (!formData.characterCount || !formData.genre || !formData.length || !formData.gender) {
-      setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이, 성별)');
+    if (!formData.characterCount || !formData.genre || !formData.length || !formData.gender || !formData.age) {
+      setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이, 성별, 연령대)');
       return;
     }
 
@@ -337,7 +346,8 @@ const AIScript = () => {
         characterCount: formData.characterCount,
         genre: formData.genre,
         length: formData.length,
-        gender: formData.gender
+        gender: formData.gender,
+        age: formData.age
       });
 
       const data = response.data;
@@ -573,6 +583,33 @@ const AIScript = () => {
                 </div>
               </div>
 
+              {/* 연령대 선택 */}
+              <div className="space-y-4">
+                <label className="flex items-center text-lg font-semibold text-gray-800">
+                  <Clock className="w-6 h-6 mr-3 text-indigo-500" />
+                  연령대
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {ages.map((age) => (
+                    <label key={age.value} className="cursor-pointer">
+                      <input
+                        type="radio"
+                        name="age"
+                        value={age.value}
+                        onChange={(e) => handleInputChange('age', e.target.value)}
+                        className="sr-only peer"
+                      />
+                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-indigo-50 peer-checked:to-purple-50 peer-checked:border-indigo-500 peer-checked:shadow-md">
+                        <div className="text-center">
+                          <div className="text-2xl mb-2">{age.icon}</div>
+                          <div className="font-medium text-gray-900 mb-1">{age.label}</div>
+                          <div className="text-xs text-gray-600">{age.description}</div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
               {/* 생성 버튼 */}
               <div className="pt-6">
@@ -666,6 +703,9 @@ const AIScript = () => {
                       </span>
                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
                         {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
+                      </span>
+                      <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
+                        {ages.find(age => age.value === formData.age)?.label || formData.age}
                       </span>
                     </div>
                   </div>
@@ -960,6 +1000,9 @@ const AIScript = () => {
                           </span>
                           <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
                             {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
+                          </span>
+                          <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
+                            {ages.find(age => age.value === formData.age)?.label || formData.age}
                           </span>
                         </div>
                         <button

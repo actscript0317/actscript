@@ -65,13 +65,13 @@ router.post('/generate', protect, async (req, res) => {
     
     console.log('✅ OpenAI 클라이언트 초기화 완료');
 
-    const { characterCount, genre, length, gender } = req.body;
+    const { characterCount, genre, length, gender, age } = req.body;
 
     // 입력값 검증
-    if (!characterCount || !genre || !length || !gender) {
+    if (!characterCount || !genre || !length || !gender || !age) {
       return res.status(400).json({
         error: '모든 필드를 입력해주세요.',
-        required: ['characterCount', 'genre', 'length', 'gender']
+        required: ['characterCount', 'genre', 'length', 'gender', 'age']
       });
     }
 
@@ -92,6 +92,17 @@ router.post('/generate', protect, async (req, res) => {
     };
     
     const genderText = genderMap[gender] || gender;
+    
+    // 나이별 설정
+    const ageMap = {
+      'teens': '10대',
+      '20s': '20대', 
+      '30s-40s': '30~40대',
+      '50s': '50대',
+      '70s+': '70대 이상'
+    };
+    
+    const ageText = ageMap[age] || age;
     
     // 장르별 지시사항
     const genreDirectives = {
@@ -121,6 +132,37 @@ router.post('/generate', protect, async (req, res) => {
     
     const characterDirectives = characterDirectivesMap[characterCount] || 'Structure dialogue appropriate for the number of characters.';
 
+    // 나이별 세부 지시사항
+    const ageDirectives = {
+      'teens': {
+        language: '10대 특유의 생동감 있고 직접적인 말투 사용. "진짜", "완전", "대박", "헐" 등의 자연스러운 감탄사 활용',
+        psychology: '정체성 혼란, 진로 고민, 첫사랑, 부모와의 갈등, 친구관계, 입시 스트레스 등 10대 특유의 심리적 고민',
+        situations: '학교 생활, 입시 준비, 첫 알바, 부모님과의 갈등, 친구들과의 우정과 배신, 첫사랑과 이별'
+      },
+      '20s': {
+        language: '20대 특유의 세련되고 트렌디한 말투. "레알", "개", "ㅇㅇ", "아니 근데" 등의 신조어와 줄임말 자연스럽게 사용',
+        psychology: '취업 걱정, 연애와 이별, 독립에 대한 부담감, 미래에 대한 불안, 자아실현 욕구, 사회적 관계의 복잡함',
+        situations: '취업 준비, 첫 직장 생활, 원룸 독립, 연애와 이별, 친구들의 결혼 소식, 부모님께 독립 선언'
+      },
+      '30s-40s': {
+        language: '안정적이고 성숙한 어조. 감정 표현이 절제되어 있으면서도 깊이 있는 말투. "그렇구나", "음..." 등의 사려깊은 표현',
+        psychology: '가정과 일의 균형, 중년의 위기감, 부모 돌봄과 자녀 교육, 경제적 압박감, 건강에 대한 걱정, 꿈과 현실의 타협',
+        situations: '직장에서의 승진 고민, 결혼과 육아, 부모님 건강 악화, 주택 구입, 아이 교육비, 노후 준비'
+      },
+      '50s': {
+        language: '차분하고 경험이 묻어나는 말투. "그런 게 아니야", "인생이 뭔지 알겠더라" 등 인생 경험을 바탕으로 한 표현',
+        psychology: '자녀의 독립과 빈둥지 증후군, 갱년기와 건강 악화, 노후 불안, 부모 상실, 인생 후반에 대한 성찰',
+        situations: '자녀 결혼 준비, 정년 퇴직, 부모님 간병, 건강 검진 결과, 노후 자금 걱정, 배우자와의 관계 변화'
+      },
+      '70s+': {
+        language: '경험과 지혜가 묻어나는 깊이 있는 말투. "그때는 말이야", "나 같은 늙은이가" 등 겸손하면서도 따뜻한 표현',
+        psychology: '죽음에 대한 수용, 자녀와 손자녀에 대한 걱정, 외로움과 고독감, 과거에 대한 그리움, 삶의 의미에 대한 성찰',
+        situations: '배우자나 친구의 죽음, 요양원 입소, 손자녀 돌봄, 유산 정리, 과거 친구들과의 재회, 홀로 되는 두려움'
+      }
+    };
+    
+    const ageDirective = ageDirectives[age] || ageDirectives['20s'];
+
 
     // OpenAI에 보낼 프롬프트 생성
     const prompt = `당신은 한국에서 활동하는 전문 독백 작가입니다.
@@ -131,6 +173,7 @@ router.post('/generate', protect, async (req, res) => {
 - 장르: ${genre}  
 - 분량: ${lengthText}
 - 성별: ${genderText}
+- 연령대: ${ageText}
 
 —
 
@@ -144,9 +187,13 @@ ${characterDirectives}
 - 점진적 감정 축적 → 마지막 폭발/해소
 - 갑작스러운 고조보다 자연스러운 쌓임 중시
 
-**3. 언어 스타일**
+**3. 연령대별 특성 반영**
+**언어 스타일**: ${ageDirective.language}
+**심리적 특성**: ${ageDirective.psychology}
+**현실적 상황**: ${ageDirective.situations}
+
+**4. 언어 스타일 공통 원칙**
 - 실제 말할 법한 현실적 말투 (연극적 X)
-- 10대 후반~20대 초반 어휘와 표현
 - 감정에 따른 자연스러운 말투 변화
 - 침묵, 망설임, 한숨 등의 자연스러운 활용
 
@@ -225,6 +272,7 @@ ${characterDirectives}
       genre,
       length,
       gender,
+      age,
       metadata: {
         model: "gpt-4o",
         generateTime: new Date(),
@@ -245,6 +293,7 @@ ${characterDirectives}
         characterCount,
         genre,
         gender: genderText,
+        age: ageText,
         length: lengthText,
         generatedAt: new Date().toISOString()
       }

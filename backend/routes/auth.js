@@ -1016,4 +1016,81 @@ router.post('/request-verification-code', [
   }
 });
 
+// 회원탈퇴
+router.delete('/delete-account', protect, [
+  body('password')
+    .notEmpty()
+    .withMessage('비밀번호를 입력해주세요.')
+], async (req, res) => {
+  try {
+    debug('회원탈퇴 요청', { userId: req.user.id, email: req.user.email });
+
+    // 입력값 검증
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: '입력값이 올바르지 않습니다.',
+        errors: errors.array()
+      });
+    }
+
+    const { password } = req.body;
+    const userId = req.user.id;
+
+    // 사용자 정보 조회
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      });
+    }
+
+    // 비밀번호 확인
+    const isValidPassword = await user.matchPassword(password);
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: '비밀번호가 올바르지 않습니다.'
+      });
+    }
+
+    // 관련 데이터 삭제 (다른 모델들과의 관계 처리)
+    debug('사용자 관련 데이터 삭제 시작', { userId });
+
+    // TODO: 필요에 따라 다른 컬렉션의 사용자 관련 데이터도 삭제
+    // 예: AIScript, Bookmark, Post 등에서 해당 사용자의 데이터 삭제 또는 비활성화
+    
+    // 사용자 계정 삭제
+    await User.findByIdAndDelete(userId);
+    
+    debug('회원탈퇴 완료', { userId, email: user.email });
+
+    // 쿠키에서 토큰 제거
+    res.status(200)
+      .cookie('token', 'none', {
+        expires: new Date(Date.now() + 10 * 1000),
+        httpOnly: true
+      })
+      .json({
+        success: true,
+        message: '회원탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.'
+      });
+
+  } catch (error) {
+    debug('회원탈퇴 오류', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    });
+
+    res.status(500).json({
+      success: false,
+      message: '회원탈퇴 처리 중 오류가 발생했습니다.',
+      error: config.NODE_ENV === 'development' ? error.message : '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
 module.exports = router; 

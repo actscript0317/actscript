@@ -267,6 +267,8 @@ export const authAPI = {
   verifyEmail: (token) => withRetry(() => api.get(`/auth/verify-email/${token}`)),
   // 이메일 인증 상태 확인
   getVerificationStatus: () => withRetry(() => api.get('/auth/verification-status')),
+  // 회원탈퇴
+  deleteAccount: (data) => withRetry(() => api.delete('/auth/delete-account', { data })),
 };
 
 // AI 스크립트 API

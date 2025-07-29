@@ -12,7 +12,8 @@ import {
   modelRecruitmentAPI, 
   communityPostAPI,
   bookmarkAPI,
-  authAPI
+  authAPI,
+  adminAPI
 } from '../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -32,9 +33,13 @@ const MyPage = () => {
 
   const [myPosts, setMyPosts] = useState([]);
   const [mySavedPosts, setMySavedPosts] = useState([]);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'vault', 'billing', 'settings'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'vault', 'billing', 'settings', 'admin'
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
+  
+  // 관리자 대시보드 상태
+  const [adminStats, setAdminStats] = useState(null);
+  const [adminLoading, setAdminLoading] = useState(false);
   
   // 대본함 관련 상태
   const [vaultTab, setVaultTab] = useState('ai'); // 'ai', 'saved', 'written'
@@ -176,6 +181,31 @@ const MyPage = () => {
     };
   }, [isAuthenticated]);
 
+  // 관리자 통계 데이터 로드
+  const loadAdminStats = async () => {
+    if (user?.role !== 'admin') return;
+    
+    setAdminLoading(true);
+    try {
+      const response = await adminAPI.getDashboardStats();
+      if (response.data.success) {
+        setAdminStats(response.data.data);
+      }
+    } catch (error) {
+      console.error('관리자 통계 로드 실패:', error);
+      toast.error('관리자 통계를 불러올 수 없습니다.');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // 관리자 탭 선택 시 데이터 로드
+  useEffect(() => {
+    if (activeTab === 'admin' && user?.role === 'admin') {
+      loadAdminStats();
+    }
+  }, [activeTab, user?.role]);
+
   // 게시판 경로 가져오기
   const getBoardPath = (board) => {
     const paths = {
@@ -293,7 +323,8 @@ const MyPage = () => {
     { id: 'overview', label: '대시보드', icon: BarChart3 },
     { id: 'vault', label: '내 대본함', icon: Bookmark },
     { id: 'billing', label: '요금제', icon: CreditCard },
-    { id: 'settings', label: '계정 설정', icon: Settings }
+    { id: 'settings', label: '계정 설정', icon: Settings },
+    ...(user?.role === 'admin' ? [{ id: 'admin', label: '관리자', icon: Shield }] : [])
   ];
 
   // 대본함 하위 탭 메뉴
@@ -956,6 +987,256 @@ const MyPage = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* 관리자 대시보드 */}
+          {activeTab === 'admin' && user?.role === 'admin' && (
+            <div className="space-y-8">
+              {adminLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                </div>
+              ) : adminStats ? (
+                <>
+                  {/* 통계 카드 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* 오늘 방문자 */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <Eye className="h-8 w-8 text-blue-600" />
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">
+                              오늘 방문자
+                            </dt>
+                            <dd className="text-lg font-medium text-gray-900">
+                              {adminStats.visitors.today.toLocaleString()}명
+                            </dd>
+                          </dl>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <span className="text-sm text-gray-600">
+                          어제: {adminStats.visitors.yesterday.toLocaleString()}명
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 전체 사용자 */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <Users className="h-8 w-8 text-green-600" />
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">
+                              전체 사용자
+                            </dt>
+                            <dd className="text-lg font-medium text-gray-900">
+                              {adminStats.users.total.toLocaleString()}명
+                            </dd>
+                          </dl>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <span className="text-sm text-gray-600">
+                          오늘 신규: {adminStats.users.today}명
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* AI 대본 생성 */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <Sparkles className="h-8 w-8 text-purple-600" />
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">
+                              AI 대본 총 개수
+                            </dt>
+                            <dd className="text-lg font-medium text-gray-900">
+                              {adminStats.content.aiScripts.total.toLocaleString()}개
+                            </dd>
+                          </dl>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <span className="text-sm text-gray-600">
+                          오늘 생성: {adminStats.content.aiScripts.today}개
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 일반 대본 */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <Palette className="h-8 w-8 text-orange-600" />
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">
+                              등록된 대본
+                            </dt>
+                            <dd className="text-lg font-medium text-gray-900">
+                              {adminStats.content.scripts.total.toLocaleString()}개
+                            </dd>
+                          </dl>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <span className="text-sm text-gray-600">
+                          오늘 등록: {adminStats.content.scripts.today}개
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 주간 통계 */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">주간 통계</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">주간 방문자</h4>
+                        <p className="text-2xl font-semibold text-blue-600">
+                          {adminStats.visitors.weekly.toLocaleString()}명
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          일평균: {adminStats.visitors.weeklyAvg}명
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">주간 신규 사용자</h4>
+                        <p className="text-2xl font-semibold text-green-600">
+                          {adminStats.users.weekly.toLocaleString()}명
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          성장률: {adminStats.users.growth}%
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">페이지뷰</h4>
+                        <p className="text-2xl font-semibold text-purple-600">
+                          {adminStats.visitors.pageViews.weekly.toLocaleString()}회
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          오늘: {adminStats.visitors.pageViews.today}회
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 콘텐츠 통계 */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">콘텐츠 현황</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">배우 프로필</p>
+                        <p className="text-xl font-semibold text-purple-600">
+                          {adminStats.content.actorProfiles.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">배우 모집</p>
+                        <p className="text-xl font-semibold text-green-600">
+                          {adminStats.content.actorRecruitments.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">모델 모집</p>
+                        <p className="text-xl font-semibold text-pink-600">
+                          {adminStats.content.modelRecruitments.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">커뮤니티 글</p>
+                        <p className="text-xl font-semibold text-blue-600">
+                          {adminStats.content.communityPosts.total.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 최근 활동 */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* 최근 가입자 */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">최근 가입자</h3>
+                      <div className="space-y-3">
+                        {adminStats.recentActivity.users.slice(0, 5).map((user) => (
+                          <div key={user._id} className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <User className="h-5 w-5 text-gray-400 mr-3" />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {user.username}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {user.email}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {formatDate(user.createdAt)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 최근 AI 대본 */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">최근 AI 대본</h3>
+                      <div className="space-y-3">
+                        {adminStats.recentActivity.aiScripts.slice(0, 5).map((script) => (
+                          <div key={script._id} className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <Sparkles className="h-5 w-5 text-purple-400 mr-3" />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {script.theme}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  by {script.user?.username || '알 수 없음'}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {formatDate(script.createdAt)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 새로고침 버튼 */}
+                  <div className="flex justify-center">
+                    <button
+                      onClick={loadAdminStats}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      통계 새로고침
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">통계 데이터를 불러올 수 없습니다.</p>
+                  <button
+                    onClick={loadAdminStats}
+                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

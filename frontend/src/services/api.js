@@ -355,4 +355,24 @@ export const communityPostAPI = {
   search: (params) => api.get('/community-posts/search', { params })
 };
 
+// 관리자 API
+export const adminAPI = {
+  // 대시보드 통계
+  getDashboardStats: () => withRetry(() => api.get('/admin/dashboard/stats')),
+  
+  // 방문자 통계
+  getVisitors: (params) => withRetry(() => api.get('/admin/visitors', { params })),
+  
+  // 사용자 관리
+  getUsers: (params) => withRetry(() => api.get('/admin/users', { params })),
+  updateUserRole: (userId, role) => withRetry(() => api.put(`/admin/users/${userId}/role`, { role })),
+  updateUserStatus: (userId, isActive) => withRetry(() => api.put(`/admin/users/${userId}/status`, { isActive })),
+  
+  // 콘텐츠 관리
+  getScripts: (params) => withRetry(() => api.get('/admin/scripts', { params })),
+  
+  // 시스템 정보
+  getSystemInfo: () => withRetry(() => api.get('/admin/system/info'))
+};
+
 export default api; 

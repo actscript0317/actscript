@@ -10,6 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const connectDB = require('./config/database');
 const checkDBConnection = require('./middleware/dbCheck');
+const visitorTracker = require('./middleware/visitorTracker');
 const mongoose = require('mongoose');
 
 // 라우트 임포트
@@ -23,6 +24,7 @@ const communityPostRoutes = require('./routes/community-posts');
 const modelRecruitmentRoutes = require('./routes/model-recruitments');
 const likeRoutes = require('./routes/likes');
 const bookmarkRoutes = require('./routes/bookmarks');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = config.PORT;
@@ -74,6 +76,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // 프리플라이트 요청 허용
+
+// 방문자 추적 미들웨어 (CORS 설정 이후, 다른 미들웨어 이전)
+app.use(visitorTracker);
 
 // 데이터베이스 연결
 connectDB().then(() => {
@@ -312,6 +317,7 @@ app.use('/api/community-posts', communityPostRoutes);
 app.use('/api/model-recruitments', modelRecruitmentRoutes);
 app.use('/api/likes', likeRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 응답 로깅 미들웨어
 app.use((req, res, next) => {

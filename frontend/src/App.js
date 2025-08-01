@@ -26,6 +26,10 @@ import ActorInfo from './pages/ActorInfo';
 // 새로운 게시글 관련 페이지들
 import CreatePost from './pages/CreatePost';
 import PostDetail from './pages/PostDetail';
+// 결제 관련 페이지들
+import Payment from './pages/Payment';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFail from './pages/PaymentFail';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -74,6 +78,23 @@ function App() {
               <Route path="/posts/new" element={
                 <PrivateRoute>
                   <CreatePost />
+                </PrivateRoute>
+              } />
+              
+              {/* 결제 관련 라우트 */}
+              <Route path="/payment" element={
+                <PrivateRoute>
+                  <Payment />
+                </PrivateRoute>
+              } />
+              <Route path="/payment/success" element={
+                <PrivateRoute>
+                  <PaymentSuccess />
+                </PrivateRoute>
+              } />
+              <Route path="/payment/fail" element={
+                <PrivateRoute>
+                  <PaymentFail />
                 </PrivateRoute>
               } />
 

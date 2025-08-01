@@ -25,6 +25,19 @@ if (!process.env.CLIENT_URL) {
   process.env.CLIENT_URL = 'https://www.actpiece.com';
 }
 
+// 나이스페이먼트 설정
+if (!process.env.NICEPAY_CLIENT_KEY) {
+  process.env.NICEPAY_CLIENT_KEY = 'R2_38961c9b2b494219adacb01cbd31f583';
+}
+
+if (!process.env.NICEPAY_SECRET_KEY) {
+  process.env.NICEPAY_SECRET_KEY = '534fa658a8a24b4c8f8d7ded325cf569';
+}
+
+if (!process.env.NICEPAY_API_URL) {
+  process.env.NICEPAY_API_URL = 'https://sandbox-api.nicepay.co.kr';
+}
+
 
 // 환경 변수 검증
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
@@ -45,5 +58,10 @@ module.exports = {
   JWT_SECRET: process.env.JWT_SECRET,
   JWT_EXPIRE: process.env.JWT_EXPIRE || '7d',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  CLIENT_URL: process.env.CLIENT_URL || 'https://actscript-1.onrender.com'
+  CLIENT_URL: process.env.CLIENT_URL || 'https://actscript-1.onrender.com',
+  
+  // 나이스페이먼트 설정
+  NICEPAY_CLIENT_KEY: process.env.NICEPAY_CLIENT_KEY,
+  NICEPAY_SECRET_KEY: process.env.NICEPAY_SECRET_KEY,
+  NICEPAY_API_URL: process.env.NICEPAY_API_URL
 }; 

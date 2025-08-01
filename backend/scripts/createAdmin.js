@@ -9,13 +9,30 @@ require('dotenv').config();
 // MongoDB 연결
 const connectDB = async () => {
   try {
-    await mongoose.connect(config.MONGODB_URI, {
+    console.log('🔗 MongoDB 연결 시도 중...');
+    console.log('📍 URI:', config.MONGODB_URI ? 'URI 설정됨' : 'URI 없음');
+    
+    const connection = await mongoose.connect(config.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000, // 10초 타임아웃
+      socketTimeoutMS: 45000, // 45초 소켓 타임아웃
     });
+    
     console.log('✅ MongoDB 연결 성공');
+    console.log('📍 데이터베이스:', connection.connection.db.databaseName);
+    console.log('📍 호스트:', connection.connection.host);
   } catch (error) {
-    console.error('❌ MongoDB 연결 실패:', error);
+    console.error('❌ MongoDB 연결 실패:', error.message);
+    
+    if (error.code === 'EREFUSED') {
+      console.error('💡 해결 방법:');
+      console.error('   1. 인터넷 연결 확인');
+      console.error('   2. MongoDB Atlas 클러스터 상태 확인');
+      console.error('   3. 방화벽 설정 확인');
+      console.error('   4. IP 화이트리스트 설정 확인');
+    }
+    
     process.exit(1);
   }
 };

@@ -11,8 +11,8 @@ let openai = null;
 
 if (config.OPENAI_API_KEY) {
   openai = new OpenAI({
-  apiKey: config.OPENAI_API_KEY
-});
+    apiKey: config.OPENAI_API_KEY
+  });
 } else {
   console.warn('⚠️ OPENAI_API_KEY가 설정되지 않았습니다. AI 기능이 비활성화됩니다.');
 }
@@ -48,7 +48,7 @@ const extractTitleFromScript = (scriptContent) => {
   return null;
 };
 
-  // 대본 생성 API
+// 대본 생성 API
 router.post('/generate', protect, async (req, res) => {
   try {
     console.log('🎭 AI 대본 생성 요청 시작');
@@ -117,7 +117,6 @@ router.post('/generate', protect, async (req, res) => {
       '시대극': 'Use historically appropriate language and cultural context.',
     }[genre] || 'Keep the tone consistent with the selected genre.';
 
-
     // 등장인물별 지시사항
     const characterDirectivesMap = {
       '1': `독백 전용 작성 가이드:
@@ -167,7 +166,6 @@ router.post('/generate', protect, async (req, res) => {
     };
     
     const ageDirective = ageDirectives[age] || ageDirectives['20s'];
-
 
     // OpenAI에 보낼 프롬프트 생성
     const prompt = `당신은 한국에서 활동하는 전문 독백 작가입니다.
@@ -353,7 +351,7 @@ ${characterDirectives}
 });
 
 // 대본 리라이팅 API
-router.post('/rewrite', async (req, res) => {
+router.post('/rewrite', protect, async (req, res) => {
   try {
     // OpenAI API 키 확인
     if (!openai) {
@@ -624,4 +622,4 @@ router.get('/saved', protect, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

@@ -25,6 +25,7 @@ const modelRecruitmentRoutes = require('./routes/model-recruitments');
 const likeRoutes = require('./routes/likes');
 const bookmarkRoutes = require('./routes/bookmarks');
 const adminRoutes = require('./routes/admin');
+const paymentRoutes = require('./routes/payment');
 
 const app = express();
 const PORT = config.PORT;
@@ -318,6 +319,7 @@ app.use('/api/model-recruitments', modelRecruitmentRoutes);
 app.use('/api/likes', likeRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // 응답 로깅 미들웨어
 app.use((req, res, next) => {

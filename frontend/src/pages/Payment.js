@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Payment = () => {
@@ -10,18 +10,6 @@ const Payment = () => {
     customerEmail: user?.email || ''
   });
   const [loading, setLoading] = useState(false);
-
-  // 나이스페이먼트 스크립트 로드
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://pay.nicepay.co.kr/v1/js/';
-    script.async = true;
-    document.head.appendChild(script);
-
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, []);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -43,53 +31,63 @@ const Payment = () => {
 
       const { data } = await response.json();
 
-      // 나이스페이먼트 결제창 호출
-      if (window.NICEPAY) {
-        window.NICEPAY.requestPayment({
-          clientId: process.env.REACT_APP_NICEPAY_CLIENT_KEY,
-          amount: data.amount,
-          orderId: data.orderId,
-          orderName: data.orderName,
-          customerName: data.customerName,
-          customerEmail: data.customerEmail,
-          returnUrl: `${window.location.origin}/payment/success`,
-          cancelUrl: `${window.location.origin}/payment/fail`,
-        });
-      } else {
-        // 폴백: 직접 폼 제출 방식
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://web.nicepay.co.kr/v3/v3Pay.jsp';
-        form.target = '_blank';
+      // 나이스페이먼트 결제창 호출 (새 창에서)
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'https://web.nicepay.co.kr/v3/v3Pay.jsp';
+      form.target = 'nicepay_popup';
+      form.style.display = 'none';
 
-        const formData = {
-          MID: process.env.REACT_APP_NICEPAY_CLIENT_KEY,
-          Amt: data.amount,
-          GoodsName: data.orderName,
-          Moid: data.orderId,
-          BuyerName: data.customerName,
-          BuyerEmail: data.customerEmail,
-          ReturnURL: `${window.location.origin}/payment/success`,
-          CloseURL: `${window.location.origin}/payment/fail`
-        };
+      const formData = {
+        MID: process.env.REACT_APP_NICEPAY_CLIENT_KEY,
+        Amt: data.amount,
+        GoodsName: data.orderName,
+        Moid: data.orderId,
+        BuyerName: data.customerName,
+        BuyerEmail: data.customerEmail,
+        ReturnURL: `${window.location.origin}/payment/success`,
+        CloseURL: `${window.location.origin}/payment/fail`,
+        VbankExpDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 8), // 1일 후
+        PayMethod: 'CARD', // 카드결제만 허용
+        CharSet: 'utf-8'
+      };
 
-        Object.keys(formData).forEach(key => {
+      Object.keys(formData).forEach(key => {
+        if (formData[key]) {
           const input = document.createElement('input');
           input.type = 'hidden';
           input.name = key;
           input.value = formData[key];
           form.appendChild(input);
-        });
+        }
+      });
 
+      // 팝업 창 열기
+      const popup = window.open('', 'nicepay_popup', 
+        'width=500,height=600,scrollbars=yes,resizable=no,toolbar=no,menubar=no'
+      );
+
+      if (popup) {
         document.body.appendChild(form);
         form.submit();
         document.body.removeChild(form);
+        
+        // 팝업 창이 닫혔는지 확인하는 인터벌
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            setLoading(false);
+            // 결제 결과 확인을 위해 페이지 새로고침 (선택사항)
+            // window.location.reload();
+          }
+        }, 1000);
+      } else {
+        throw new Error('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
       }
 
     } catch (error) {
       console.error('결제 요청 실패:', error);
-      alert('결제 요청 중 오류가 발생했습니다.');
-    } finally {
+      alert(error.message || '결제 요청 중 오류가 발생했습니다.');
       setLoading(false);
     }
   };

@@ -7,7 +7,6 @@
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
-    "@tosspayments/payment-sdk": "^2.0.0",
     "axios": "^1.6.7",
     "framer-motion": "^11.0.3",
     "lucide-react": "^0.323.0",

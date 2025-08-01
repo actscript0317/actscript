@@ -36,6 +36,12 @@ const Navbar = () => {
               >
                 대본 목록
               </Link>
+              <Link
+                to="/pricing"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-blue-600 hover:text-blue-800 font-semibold"
+              >
+                💎 프리미엄 플랜
+              </Link>
               
               {/* 저는 배우입니다 드롭다운 메뉴 */}
               <div className="relative">
@@ -176,6 +182,13 @@ const Navbar = () => {
             onClick={() => setIsOpen(false)}
           >
             대본 목록
+          </Link>
+          <Link
+            to="/pricing"
+            className="block pl-3 pr-4 py-2 border-l-4 text-base font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 hover:border-blue-300 font-semibold"
+            onClick={() => setIsOpen(false)}
+          >
+            💎 프리미엄 플랜
           </Link>
           
           {/* 저는 배우입니다 모바일 메뉴 */}

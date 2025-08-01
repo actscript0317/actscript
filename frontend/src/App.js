@@ -30,6 +30,7 @@ import PostDetail from './pages/PostDetail';
 import Payment from './pages/Payment';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
+import Pricing from './pages/Pricing';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/scripts" element={<Scripts />} />
               <Route path="/scripts/:id" element={<ScriptDetail />} />
+              <Route path="/pricing" element={<Pricing />} />
               
               {/* 배우 관련 페이지 - 공개 접근 */}
               <Route path="/actor-profile" element={<ActorProfile />} />

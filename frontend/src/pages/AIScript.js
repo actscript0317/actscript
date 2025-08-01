@@ -24,8 +24,15 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const AIScript = () => {
-  const { addSavedScript } = useAuth();
+  const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
+  
+  // 사용량 관리 상태 (실제로는 백엔드에서 가져와야 함)
+  const [usageData, setUsageData] = useState({
+    used: 2, // 사용한 횟수
+    limit: 3, // 무료 한도
+    isPremium: false // 프리미엄 여부
+  });
   
   // 폼 상태 관리
   const [formData, setFormData] = useState({
@@ -54,22 +61,21 @@ const AIScript = () => {
   // 상세 보기 모달 상태
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // 옵션 데이터
+  // 옵션 데이터 (프리미엄 여부에 따라 제한)
   const characterOptions = [
     { value: '1', label: '1인 독백', icon: '👤', available: true },
-    { value: '2-3', label: '2~3인 대화', icon: '👥', available: false },
-    { value: '4+', label: '4인 이상 앙상블', icon: '👨‍👩‍👧‍👦', available: false }
+    { value: '2-3', label: '2~3인 대화', icon: '👥', available: usageData.isPremium, premium: true },
+    { value: '4+', label: '4인 이상 앙상블', icon: '👨‍👩‍👧‍👦', available: usageData.isPremium, premium: true }
   ];
 
-  const genres = [
-    '로맨스', '코미디', '비극', '스릴러', '드라마', '액션', 
-    '공포', '판타지', 'SF', '미스터리', '시대극'
-  ];
+  const freeGenres = ['로맨스', '코미디', '드라마'];
+  const premiumGenres = ['스릴러', '액션', '공포', '판타지', 'SF', '미스터리', '시대극'];
+  const genres = [...freeGenres, ...premiumGenres];
 
   const lengths = [
-    { value: 'short', label: '짧게', time: '1~2분', icon: '⚡' },
-    { value: 'medium', label: '중간', time: '3~5분', icon: '⏱️' },
-    { value: 'long', label: '길게', time: '5~10분', icon: '📝' }
+    { value: 'short', label: '짧게', time: '1~2분', icon: '⚡', available: true },
+    { value: 'medium', label: '중간', time: '3~5분', icon: '⏱️', available: usageData.isPremium, premium: true },
+    { value: 'long', label: '길게', time: '5~10분', icon: '📝', available: usageData.isPremium, premium: true }
   ];
 
 
@@ -331,6 +337,12 @@ const AIScript = () => {
   const handleGenerate = async (e) => {
     e.preventDefault();
     
+    // 사용량 제한 확인
+    if (!usageData.isPremium && usageData.used >= usageData.limit) {
+      toast.error('무료 사용량을 모두 사용했습니다. 프리미엄 플랜으로 업그레이드하세요!');
+      return;
+    }
+    
     // 입력값 검증
     if (!formData.characterCount || !formData.genre || !formData.length || !formData.gender || !formData.age) {
       setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이, 성별, 연령대)');
@@ -359,17 +371,17 @@ const AIScript = () => {
       setGeneratedScript(data.script);
       setGeneratedScriptId(data.scriptId); // 백엔드에서 반환된 스크립트 ID 저장
       
-      // AI 생성 대본을 자동으로 저장하지 않고, 사용자가 저장 버튼을 눌렀을 때만 저장
-      // if (addAIGeneratedScript) {
-      //   addAIGeneratedScript({
-      //     title: `${formData.genre} ${formData.emotions.join(', ')} 대본`,
-      //     content: data.script,
-      //     characterCount: formData.characterCount,
-      //     genre: formData.genre,
-      //     emotion: formData.emotions.join(', '),
-      //     metadata: data.metadata
-      //   });
-      // }
+      // 사용량 업데이트 (무료 사용자만)
+      if (!usageData.isPremium) {
+        setUsageData(prev => ({
+          ...prev,
+          used: prev.used + 1
+        }));
+      }
+      
+      // 성공 메시지 with 사용량 정보
+      const remainingCount = usageData.isPremium ? '무제한' : `${usageData.limit - usageData.used - 1}회`;
+      toast.success(`AI 스크립트가 생성되었습니다! 남은 사용량: ${remainingCount}`);
       
       // 결과 영역으로 스크롤
       setTimeout(() => {
@@ -423,19 +435,34 @@ const AIScript = () => {
             exit={{ opacity: 0, y: -10 }}
             className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto"
           >
-            {options.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => {
-                  onChange(option);
-                  setIsOpen(false);
-                }}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
-              >
-                {option}
-              </button>
-            ))}
+            {options.map((option) => {
+              const isPremiumGenre = premiumGenres.includes(option);
+              const isDisabled = isPremiumGenre && !usageData.isPremium;
+              
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    if (!isDisabled) {
+                      onChange(option);
+                      setIsOpen(false);
+                    }
+                  }}
+                  disabled={isDisabled}
+                  className={`w-full px-4 py-3 text-left transition-colors first:rounded-t-xl last:rounded-b-xl flex items-center justify-between ${
+                    isDisabled 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <span>{option}</span>
+                  {isPremiumGenre && !usageData.isPremium && (
+                    <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">PRO</span>
+                  )}
+                </button>
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>
@@ -446,6 +473,66 @@ const AIScript = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
+          
+          {/* 사용량 표시 바 */}
+          {!usageData.isPremium && (
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-blue-500">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-gray-900">무료 플랜</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {usageData.used}/{usageData.limit}회 사용
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(usageData.used / usageData.limit) * 100}%` }}
+                    ></div>
+                  </div>
+                  <button
+                    onClick={() => navigate('/pricing')}
+                    className="text-sm bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 transition-colors"
+                  >
+                    업그레이드
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 사용량 초과 경고 */}
+          {!usageData.isPremium && usageData.used >= usageData.limit && (
+            <div className="bg-gradient-to-r from-orange-100 to-red-100 border border-orange-300 rounded-lg p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-orange-800 mb-2">
+                    🚀 무료 사용량을 모두 사용했습니다!
+                  </h3>
+                  <p className="text-orange-700 mb-4">
+                    프리미엄 플랜으로 업그레이드하면 무제한으로 AI 스크립트를 생성할 수 있습니다.
+                  </p>
+                  <ul className="text-sm text-orange-600 space-y-1">
+                    <li>✨ 무제한 AI 스크립트 생성</li>
+                    <li>🎭 모든 장르 및 길이 지원</li>
+                    <li>🔧 스크립트 리라이팅 기능</li>
+                  </ul>
+                </div>
+                <div className="ml-6">
+                  <button
+                    onClick={() => navigate('/pricing')}
+                    className="bg-orange-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-700 transition-colors shadow-lg"
+                  >
+                    프리미엄 시작하기
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* 페이지 헤더 */}
           <motion.div 
@@ -543,12 +630,25 @@ const AIScript = () => {
                         value={length.value}
                         onChange={(e) => handleInputChange('length', e.target.value)}
                         className="sr-only peer"
+                        disabled={!length.available}
                       />
-                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:border-purple-500 peer-checked:shadow-md">
+                      <div className={`p-4 border-2 rounded-xl cursor-pointer transition-all relative ${
+                        !length.available 
+                          ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed' 
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:border-purple-500 peer-checked:shadow-md'
+                      }`}>
+                        {length.premium && !usageData.isPremium && (
+                          <div className="absolute -top-2 -right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                            PRO
+                          </div>
+                        )}
                         <div className="text-center">
                           <div className="text-2xl mb-2">{length.icon}</div>
                           <div className="font-medium text-gray-900">{length.label}</div>
                           <div className="text-sm text-gray-500">{length.time}</div>
+                          {length.premium && !usageData.isPremium && (
+                            <div className="text-xs text-yellow-600 mt-1">프리미엄 전용</div>
+                          )}
                         </div>
                       </div>
                     </label>

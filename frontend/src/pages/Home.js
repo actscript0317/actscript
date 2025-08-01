@@ -109,6 +109,112 @@ const Home = () => {
             <PopularPostsSection />
           </section>
 
+          {/* AI 스크립트 + 요금제 섹션 */}
+          <section className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 lg:p-12">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">
+                🤖 AI가 만드는 맞춤형 연기 대본
+              </h2>
+              <p className="text-gray-600 text-lg max-w-3xl mx-auto">
+                당신의 연기 스타일과 목적에 맞는 대본을 AI가 즉시 생성해드립니다. 
+                오디션 준비부터 감정 연기 연습까지, 무한한 가능성을 경험해보세요.
+              </p>
+            </div>
+
+            {/* 요금제 비교 */}
+            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-8">
+              {/* 무료 플랜 */}
+              <div className="bg-white rounded-xl p-6 shadow-lg">
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">무료 플랜</h3>
+                  <div className="text-3xl font-bold text-gray-900 mb-1">0원</div>
+                  <div className="text-gray-600">기본 AI 스크립트 체험</div>
+                </div>
+                <ul className="space-y-3 mb-6">
+                  <li className="flex items-center text-green-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    월 3회 AI 스크립트 생성
+                  </li>
+                  <li className="flex items-center text-green-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    기본 장르 (로맨스, 코미디, 드라마)
+                  </li>
+                  <li className="flex items-center text-green-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    짧은 길이 스크립트 (1-2분)
+                  </li>
+                </ul>
+                <Link
+                  to="/ai-script"
+                  className="w-full block text-center bg-gray-600 text-white py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                >
+                  무료로 시작하기
+                </Link>
+              </div>
+
+              {/* 프리미엄 플랜 */}
+              <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-blue-500 relative">
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium">
+                    추천
+                  </span>
+                </div>
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">프리미엄 플랜</h3>
+                  <div className="text-3xl font-bold text-blue-600 mb-1">9,900원</div>
+                  <div className="text-gray-600">무제한 AI 스크립트 + 고급 기능</div>
+                </div>
+                <ul className="space-y-3 mb-6">
+                  <li className="flex items-center text-blue-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    무제한 AI 스크립트 생성
+                  </li>
+                  <li className="flex items-center text-blue-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    모든 장르 (스릴러, 액션, 공포, SF 등)
+                  </li>
+                  <li className="flex items-center text-blue-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    모든 길이 스크립트 (1-10분)
+                  </li>
+                  <li className="flex items-center text-blue-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    스크립트 리라이팅 기능
+                  </li>
+                </ul>
+                <Link
+                  to="/pricing"
+                  className="w-full block text-center bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  프리미엄 시작하기
+                </Link>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <Link 
+                to="/pricing" 
+                className="text-blue-600 hover:text-blue-800 font-medium underline"
+              >
+                자세한 요금제 비교 보기 →
+              </Link>
+            </div>
+          </section>
+
           {/* CTA 섹션 */}
           <section className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-2xl p-8 lg:p-12 text-center">
             <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4">

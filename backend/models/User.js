@@ -113,6 +113,55 @@ const userSchema = new mongoose.Schema({
   tempUserData: {
     type: Object,
     select: false
+  },
+  // 프리미엄 구독 관련 필드
+  subscription: {
+    plan: {
+      type: String,
+      enum: ['free', 'pro', 'premier'],
+      default: 'free'
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'cancelled', 'expired'],
+      default: 'inactive'
+    },
+    startDate: {
+      type: Date
+    },
+    endDate: {
+      type: Date
+    },
+    paymentHistory: [{
+      orderId: String,
+      tid: String,
+      amount: Number,
+      planType: String,
+      paymentDate: {
+        type: Date,
+        default: Date.now
+      },
+      status: {
+        type: String,
+        enum: ['completed', 'failed', 'cancelled'],
+        default: 'completed'
+      }
+    }]
+  },
+  // AI 스크립트 사용량 추적
+  usage: {
+    currentMonth: {
+      type: Number,
+      default: 0
+    },
+    lastResetDate: {
+      type: Date,
+      default: Date.now
+    },
+    totalGenerated: {
+      type: Number,
+      default: 0
+    }
   }
 }, {
   timestamps: true,
@@ -406,6 +455,76 @@ userSchema.methods.verifyEmailCode = function(inputCode) {
   
   // 저장된 코드와 비교
   return hashedInputCode === this.emailVerificationCode;
+};
+
+// 구독 관련 메서드들
+userSchema.methods.upgradeSubscription = function(planType, paymentData) {
+  const now = new Date();
+  const endDate = new Date(now);
+  endDate.setMonth(endDate.getMonth() + 1); // 1개월 후
+  
+  this.subscription.plan = planType;
+  this.subscription.status = 'active';
+  this.subscription.startDate = now;
+  this.subscription.endDate = endDate;
+  
+  // 결제 이력 추가
+  this.subscription.paymentHistory.push({
+    orderId: paymentData.orderId,
+    tid: paymentData.tid,
+    amount: paymentData.amount,
+    planType: planType,
+    paymentDate: now,
+    status: 'completed'
+  });
+  
+  debug('구독 업그레이드 완료', { 
+    plan: planType, 
+    endDate: endDate.toISOString() 
+  });
+};
+
+// 구독 상태 확인
+userSchema.methods.isSubscriptionActive = function() {
+  if (this.subscription.plan === 'free') return true;
+  
+  return this.subscription.status === 'active' && 
+         this.subscription.endDate && 
+         new Date() < this.subscription.endDate;
+};
+
+// 사용량 제한 확인
+userSchema.methods.canGenerateScript = function() {
+  const now = new Date();
+  
+  // 월이 바뀌었으면 사용량 리셋
+  if (this.usage.lastResetDate && 
+      this.usage.lastResetDate.getMonth() !== now.getMonth()) {
+    this.usage.currentMonth = 0;
+    this.usage.lastResetDate = now;
+  }
+  
+  // 플랜별 제한 확인
+  switch (this.subscription.plan) {
+    case 'free':
+      return this.usage.currentMonth < 3;
+    case 'pro':
+      return this.usage.currentMonth < 50;
+    case 'premier':
+      return true; // 무제한
+    default:
+      return false;
+  }
+};
+
+// 스크립트 생성 시 사용량 증가
+userSchema.methods.incrementUsage = function() {
+  this.usage.currentMonth += 1;
+  this.usage.totalGenerated += 1;
+  debug('사용량 증가', { 
+    currentMonth: this.usage.currentMonth,
+    total: this.usage.totalGenerated 
+  });
 };
 
 // 인덱스 생성

@@ -27,12 +27,14 @@ const AIScript = () => {
   const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
   
-  // 사용량 관리 상태 (실제로는 백엔드에서 가져와야 함)
-  const [usageData, setUsageData] = useState({
-    used: 2, // 사용한 횟수
-    limit: 3, // 무료 한도
-    isPremium: false // 프리미엄 여부
-  });
+  // 사용량 관리 상태 (사용자 구독 정보를 바탕으로 계산)
+  const usageData = {
+    used: user?.usage?.currentMonth || 0,
+    limit: user?.subscription?.plan === 'pro' ? 50 : 
+           user?.subscription?.plan === 'premier' ? 999999 : 3, // premier는 무제한으로 처리
+    isPremium: user?.subscription?.plan === 'pro' || user?.subscription?.plan === 'premier',
+    isActive: user?.subscription?.status === 'active' || user?.subscription?.plan === 'free'
+  };
   
   // 폼 상태 관리
   const [formData, setFormData] = useState({
@@ -337,6 +339,19 @@ const AIScript = () => {
   const handleGenerate = async (e) => {
     e.preventDefault();
     
+    // 로그인 확인
+    if (!user) {
+      toast.error('로그인이 필요합니다.');
+      navigate('/login');
+      return;
+    }
+    
+    // 구독 상태 확인
+    if (!usageData.isActive) {
+      toast.error('활성화된 구독이 필요합니다.');
+      return;
+    }
+    
     // 사용량 제한 확인
     if (!usageData.isPremium && usageData.used >= usageData.limit) {
       toast.error('무료 사용량을 모두 사용했습니다. 프리미엄 플랜으로 업그레이드하세요!');
@@ -371,16 +386,9 @@ const AIScript = () => {
       setGeneratedScript(data.script);
       setGeneratedScriptId(data.scriptId); // 백엔드에서 반환된 스크립트 ID 저장
       
-      // 사용량 업데이트 (무료 사용자만)
-      if (!usageData.isPremium) {
-        setUsageData(prev => ({
-          ...prev,
-          used: prev.used + 1
-        }));
-      }
-      
+      // 사용량 정보는 백엔드에서 자동으로 업데이트됨
       // 성공 메시지 with 사용량 정보
-      const remainingCount = usageData.isPremium ? '무제한' : `${usageData.limit - usageData.used - 1}회`;
+      const remainingCount = usageData.isPremium ? '무제한' : `${Math.max(0, usageData.limit - usageData.used - 1)}회`;
       toast.success(`AI 스크립트가 생성되었습니다! 남은 사용량: ${remainingCount}`);
       
       // 결과 영역으로 스크롤
@@ -475,35 +483,57 @@ const AIScript = () => {
         <div className="max-w-4xl mx-auto">
           
           {/* 사용량 표시 바 */}
-          {!usageData.isPremium && (
-            <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-blue-500">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2">
-                    <Sparkles className="w-5 h-5 text-blue-600" />
-                    <span className="font-medium text-gray-900">무료 플랜</span>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {usageData.used}/{usageData.limit}회 사용
-                  </div>
+          <div className={`bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 ${
+            user?.subscription?.plan === 'premier' ? 'border-purple-500' :
+            user?.subscription?.plan === 'pro' ? 'border-blue-500' :
+            'border-gray-500'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className={`w-5 h-5 ${
+                    user?.subscription?.plan === 'premier' ? 'text-purple-600' :
+                    user?.subscription?.plan === 'pro' ? 'text-blue-600' :
+                    'text-gray-600'
+                  }`} />
+                  <span className="font-medium text-gray-900">
+                    {user?.subscription?.plan === 'premier' ? '프리미어 플랜' :
+                     user?.subscription?.plan === 'pro' ? '프로 플랜' :
+                     '무료 플랜'}
+                  </span>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="text-sm text-gray-600">
+                  {usageData.isPremium && user?.subscription?.plan === 'premier' ? 
+                    `${usageData.used}회 사용 (무제한)` :
+                    `${usageData.used}/${usageData.limit}회 사용`
+                  }
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                {!usageData.isPremium && (
                   <div className="w-24 bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(usageData.used / usageData.limit) * 100}%` }}
+                      style={{ width: `${Math.min(100, (usageData.used / usageData.limit) * 100)}%` }}
                     ></div>
                   </div>
+                )}
+                {!usageData.isPremium && (
                   <button
                     onClick={() => navigate('/pricing')}
                     className="text-sm bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 transition-colors"
                   >
                     업그레이드
                   </button>
-                </div>
+                )}
+                {usageData.isPremium && (
+                  <span className="text-sm text-green-600 font-medium">
+                    {user?.subscription?.plan === 'premier' ? '✨ 무제한' : '✨ 프리미엄'}
+                  </span>
+                )}
               </div>
             </div>
-          )}
+          </div>
 
           {/* 사용량 초과 경고 */}
           {!usageData.isPremium && usageData.used >= usageData.limit && (

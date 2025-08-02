@@ -35,7 +35,7 @@ if (!process.env.NICEPAY_SECRET_KEY) {
 }
 
 if (!process.env.NICEPAY_API_URL) {
-  process.env.NICEPAY_API_URL = 'https://sandbox-api.nicepay.co.kr';
+  process.env.NICEPAY_API_URL = 'https://api.nicepay.co.kr'; // 운영 환경으로 변경
 }
 
 

@@ -2,6 +2,7 @@ const express = require('express');
 const OpenAI = require('openai');
 const config = require('../config/env');
 const AIScript = require('../models/AIScript');
+const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -64,6 +65,26 @@ router.post('/generate', protect, async (req, res) => {
     }
     
     console.log('✅ OpenAI 클라이언트 초기화 완료');
+    
+    // 사용자 정보 업데이트 및 사용량 확인
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(401).json({
+        error: '사용자를 찾을 수 없습니다.'
+      });
+    }
+    
+    // 사용량 제한 확인
+    if (!user.canGenerateScript()) {
+      const limit = user.subscription.plan === 'pro' ? 50 : 
+                   user.subscription.plan === 'premier' ? '무제한' : 3;
+      return res.status(429).json({
+        error: '사용량을 초과했습니다.',
+        message: `이번 달 사용량 한도(${limit}회)를 초과했습니다. 프리미엄 플랜을 고려해보세요.`,
+        currentUsage: user.usage.currentMonth,
+        limit: limit
+      });
+    }
 
     const { characterCount, genre, length, gender, age } = req.body;
 
@@ -292,6 +313,14 @@ ${characterDirectives}
 
     const savedScript = await newScript.save();
     console.log('✅ MongoDB 저장 완료, ID:', savedScript._id);
+    
+    // 사용량 증가 및 사용자 업데이트
+    user.incrementUsage();
+    await user.save();
+    console.log('✅ 사용량 업데이트 완료:', {
+      currentMonth: user.usage.currentMonth,
+      total: user.usage.totalGenerated
+    });
 
     res.json({
       success: true,

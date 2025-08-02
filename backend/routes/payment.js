@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
 const config = require('../config/env');
+const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -73,35 +74,7 @@ router.post('/prepare', protect, async (req, res) => {
       });
     }
 
-    // 나이스페이먼츠 API 키 확인 (실제 키가 있으므로 주석 처리)
-    // if (!config.NICEPAY_CLIENT_KEY || config.NICEPAY_CLIENT_KEY === 'R2_38961c9b2b494219adacb01cbd31f583') {
-    if (false) { // 실제 키로 테스트하기 위해 false로 설정
-      
-      // 테스트용 응답
-      const testOrderId = `TEST_ORDER_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-      
-      const testPaymentData = {
-        orderId: testOrderId,
-        amount: parseInt(amount),
-        orderName,
-        customerName: customerName || req.user?.name || '고객',
-        customerEmail: customerEmail || req.user?.email || '',
-        returnUrl: `${config.CLIENT_URL}/payment/success`,
-        failUrl: `${config.CLIENT_URL}/payment/fail`,
-        cancelUrl: `${config.CLIENT_URL}/payment/cancel`,
-        clientKey: 'TEST_CLIENT_KEY',
-        isTestMode: true,
-        message: '나이스페이먼츠 API 키를 설정해주세요'
-      };
-
-      console.log('🧪 테스트 결제 준비 완료:', { orderId: testOrderId, amount, orderName });
-
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(200).json({
-        success: true,
-        data: testPaymentData
-      });
-    }
+    // 운영 환경에서는 실제 API 호출 사용
 
     // 고유한 주문번호 생성
     const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -156,33 +129,7 @@ router.post('/approve', protect, async (req, res) => {
       });
     }
 
-    // 나이스페이먼츠 API 키 확인 (실제 키가 있으므로 주석 처리)
-    // if (!config.NICEPAY_CLIENT_KEY || config.NICEPAY_CLIENT_KEY === 'R2_38961c9b2b494219adacb01cbd31f583') {
-    if (false) { // 실제 키로 테스트하기 위해 false로 설정
-      
-      // 테스트용 승인 응답
-      const testApprovalData = {
-        resultCode: '0000',
-        resultMsg: '테스트 승인 완료',
-        tid: tid,
-        orderId: orderId,
-        amount: parseInt(amount),
-        status: 'paid',
-        paidAt: new Date().toISOString(),
-        payMethod: 'CARD',
-        goodsName: 'AI 스크립트 생성 서비스',
-        isTestMode: true
-      };
-
-      console.log('🧪 테스트 결제 승인 완료:', testApprovalData);
-
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(200).json({
-        success: true,
-        data: testApprovalData,
-        message: '테스트 결제 승인이 완료되었습니다.'
-      });
-    }
+    // 운영 환경에서는 실제 결제 승인 API 호출
 
     // 실제 나이스페이먼츠 결제 승인 API 호출
     const response = await axios.post(
@@ -203,16 +150,33 @@ router.post('/approve', protect, async (req, res) => {
     if (paymentResult.resultCode === '0000') {
       console.log('✅ 실제 결제 승인 성공:', paymentResult);
       
-      // TODO: 여기서 데이터베이스에 결제 정보 저장
-      // const payment = new Payment({
-      //   userId: req.user._id,
-      //   tid,
-      //   orderId,
-      //   amount,
-      //   status: 'completed',
-      //   paymentResult
-      // });
-      // await payment.save();
+      // 사용자 구독 업그레이드
+      const user = await User.findById(req.user._id);
+      if (user) {
+        // 결제 금액에 따른 플랜 결정
+        let planType;
+        if (amount === 100) {
+          planType = 'pro';
+        } else if (amount === 19900) {
+          planType = 'premier';
+        } else {
+          planType = 'free'; // 기본값
+        }
+        
+        // 사용자 구독 업그레이드
+        user.upgradeSubscription(planType, {
+          orderId,
+          tid,
+          amount
+        });
+        
+        await user.save();
+        console.log('✅ 사용자 구독 업그레이드 완료:', {
+          userId: user._id,
+          plan: planType,
+          status: user.subscription.status
+        });
+      }
 
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({
@@ -276,16 +240,33 @@ router.post('/confirm', protect, async (req, res) => {
     if (paymentResult.status === 'DONE') {
       console.log('✅ 결제 승인 성공:', paymentResult);
       
-      // TODO: 여기서 데이터베이스에 결제 정보 저장
-      // const payment = new Payment({
-      //   userId: req.user._id,
-      //   paymentKey,
-      //   orderId,
-      //   amount,
-      //   status: 'completed',
-      //   paymentResult
-      // });
-      // await payment.save();
+      // 사용자 구독 업그레이드
+      const user = await User.findById(req.user._id);
+      if (user) {
+        // 결제 금액에 따른 플랜 결정
+        let planType;
+        if (amount === 100) {
+          planType = 'pro';
+        } else if (amount === 19900) {
+          planType = 'premier';
+        } else {
+          planType = 'free'; // 기본값
+        }
+        
+        // 사용자 구독 업그레이드
+        user.upgradeSubscription(planType, {
+          orderId,
+          tid: paymentKey, // confirm API에서는 paymentKey가 tid 역할
+          amount
+        });
+        
+        await user.save();
+        console.log('✅ 사용자 구독 업그레이드 완료:', {
+          userId: user._id,
+          plan: planType,
+          status: user.subscription.status
+        });
+      }
 
       res.json({
         success: true,

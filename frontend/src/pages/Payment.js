@@ -31,14 +31,59 @@ const Payment = () => {
     return `ORDER_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   };
 
+  // SDK 동적 로딩 함수
+  const loadNicePaySDK = () => {
+    return new Promise((resolve, reject) => {
+      // 이미 로드되어 있으면 즉시 resolve
+      if (typeof window.AUTHNICE !== 'undefined') {
+        resolve(window.AUTHNICE);
+        return;
+      }
+
+      // 기존 스크립트 태그가 있는지 확인
+      const existingScript = document.querySelector('script[src*="pay.nicepay.co.kr"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // 새로운 스크립트 태그 생성
+      const script = document.createElement('script');
+      script.src = 'https://pay.nicepay.co.kr/v1/js/';
+      script.async = true;
+      
+      script.onload = () => {
+        console.log('✅ 나이스페이먼츠 SDK 로드 완료');
+        // SDK 로딩 완료 대기
+        setTimeout(() => {
+          if (typeof window.AUTHNICE !== 'undefined') {
+            resolve(window.AUTHNICE);
+          } else {
+            reject(new Error('SDK 로딩은 완료되었으나 AUTHNICE 객체를 찾을 수 없습니다.'));
+          }
+        }, 500);
+      };
+      
+      script.onerror = () => {
+        reject(new Error('나이스페이먼츠 SDK 로딩에 실패했습니다.'));
+      };
+      
+      document.head.appendChild(script);
+    });
+  };
+
   const handlePayment = async () => {
     setLoading(true);
     
     try {
-      // AUTHNICE SDK가 로드되었는지 확인
-      if (typeof window.AUTHNICE === 'undefined') {
-        throw new Error('나이스페이먼츠 SDK가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
-      }
+      // SDK 로딩 상태 확인
+      console.log('SDK 로딩 확인:', {
+        AUTHNICE: typeof window.AUTHNICE,
+        AUTHNICE_available: window.AUTHNICE !== undefined,
+        window_keys: Object.keys(window).filter(key => key.includes('AUTH') || key.includes('NICE'))
+      });
+
+      // SDK 로딩 확인 및 필요시 동적 로딩
+      await loadNicePaySDK();
 
       const orderId = generateOrderId();
       const clientKey = process.env.REACT_APP_NICEPAY_CLIENT_KEY || 'R2_38961c9b2b494219adacb01cbd31f583';

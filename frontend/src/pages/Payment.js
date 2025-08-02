@@ -105,7 +105,7 @@ const Payment = () => {
         orderId: orderId,
         amount: paymentData.amount,
         goodsName: paymentData.orderName,
-        returnUrl: `http://localhost:10000/api/payment/callback`, // 결제 완료 후 서버 콜백 URL
+        returnUrl: `${window.location.origin}/api/payment/callback`, // 결제 완료 후 서버 콜백 URL
         buyerName: paymentData.customerName,
         buyerEmail: paymentData.customerEmail,
         mallReserved: JSON.stringify({

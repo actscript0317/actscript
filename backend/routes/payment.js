@@ -15,11 +15,15 @@ const getAuthHeader = () => {
 // 결제 준비 (orderId 생성)
 router.post('/prepare', protect, async (req, res) => {
   try {
+    console.log('📝 결제 준비 요청 받음:', req.body);
+    
     const { amount, orderName, customerName, customerEmail } = req.body;
 
     // 입력값 검증
     if (!amount || !orderName) {
+      console.error('❌ 필수 정보 누락:', { amount, orderName });
       return res.status(400).json({
+        success: false,
         error: '필수 정보가 누락되었습니다.',
         required: ['amount', 'orderName']
       });
@@ -33,8 +37,8 @@ router.post('/prepare', protect, async (req, res) => {
       orderId,
       amount: parseInt(amount),
       orderName,
-      customerName: customerName || req.user.name,
-      customerEmail: customerEmail || req.user.email,
+      customerName: customerName || req.user?.name || '고객',
+      customerEmail: customerEmail || req.user?.email || '',
       returnUrl: `${config.CLIENT_URL}/payment/success`,
       failUrl: `${config.CLIENT_URL}/payment/fail`,
       cancelUrl: `${config.CLIENT_URL}/payment/cancel`,
@@ -43,14 +47,18 @@ router.post('/prepare', protect, async (req, res) => {
 
     console.log('💳 결제 준비 완료:', { orderId, amount, orderName });
 
-    res.json({
+    // 명시적으로 JSON 응답 보장
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({
       success: true,
       data: paymentData
     });
 
   } catch (error) {
-    console.error('결제 준비 오류:', error);
-    res.status(500).json({
+    console.error('❌ 결제 준비 오류:', error);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({
+      success: false,
       error: '결제 준비 중 오류가 발생했습니다.',
       message: error.message
     });

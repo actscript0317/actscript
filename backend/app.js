@@ -121,6 +121,9 @@ app.use('/api/actor-recruitments', require('./routes/actor-recruitments'));
 app.use('/api/model-recruitments', require('./routes/model-recruitments'));
 app.use('/api/community-posts', require('./routes/community-posts'));
 
+// 결제 라우트
+app.use('/api/payment', require('./routes/payment'));
+
 // 프로덕션 환경에서 정적 파일 제공
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));

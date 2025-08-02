@@ -30,7 +30,7 @@ router.post('/prepare', protect, async (req, res) => {
     }
 
     // 고유한 주문번호 생성
-    const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     
     // 결제 준비 데이터
     const paymentData = {

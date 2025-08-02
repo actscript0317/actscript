@@ -50,10 +50,10 @@ const Pricing = () => {
     },
     {
       name: '프로 플랜',
-      price: '9,900원',
+      price: '1원',
       period: '월',
       type: 'pro',
-      amount: 9900,
+      amount: 1,
       description: '확장된 AI 스크립트 생성 서비스',
       features: [
         '월 50회 AI 스크립트 생성',

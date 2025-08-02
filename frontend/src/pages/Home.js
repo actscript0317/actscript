@@ -167,7 +167,7 @@ const Home = () => {
                 </div>
                 <div className="text-center mb-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">프로 플랜</h3>
-                  <div className="text-3xl font-bold text-blue-600 mb-1">9,900원</div>
+                  <div className="text-3xl font-bold text-blue-600 mb-1">1원</div>
                   <div className="text-gray-600">월 50회 + 고급 기능</div>
                 </div>
                 <ul className="space-y-3 mb-6">

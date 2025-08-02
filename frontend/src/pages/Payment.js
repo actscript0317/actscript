@@ -9,7 +9,7 @@ const Payment = () => {
   const planInfo = location.state;
   
   const [paymentData, setPaymentData] = useState({
-    amount: planInfo?.amount || 9900,
+    amount: planInfo?.amount || 1,
     orderName: `AI 스크립트 생성 서비스 - ${planInfo?.planName || '프로 플랜'}`,
     customerName: user?.name || '',
     customerEmail: user?.email || ''

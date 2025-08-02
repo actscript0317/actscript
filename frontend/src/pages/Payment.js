@@ -41,11 +41,29 @@ const Payment = () => {
       }
 
       const orderId = generateOrderId();
-      console.log('결제 요청 시작:', { orderId, amount: paymentData.amount, orderName: paymentData.orderName });
+      const clientKey = process.env.REACT_APP_NICEPAY_CLIENT_KEY || 'R2_38961c9b2b494219adacb01cbd31f583';
+      
+      console.log('결제 요청 시작:', { 
+        orderId, 
+        amount: paymentData.amount, 
+        orderName: paymentData.orderName,
+        clientKey: clientKey
+      });
+
+      // 나이스페이먼츠 문서의 예시를 참고해서 테스트용 클라이언트 키 사용
+      // 실제 키: R2_38961c9b2b494219adacb01cbd31f583
+      // 문서 예시: S2_af4543a0be4d49a98122e01ec2059a56
+      
+      console.log('원본 클라이언트 키:', clientKey);
+      
+      // 일단 문서의 테스트 키로 시도해보기
+      const testClientKey = 'S2_af4543a0be4d49a98122e01ec2059a56';
+      
+      console.log('테스트용 클라이언트 키 사용:', testClientKey);
 
       // 나이스페이먼츠 JS SDK를 사용한 결제창 호출
       window.AUTHNICE.requestPay({
-        clientId: process.env.REACT_APP_NICEPAY_CLIENT_KEY || 'R2_38961c9b2b494219adacb01cbd31f583', // 기존 클라이언트 키 사용
+        clientId: testClientKey, // 일단 문서의 테스트 키로 시도
         method: 'card', // 결제 수단 (card, bank, vbank 등)
         orderId: orderId,
         amount: paymentData.amount,

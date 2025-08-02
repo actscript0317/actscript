@@ -6,14 +6,21 @@ const Pricing = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const handleSelectPlan = (planType) => {
+  const handleSelectPlan = (planType, amount, planName) => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    if (planType === 'premium') {
-      navigate('/payment');
+    if (planType === 'pro' || planType === 'premier') {
+      // 결제 페이지로 플랜 정보 전달
+      navigate('/payment', { 
+        state: { 
+          planType, 
+          amount, 
+          planName 
+        }
+      });
     }
   };
 
@@ -23,7 +30,8 @@ const Pricing = () => {
       price: '0원',
       period: '영구무료',
       type: 'free',
-      description: '기본적인 AI 스크립트 생성',
+      amount: 0,
+      description: '기본적인 AI 스크립트 체험',
       features: [
         '월 3회 AI 스크립트 생성',
         '기본 장르 지원 (로맨스, 코미디, 드라마)',
@@ -41,25 +49,53 @@ const Pricing = () => {
       popular: false
     },
     {
-      name: '프리미엄 플랜',
+      name: '프로 플랜',
       price: '9,900원',
       period: '월',
-      type: 'premium',
-      description: '무제한 AI 스크립트 생성 + 고급 기능',
+      type: 'pro',
+      amount: 9900,
+      description: '확장된 AI 스크립트 생성 서비스',
       features: [
-        '무제한 AI 스크립트 생성',
+        '월 50회 AI 스크립트 생성',
         '모든 장르 지원 (스릴러, 액션, 공포, 판타지, SF 등)',
         '모든 길이 스크립트 (1-10분)',
-        '고급 감정 분석 및 맞춤형 대본',
         '스크립트 리라이팅 기능',
         '대본함 무제한 저장',
         '우선 고객지원',
-        '새로운 기능 우선 체험'
+        '광고 제거'
       ],
-      limitations: [],
-      buttonText: '프리미엄 시작하기',
+      limitations: [
+        '월 생성 횟수 제한 (50회)',
+        'AI 모델 선택 제한'
+      ],
+      buttonText: '프로 플랜 시작하기',
       buttonColor: 'bg-blue-600 hover:bg-blue-700',
       popular: true
+    },
+    {
+      name: '프리미어 플랜',
+      price: '19,900원',
+      period: '월',
+      type: 'premier',
+      amount: 19900,
+      description: '무제한 AI 스크립트 + 프리미엄 기능',
+      features: [
+        '무제한 AI 스크립트 생성',
+        '모든 장르 지원 + 실험적 장르',
+        '모든 길이 스크립트 (1-15분)',
+        '고급 감정 분석 및 맞춤형 대본',
+        '스크립트 리라이팅 무제한',
+        '대본함 무제한 저장',
+        'GPT-4 기반 최고급 AI 모델',
+        '캐릭터 분석 및 연기 가이드',
+        '1:1 전담 고객지원',
+        '새로운 기능 우선 체험',
+        '월 1회 전문가 피드백'
+      ],
+      limitations: [],
+      buttonText: '프리미어 시작하기',
+      buttonColor: 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700',
+      popular: false
     }
   ];
 
@@ -77,7 +113,7 @@ const Pricing = () => {
         </div>
 
         {/* 요금제 카드 */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 max-w-7xl mx-auto">
           {plans.map((plan, index) => (
             <div
               key={index}
@@ -144,7 +180,7 @@ const Pricing = () => {
 
               {/* 버튼 */}
               <button
-                onClick={() => handleSelectPlan(plan.type)}
+                onClick={() => handleSelectPlan(plan.type, plan.amount, plan.name)}
                 disabled={plan.type === 'free'}
                 className={`w-full py-3 px-6 rounded-lg font-medium text-white transition-colors ${plan.buttonColor}`}
               >

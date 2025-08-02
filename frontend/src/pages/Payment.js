@@ -1,15 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 
 const Payment = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const planInfo = location.state;
+  
   const [paymentData, setPaymentData] = useState({
-    amount: 9900,
-    orderName: 'AI 스크립트 생성 서비스 - 프리미엄 플랜',
+    amount: planInfo?.amount || 9900,
+    orderName: `AI 스크립트 생성 서비스 - ${planInfo?.planName || '프로 플랜'}`,
     customerName: user?.name || '',
     customerEmail: user?.email || ''
   });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (planInfo) {
+      setPaymentData(prev => ({
+        ...prev,
+        amount: planInfo.amount,
+        orderName: `AI 스크립트 생성 서비스 - ${planInfo.planName}`
+      }));
+    }
+  }, [planInfo]);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -25,11 +39,33 @@ const Payment = () => {
         body: JSON.stringify(paymentData)
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       if (!response.ok) {
-        throw new Error('결제 준비 실패');
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`결제 준비 실패: ${response.status} ${response.statusText}`);
       }
 
-      const { data } = await response.json();
+      // JSON 파싱 전에 응답이 실제로 JSON인지 확인
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error('JSON 파싱 에러:', jsonError);
+        console.error('응답 내용:', responseText);
+        throw new Error('서버 응답이 올바른 JSON 형식이 아닙니다.');
+      }
+
+      if (!responseData.success) {
+        throw new Error(responseData.error || '결제 준비 중 오류가 발생했습니다.');
+      }
+
+      const { data } = responseData;
 
       // 나이스페이먼트 결제창 호출 (새 창에서)
       const form = document.createElement('form');

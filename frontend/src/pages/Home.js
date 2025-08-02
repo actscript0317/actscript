@@ -122,7 +122,7 @@ const Home = () => {
             </div>
 
             {/* 요금제 비교 */}
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-8">
+            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-8">
               {/* 무료 플랜 */}
               <div className="bg-white rounded-xl p-6 shadow-lg">
                 <div className="text-center mb-6">
@@ -158,7 +158,7 @@ const Home = () => {
                 </Link>
               </div>
 
-              {/* 프리미엄 플랜 */}
+              {/* 프로 플랜 */}
               <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-blue-500 relative">
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                   <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium">
@@ -166,16 +166,16 @@ const Home = () => {
                   </span>
                 </div>
                 <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">프리미엄 플랜</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">프로 플랜</h3>
                   <div className="text-3xl font-bold text-blue-600 mb-1">9,900원</div>
-                  <div className="text-gray-600">무제한 AI 스크립트 + 고급 기능</div>
+                  <div className="text-gray-600">월 50회 + 고급 기능</div>
                 </div>
                 <ul className="space-y-3 mb-6">
                   <li className="flex items-center text-blue-600">
                     <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    무제한 AI 스크립트 생성
+                    월 50회 AI 스크립트 생성
                   </li>
                   <li className="flex items-center text-blue-600">
                     <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
@@ -200,7 +200,53 @@ const Home = () => {
                   to="/pricing"
                   className="w-full block text-center bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
-                  프리미엄 시작하기
+                  프로 플랜 시작하기
+                </Link>
+              </div>
+
+              {/* 프리미어 플랜 */}
+              <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-purple-500 relative">
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-medium">
+                    최고급
+                  </span>
+                </div>
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">프리미어 플랜</h3>
+                  <div className="text-3xl font-bold text-purple-600 mb-1">19,900원</div>
+                  <div className="text-gray-600">무제한 + 프리미엄 기능</div>
+                </div>
+                <ul className="space-y-3 mb-6">
+                  <li className="flex items-center text-purple-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    무제한 AI 스크립트 생성
+                  </li>
+                  <li className="flex items-center text-purple-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    GPT-4 기반 최고급 AI
+                  </li>
+                  <li className="flex items-center text-purple-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    캐릭터 분석 & 연기 가이드
+                  </li>
+                  <li className="flex items-center text-purple-600">
+                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    전문가 피드백 (월 1회)
+                  </li>
+                </ul>
+                <Link
+                  to="/pricing"
+                  className="w-full block text-center bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-colors"
+                >
+                  프리미어 시작하기
                 </Link>
               </div>
             </div>

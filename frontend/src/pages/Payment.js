@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const Payment = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const planInfo = location.state;
   
   const [paymentData, setPaymentData] = useState({
@@ -25,124 +26,115 @@ const Payment = () => {
     }
   }, [planInfo]);
 
+  // 고유한 주문번호 생성
+  const generateOrderId = () => {
+    return `ORDER_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  };
+
   const handlePayment = async () => {
     setLoading(true);
     
     try {
-      console.log('결제 요청 데이터:', paymentData);
-      
-      // 백엔드에서 결제 준비 데이터 생성
-      const response = await fetch('/api/payment/prepare', {
+      // AUTHNICE SDK가 로드되었는지 확인
+      if (typeof window.AUTHNICE === 'undefined') {
+        throw new Error('나이스페이먼츠 SDK가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+      }
+
+      const orderId = generateOrderId();
+      console.log('결제 요청 시작:', { orderId, amount: paymentData.amount, orderName: paymentData.orderName });
+
+      // 나이스페이먼츠 JS SDK를 사용한 결제창 호출
+      window.AUTHNICE.requestPay({
+        clientId: process.env.REACT_APP_NICEPAY_CLIENT_KEY || 'R2_38961c9b2b494219adacb01cbd31f583', // 기존 클라이언트 키 사용
+        method: 'card', // 결제 수단 (card, bank, vbank 등)
+        orderId: orderId,
+        amount: paymentData.amount,
+        goodsName: paymentData.orderName,
+        returnUrl: `${window.location.origin}/api/payment/callback`, // 결제 완료 후 서버 콜백 URL
+        buyerName: paymentData.customerName,
+        buyerEmail: paymentData.customerEmail,
+        
+        // 결제 성공 시 콜백
+        fnSuccess: function(result) {
+          console.log('✅ 결제창 인증 성공:', result);
+          
+          // 결제 승인 API 호출
+          handlePaymentApproval(result);
+        },
+        
+        // 결제 실패 시 콜백
+        fnError: function(result) {
+          console.error('❌ 결제창 오류:', result);
+          alert(`결제 실패: ${result.errorMsg || '알 수 없는 오류가 발생했습니다.'}`);
+          setLoading(false);
+        }
+      });
+
+    } catch (error) {
+      console.error('결제 요청 실패:', error);
+      alert(error.message || '결제 요청 중 오류가 발생했습니다.');
+      setLoading(false);
+    }
+  };
+
+  // 결제 승인 처리
+  const handlePaymentApproval = async (authResult) => {
+    try {
+      console.log('🔄 결제 승인 요청 시작:', authResult);
+
+      // 인증 결과 검증
+      if (authResult.authResultCode !== '0000') {
+        throw new Error(`결제 인증 실패: ${authResult.authResultMsg}`);
+      }
+
+      // 백엔드에 결제 승인 요청
+      const response = await fetch('/api/payment/approve', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(paymentData)
+        body: JSON.stringify({
+          tid: authResult.tid,
+          amount: authResult.amount,
+          orderId: authResult.orderId,
+          authToken: authResult.authToken,
+          signature: authResult.signature
+        })
       });
-
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-      console.log('Response type:', response.type);
-      console.log('Response url:', response.url);
-
-      // 응답이 완전히 비어있는 경우 확인
-      const contentLength = response.headers.get('content-length');
-      const contentType = response.headers.get('content-type');
-      console.log('Content-Length:', contentLength);
-      console.log('Content-Type:', contentType);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error(`결제 준비 실패: ${response.status} ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.message || '결제 승인 요청 실패');
       }
 
-      // 응답이 비어있는지 확인
-      if (contentLength === '0') {
-        throw new Error('서버에서 빈 응답을 반환했습니다. 결제 API가 제대로 등록되지 않았을 수 있습니다.');
-      }
+      const approvalResult = await response.json();
+      console.log('✅ 결제 승인 완료:', approvalResult);
 
-      // JSON 파싱 전에 응답이 실제로 JSON인지 확인
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-      
-      if (!responseText || responseText.trim() === '') {
-        throw new Error('서버에서 빈 응답을 받았습니다. 네트워크 연결을 확인해주세요.');
-      }
-      
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (jsonError) {
-        console.error('JSON 파싱 에러:', jsonError);
-        console.error('응답 내용:', responseText);
-        throw new Error(`서버 응답 파싱 실패: ${responseText.substring(0, 100)}...`);
-      }
-
-      if (!responseData.success) {
-        throw new Error(responseData.error || '결제 준비 중 오류가 발생했습니다.');
-      }
-
-      const { data } = responseData;
-
-      // 나이스페이먼트 결제창 호출 (새 창에서)
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'https://web.nicepay.co.kr/v3/v3Pay.jsp';
-      form.target = 'nicepay_popup';
-      form.style.display = 'none';
-
-      const formData = {
-        MID: process.env.REACT_APP_NICEPAY_CLIENT_KEY,
-        Amt: data.amount,
-        GoodsName: data.orderName,
-        Moid: data.orderId,
-        BuyerName: data.customerName,
-        BuyerEmail: data.customerEmail,
-        ReturnURL: `${window.location.origin}/payment/success`,
-        CloseURL: `${window.location.origin}/payment/fail`,
-        VbankExpDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 8), // 1일 후
-        PayMethod: 'CARD', // 카드결제만 허용
-        CharSet: 'utf-8'
-      };
-
-      Object.keys(formData).forEach(key => {
-        if (formData[key]) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = formData[key];
-          form.appendChild(input);
-        }
-      });
-
-      // 팝업 창 열기
-      const popup = window.open('', 'nicepay_popup', 
-        'width=500,height=600,scrollbars=yes,resizable=no,toolbar=no,menubar=no'
-      );
-
-      if (popup) {
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-        
-        // 팝업 창이 닫혔는지 확인하는 인터벌
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            setLoading(false);
-            // 결제 결과 확인을 위해 페이지 새로고침 (선택사항)
-            // window.location.reload();
+      if (approvalResult.success) {
+        // 결제 성공 페이지로 이동
+        navigate('/payment/success', { 
+          state: { 
+            paymentResult: approvalResult.data,
+            planInfo: planInfo
           }
-        }, 1000);
+        });
       } else {
-        throw new Error('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+        throw new Error(approvalResult.message || '결제 승인 실패');
       }
 
     } catch (error) {
-      console.error('결제 요청 실패:', error);
-      alert(error.message || '결제 요청 중 오류가 발생했습니다.');
+      console.error('❌ 결제 승인 실패:', error);
+      alert(`결제 승인 실패: ${error.message}`);
+      
+      // 결제 실패 페이지로 이동
+      navigate('/payment/fail', { 
+        state: { 
+          error: error.message,
+          orderId: authResult?.orderId
+        }
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -217,6 +209,28 @@ const Payment = () => {
           </div>
         </div>
 
+        {/* API 키 안내 */}
+        {(!process.env.REACT_APP_NICEPAY_CLIENT_KEY) && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">
+                  테스트 모드
+                </h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p>나이스페이먼츠 API 키가 설정되지 않았습니다.</p>
+                  <p className="mt-1">실제 결제를 위해서는 API 키를 설정해주세요.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 결제 약관 */}
         <div className="mb-6">
           <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
@@ -255,7 +269,7 @@ const Payment = () => {
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
             </svg>
-            <span>나이스페이먼트 안전결제</span>
+            <span>나이스페이먼츠 안전결제</span>
           </div>
         </div>
       </div>

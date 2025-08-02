@@ -86,7 +86,7 @@ const Payment = () => {
       await loadNicePaySDK();
 
       const orderId = generateOrderId();
-      const clientKey = process.env.REACT_APP_NICEPAY_CLIENT_KEY || 'R2_38961c9b2b494219adacb01cbd31f583';
+      const clientKey = 'R2_38961c9b2b494219adacb01cbd31f583'; // 실제 클라이언트 키 직접 사용
       
       console.log('결제 요청 시작:', { 
         orderId, 

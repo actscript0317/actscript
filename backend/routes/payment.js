@@ -350,6 +350,135 @@ router.post('/cancel', protect, async (req, res) => {
   }
 });
 
+// 나이스페이먼츠 결제 콜백 엔드포인트 (Server 승인 모델)
+router.post('/callback', async (req, res) => {
+  try {
+    console.log('📞 나이스페이먼츠 콜백 수신:', req.body);
+    
+    const {
+      authResultCode,
+      authResultMsg,
+      tid,
+      clientId,
+      orderId,
+      amount,
+      mallReserved,
+      authToken,
+      signature
+    } = req.body;
+
+    // 인증 성공 여부 확인
+    if (authResultCode !== '0000') {
+      console.log('❌ 결제 인증 실패:', { authResultCode, authResultMsg });
+      
+      // 결제 실패 페이지로 리다이렉트
+      return res.redirect(`${config.CLIENT_URL}/payment/fail?error=${encodeURIComponent(authResultMsg)}`);
+    }
+
+    // 위변조 검증 (signature 확인)
+    const expectedSignature = crypto
+      .createHash('sha256')
+      .update(authToken + clientId + amount + config.NICEPAY_SECRET_KEY)
+      .digest('hex');
+      
+    if (signature !== expectedSignature) {
+      console.log('❌ 서명 검증 실패:', { 
+        received: signature, 
+        expected: expectedSignature 
+      });
+      
+      return res.redirect(`${config.CLIENT_URL}/payment/fail?error=${encodeURIComponent('결제 데이터 위변조 감지')}`);
+    }
+
+    console.log('✅ 인증 성공, 승인 API 호출 시작');
+
+    // 결제 승인 API 호출
+    const approvalResponse = await axios.post(
+      `${config.NICEPAY_API_URL}/v1/payments/${tid}`,
+      {
+        amount: parseInt(amount)
+      },
+      {
+        headers: {
+          'Authorization': getAuthHeader(),
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const approvalResult = approvalResponse.data;
+    console.log('💳 승인 API 응답:', approvalResult);
+
+    if (approvalResult.resultCode === '0000') {
+      console.log('✅ 결제 승인 성공');
+      
+      // mallReserved에서 사용자 정보 추출 (JSON 파싱)
+      let userId = null;
+      let planType = 'pro'; // 기본값
+      
+      try {
+        if (mallReserved) {
+          const reservedData = JSON.parse(mallReserved);
+          userId = reservedData.userId;
+          planType = reservedData.planType || 'pro';
+        }
+      } catch (e) {
+        console.warn('mallReserved 파싱 실패:', e.message);
+      }
+
+      // 사용자 구독 업그레이드 (userId가 있는 경우)
+      if (userId) {
+        try {
+          const user = await User.findById(userId);
+          if (user) {
+            // 결제 금액에 따른 플랜 결정
+            if (amount === 100 || amount === '100') {
+              planType = 'pro';
+            } else if (amount === 19900 || amount === '19900') {
+              planType = 'premier';
+            }
+            
+            // 사용자 구독 업그레이드
+            user.upgradeSubscription(planType, {
+              orderId,
+              tid,
+              amount: parseInt(amount)
+            });
+            
+            await user.save();
+            console.log('✅ 사용자 구독 업그레이드 완료:', {
+              userId: user._id,
+              plan: planType,
+              status: user.subscription.status
+            });
+          }
+        } catch (userError) {
+          console.error('사용자 업그레이드 오류:', userError);
+          // 결제는 성공했으므로 계속 진행
+        }
+      }
+
+      // 결제 성공 페이지로 리다이렉트
+      const successUrl = `${config.CLIENT_URL}/payment/success?orderId=${orderId}&tid=${tid}&amount=${amount}`;
+      return res.redirect(successUrl);
+      
+    } else {
+      console.log('❌ 결제 승인 실패:', approvalResult);
+      
+      // 결제 실패 페이지로 리다이렉트
+      const failUrl = `${config.CLIENT_URL}/payment/fail?error=${encodeURIComponent(approvalResult.resultMsg || '결제 승인 실패')}`;
+      return res.redirect(failUrl);
+    }
+
+  } catch (error) {
+    console.error('❌ 결제 콜백 처리 오류:', error.response?.data || error.message);
+    
+    // 에러 페이지로 리다이렉트
+    const errorUrl = `${config.CLIENT_URL}/payment/fail?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다')}`;
+    return res.redirect(errorUrl);
+  }
+});
+
 // 결제 조회
 router.get('/status/:paymentKey', protect, async (req, res) => {
   try {

@@ -108,6 +108,10 @@ const Payment = () => {
         returnUrl: `${window.location.origin}/api/payment/callback`, // 결제 완료 후 서버 콜백 URL
         buyerName: paymentData.customerName,
         buyerEmail: paymentData.customerEmail,
+        mallReserved: JSON.stringify({
+          userId: user?._id,
+          planType: planInfo?.planType || 'pro'
+        }), // 사용자 정보를 콜백에 전달
         
         // 결제 성공 시 콜백
         fnSuccess: function(result) {

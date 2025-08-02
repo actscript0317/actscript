@@ -307,6 +307,19 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
   res.send(svg);
 });
 
+// 응답 로깅 미들웨어 (라우트 설정 전에 위치)
+app.use((req, res, next) => {
+  const originalJson = res.json;
+  res.json = function(body) {
+    console.log(`📤 [${new Date().toISOString()}] 응답:`, {
+      status: res.statusCode,
+      body
+    });
+    return originalJson.call(this, body);
+  };
+  next();
+});
+
 // API 라우트 설정
 app.use('/api/auth', authRoutes);
 app.use('/api/scripts', scriptRoutes);
@@ -320,19 +333,6 @@ app.use('/api/likes', likeRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payment', paymentRoutes);
-
-// 응답 로깅 미들웨어
-app.use((req, res, next) => {
-  const originalJson = res.json;
-  res.json = function(body) {
-    console.log(`📤 [${new Date().toISOString()}] 응답:`, {
-      status: res.statusCode,
-      body
-    });
-    return originalJson.call(this, body);
-  };
-  next();
-});
 
 // 프로덕션 환경에서 React 앱 제공 설정
 if (config.NODE_ENV === 'production') {

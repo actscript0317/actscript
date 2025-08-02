@@ -29,6 +29,8 @@ const Payment = () => {
     setLoading(true);
     
     try {
+      console.log('결제 요청 데이터:', paymentData);
+      
       // 백엔드에서 결제 준비 데이터 생성
       const response = await fetch('/api/payment/prepare', {
         method: 'POST',
@@ -40,7 +42,15 @@ const Payment = () => {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      console.log('Response ok:', response.ok);
+      console.log('Response type:', response.type);
+      console.log('Response url:', response.url);
+
+      // 응답이 완전히 비어있는 경우 확인
+      const contentLength = response.headers.get('content-length');
+      const contentType = response.headers.get('content-type');
+      console.log('Content-Length:', contentLength);
+      console.log('Content-Type:', contentType);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -48,9 +58,18 @@ const Payment = () => {
         throw new Error(`결제 준비 실패: ${response.status} ${response.statusText}`);
       }
 
+      // 응답이 비어있는지 확인
+      if (contentLength === '0') {
+        throw new Error('서버에서 빈 응답을 반환했습니다. 결제 API가 제대로 등록되지 않았을 수 있습니다.');
+      }
+
       // JSON 파싱 전에 응답이 실제로 JSON인지 확인
       const responseText = await response.text();
       console.log('Response text:', responseText);
+      
+      if (!responseText || responseText.trim() === '') {
+        throw new Error('서버에서 빈 응답을 받았습니다. 네트워크 연결을 확인해주세요.');
+      }
       
       let responseData;
       try {
@@ -58,7 +77,7 @@ const Payment = () => {
       } catch (jsonError) {
         console.error('JSON 파싱 에러:', jsonError);
         console.error('응답 내용:', responseText);
-        throw new Error('서버 응답이 올바른 JSON 형식이 아닙니다.');
+        throw new Error(`서버 응답 파싱 실패: ${responseText.substring(0, 100)}...`);
       }
 
       if (!responseData.success) {

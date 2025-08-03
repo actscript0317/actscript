@@ -25,7 +25,7 @@ if (!process.env.CLIENT_URL) {
   process.env.CLIENT_URL = 'https://actscript-1.onrender.com';
 }
 
-// 나이스페이먼트 설정 (실제 테스트 키)
+// 나이스페이먼트 설정 (테스트용 키)
 if (!process.env.NICEPAY_CLIENT_KEY) {
   process.env.NICEPAY_CLIENT_KEY = 'R2_38961c9b2b494219adacb01cbd31f583';
 }

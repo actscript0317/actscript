@@ -25,13 +25,29 @@ const getAuthHeader = () => {
 // Basic 인증 테스트 API 추가
 // 결제 시스템 상태 확인 API
 router.get('/health', (req, res) => {
+  const isProductionKey = config.NICEPAY_CLIENT_KEY && 
+    (config.NICEPAY_CLIENT_KEY.startsWith('S1_') || config.NICEPAY_CLIENT_KEY.startsWith('R1_'));
+  const isTestKey = config.NICEPAY_CLIENT_KEY && 
+    (config.NICEPAY_CLIENT_KEY.startsWith('S2_') || config.NICEPAY_CLIENT_KEY.startsWith('R2_'));
+
   res.json({
     success: true,
     timestamp: new Date().toISOString(),
     environment: config.NODE_ENV,
     api_url: config.NICEPAY_API_URL,
     client_url: config.CLIENT_URL,
-    message: '결제 시스템이 정상 작동 중입니다.'
+    payment_mode: isProductionKey ? '🔴 운영 결제 (실제 돈 결제됨)' : 
+                  isTestKey ? '🟡 테스트 결제' : 
+                  '⚪ 키 미설정',
+    key_status: {
+      client_key_set: !!config.NICEPAY_CLIENT_KEY,
+      secret_key_set: !!config.NICEPAY_SECRET_KEY,
+      is_production: isProductionKey,
+      is_test: isTestKey
+    },
+    message: isProductionKey ? 
+      '⚠️ 운영 환경 - 실제 결제가 진행됩니다!' : 
+      '결제 시스템이 정상 작동 중입니다.'
   });
 });
 
@@ -39,7 +55,7 @@ router.get('/test-auth', (req, res) => {
   try {
     const authHeader = getAuthHeader();
     
-    // 예상되는 결과와 비교 (실제 테스트 키)
+    // 예상되는 결과와 비교 (테스트용 키)
     const expectedClientKey = 'R2_38961c9b2b494219adacb01cbd31f583';
     const expectedSecretKey = '534fa658a8a24b4c8f8d7ded325cf569';
     const expectedAuthString = `${expectedClientKey}:${expectedSecretKey}`;
@@ -143,10 +159,14 @@ router.post('/approve', protect, async (req, res) => {
     // 운영 환경에서는 실제 결제 승인 API 호출
 
     // 나이스페이먼츠 승인 API 호출 (가이드 기준)
-    const apiUrl = `${config.NICEPAY_API_URL}/v1/payments/${tid}`;
+    // 강제로 운영 API 사용 (환경변수 문제 회피)
+    const baseApiUrl = config.NICEPAY_API_URL || 'https://api.nicepay.co.kr';
+    const apiUrl = `${baseApiUrl}/v1/payments/${tid}`;
+    
     console.log('🌐 API 호출 URL:', apiUrl);
     console.log('🔧 설정값 확인:', {
       NICEPAY_API_URL: config.NICEPAY_API_URL,
+      baseApiUrl: baseApiUrl,
       tid: tid,
       amount: amount
     });
@@ -422,10 +442,14 @@ router.post('/callback', async (req, res) => {
     console.log('✅ 인증 성공, 승인 API 호출 시작');
 
     // 결제 승인 API 호출 (가이드 기준)
-    const apiUrl = `${config.NICEPAY_API_URL}/v1/payments/${tid}`;
+    // 강제로 운영 API 사용 (환경변수 문제 회피)
+    const baseApiUrl = config.NICEPAY_API_URL || 'https://api.nicepay.co.kr';
+    const apiUrl = `${baseApiUrl}/v1/payments/${tid}`;
+    
     console.log('🌐 콜백 API 호출 URL:', apiUrl);
     console.log('🔧 콜백 설정값 확인:', {
       NICEPAY_API_URL: config.NICEPAY_API_URL,
+      baseApiUrl: baseApiUrl,
       tid: tid,
       amount: amount
     });

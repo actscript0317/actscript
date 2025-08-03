@@ -98,8 +98,8 @@ const Payment = () => {
       }
 
       const orderId = generateOrderId();
-      // 실제 테스트용 클라이언트 키 (샌드박스)
-      const clientKey = 'R2_38961c9b2b494219adacb01cbd31f583'; // 실제 발급받은 테스트 키
+      // 테스트용 클라이언트 키
+      const clientKey = 'R2_38961c9b2b494219adacb01cbd31f583'; // 테스트용 키
       
       // URL 구성 디버깅
       const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:10000';

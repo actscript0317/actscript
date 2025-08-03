@@ -88,11 +88,19 @@ const Payment = () => {
       const orderId = generateOrderId();
       const clientKey = 'R2_38961c9b2b494219adacb01cbd31f583'; // 실제 클라이언트 키 직접 사용
       
+      // URL 구성 디버깅
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:10000';
+      const cleanUrl = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+      const callbackUrl = `${cleanUrl}/payment/callback`;
+      
       console.log('결제 요청 시작:', { 
         orderId, 
         amount: paymentData.amount, 
         orderName: paymentData.orderName,
-        clientKey: clientKey
+        clientKey: clientKey,
+        baseUrl,
+        cleanUrl,
+        callbackUrl
       });
 
       // 실제 운영 환경에서는 발급받은 실제 클라이언트 키 사용
@@ -105,7 +113,7 @@ const Payment = () => {
         orderId: orderId,
         amount: paymentData.amount,
         goodsName: paymentData.orderName,
-        returnUrl: `${process.env.REACT_APP_API_URL || 'http://localhost:10000'}/api/payment/callback`, // 결제 완료 후 서버 콜백 URL
+        returnUrl: callbackUrl, // 결제 완료 후 서버 콜백 URL
         buyerName: paymentData.customerName,
         buyerEmail: paymentData.customerEmail,
         mallReserved: JSON.stringify({
@@ -147,8 +155,9 @@ const Payment = () => {
       }
 
       // 백엔드에 결제 승인 요청
-      const apiUrl = process.env.REACT_APP_API_URL || '';
-      const response = await fetch(`${apiUrl}/api/payment/approve`, {
+      const baseUrl = process.env.REACT_APP_API_URL || '';
+      const apiUrl = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+      const response = await fetch(`${apiUrl}/payment/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

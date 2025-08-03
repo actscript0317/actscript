@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -18,7 +18,8 @@ import {
   Maximize2,
   Archive,
   RotateCcw,
-  Eye
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,14 +28,17 @@ const AIScript = () => {
   const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
   
-  // 사용량 관리 상태 (사용자 구독 정보를 바탕으로 계산)
-  const usageData = {
-    used: user?.usage?.currentMonth || 0,
-    limit: user?.subscription?.plan === 'pro' ? 50 : 
-           user?.subscription?.plan === 'premier' ? 999999 : 3, // premier는 무제한으로 처리
-    isPremium: user?.subscription?.plan === 'pro' || user?.subscription?.plan === 'premier',
-    isActive: user?.subscription?.status === 'active' || user?.subscription?.plan === 'free'
-  };
+  // 사용량 관리 상태
+  const [usageData, setUsageData] = useState({
+    used: 0,
+    limit: 5,
+    isPremium: false,
+    isActive: true,
+    canGenerate: true,
+    planType: 'free',
+    nextResetDate: null,
+    daysUntilReset: 0
+  });
   
   // 폼 상태 관리
   const [formData, setFormData] = useState({
@@ -62,6 +66,49 @@ const AIScript = () => {
   
   // 상세 보기 모달 상태
   const [showDetailModal, setShowDetailModal] = useState(false);
+  
+  // 사용량 정보 로딩 상태
+  const [loadingUsage, setLoadingUsage] = useState(true);
+
+  // 사용량 정보 가져오기
+  const fetchUsageInfo = async () => {
+    try {
+      setLoadingUsage(true);
+      const response = await api.get('/ai-script/usage');
+      const { usage } = response.data;
+      
+      setUsageData({
+        used: usage.currentMonth,
+        limit: usage.limit || 5,
+        isPremium: usage.planType === 'pro' || usage.planType === 'premier',
+        isActive: true,
+        canGenerate: usage.canGenerate,
+        planType: usage.planType,
+        nextResetDate: usage.nextResetDate,
+        daysUntilReset: usage.daysUntilReset
+      });
+    } catch (error) {
+      console.error('사용량 정보 로딩 실패:', error);
+      // 기본값으로 설정
+      setUsageData(prev => ({
+        ...prev,
+        used: user?.usage?.currentMonth || 0,
+        limit: user?.subscription?.plan === 'pro' ? 50 : 
+               user?.subscription?.plan === 'premier' ? 999999 : 5,
+        isPremium: user?.subscription?.plan === 'pro' || user?.subscription?.plan === 'premier',
+        planType: user?.subscription?.plan || 'free'
+      }));
+    } finally {
+      setLoadingUsage(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 사용량 정보 로딩
+  useEffect(() => {
+    if (user) {
+      fetchUsageInfo();
+    }
+  }, [user]);
 
   // 옵션 데이터 (프리미엄 여부에 따라 제한)
   const characterOptions = [
@@ -353,8 +400,9 @@ const AIScript = () => {
     }
     
     // 사용량 제한 확인
-    if (!usageData.isPremium && usageData.used >= usageData.limit) {
-      toast.error('무료 사용량을 모두 사용했습니다. 프리미엄 플랜으로 업그레이드하세요!');
+    if (!usageData.canGenerate) {
+      const limitText = usageData.limit === null ? '무제한' : `${usageData.limit}회`;
+      toast.error(`이번 달 사용량 한도(${limitText})를 모두 사용했습니다. ${usageData.daysUntilReset}일 후 리셋됩니다.`);
       return;
     }
     
@@ -386,10 +434,11 @@ const AIScript = () => {
       setGeneratedScript(data.script);
       setGeneratedScriptId(data.scriptId); // 백엔드에서 반환된 스크립트 ID 저장
       
-      // 사용량 정보는 백엔드에서 자동으로 업데이트됨
-      // 성공 메시지 with 사용량 정보
-      const remainingCount = usageData.isPremium ? '무제한' : `${Math.max(0, usageData.limit - usageData.used - 1)}회`;
-      toast.success(`AI 스크립트가 생성되었습니다! 남은 사용량: ${remainingCount}`);
+      // 사용량 정보 업데이트
+      await fetchUsageInfo();
+      
+      // 성공 메시지
+      toast.success(`AI 스크립트가 생성되었습니다! 🎭`);
       
       // 결과 영역으로 스크롤
       setTimeout(() => {
@@ -503,7 +552,7 @@ const AIScript = () => {
                   </span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  {usageData.isPremium && user?.subscription?.plan === 'premier' ? 
+                  {usageData.limit === null ? 
                     `${usageData.used}회 사용 (무제한)` :
                     `${usageData.used}/${usageData.limit}회 사용`
                   }
@@ -536,30 +585,38 @@ const AIScript = () => {
           </div>
 
           {/* 사용량 초과 경고 */}
-          {!usageData.isPremium && usageData.used >= usageData.limit && (
+          {!usageData.canGenerate && (
             <div className="bg-gradient-to-r from-orange-100 to-red-100 border border-orange-300 rounded-lg p-6 mb-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-orange-800 mb-2">
-                    🚀 무료 사용량을 모두 사용했습니다!
+                    🚫 이번 달 사용량을 모두 사용했습니다!
                   </h3>
                   <p className="text-orange-700 mb-4">
-                    프리미엄 플랜으로 업그레이드하면 무제한으로 AI 스크립트를 생성할 수 있습니다.
+                    {usageData.planType === 'free' ? (
+                      <>무료 플랜 한도(월 5회)를 초과했습니다. 프로 플랜으로 업그레이드하면 월 50회까지 이용 가능합니다.</>
+                    ) : (
+                      <>현재 플랜의 월간 한도를 초과했습니다. {usageData.daysUntilReset}일 후 사용량이 리셋됩니다.</>
+                    )}
                   </p>
-                  <ul className="text-sm text-orange-600 space-y-1">
-                    <li>✨ 무제한 AI 스크립트 생성</li>
-                    <li>🎭 모든 장르 및 길이 지원</li>
-                    <li>🔧 스크립트 리라이팅 기능</li>
-                  </ul>
+                  {usageData.planType === 'free' && (
+                    <ul className="text-sm text-orange-600 space-y-1">
+                      <li>✨ 월 50회 AI 스크립트 생성</li>
+                      <li>🎭 모든 장르 및 길이 지원</li>
+                      <li>🔧 스크립트 리라이팅 기능</li>
+                    </ul>
+                  )}
                 </div>
-                <div className="ml-6">
-                  <button
-                    onClick={() => navigate('/pricing')}
-                    className="bg-orange-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-700 transition-colors shadow-lg"
-                  >
-                    프리미엄 시작하기
-                  </button>
-                </div>
+                {usageData.planType === 'free' && (
+                  <div className="ml-6">
+                    <button
+                      onClick={() => navigate('/pricing')}
+                      className="bg-orange-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-700 transition-colors shadow-lg"
+                    >
+                      프리미엄 시작하기
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -745,9 +802,9 @@ const AIScript = () => {
               <div className="pt-6">
                 <button
                   type="submit"
-                  disabled={isGenerating}
+                  disabled={isGenerating || !usageData.canGenerate}
                   className={`w-full py-4 px-8 text-xl font-semibold rounded-xl transition-all duration-300 ${
-                    isGenerating
+                    isGenerating || !usageData.canGenerate
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 hover:shadow-lg hover:scale-[1.02]'
                   } text-white shadow-md`}
@@ -760,6 +817,11 @@ const AIScript = () => {
                         className="w-6 h-6 border-2 border-white border-t-transparent rounded-full"
                       />
                       <span>AI가 대본을 생성하고 있습니다...</span>
+                    </div>
+                  ) : !usageData.canGenerate ? (
+                    <div className="flex items-center justify-center space-x-3">
+                      <AlertCircle className="w-6 h-6" />
+                      <span>사용량 초과 ({usageData.daysUntilReset}일 후 리셋)</span>
                     </div>
                   ) : (
                     <div className="flex items-center justify-center space-x-3">

@@ -77,12 +77,14 @@ router.post('/generate', protect, async (req, res) => {
     // 사용량 제한 확인
     if (!user.canGenerateScript()) {
       const limit = user.subscription.plan === 'pro' ? 50 : 
-                   user.subscription.plan === 'premier' ? '무제한' : 3;
+                   user.subscription.plan === 'premier' ? '무제한' : 5;
       return res.status(429).json({
         error: '사용량을 초과했습니다.',
         message: `이번 달 사용량 한도(${limit}회)를 초과했습니다. 프리미엄 플랜을 고려해보세요.`,
         currentUsage: user.usage.currentMonth,
-        limit: limit
+        limit: limit,
+        planType: user.subscription.plan,
+        nextResetDate: new Date(user.usage.lastResetDate.getFullYear(), user.usage.lastResetDate.getMonth() + 1, 1).toISOString()
       });
     }
 
@@ -647,6 +649,56 @@ router.get('/saved', protect, async (req, res) => {
     console.error('저장된 AI 스크립트 조회 오류:', error);
     res.status(500).json({
       error: '저장된 스크립트 조회 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 사용량 정보 조회 API
+router.get('/usage', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(401).json({
+        error: '사용자를 찾을 수 없습니다.'
+      });
+    }
+
+    // 월이 바뀌었는지 확인하고 필요시 리셋
+    const now = new Date();
+    if (user.usage.lastResetDate && 
+        user.usage.lastResetDate.getMonth() !== now.getMonth()) {
+      user.usage.currentMonth = 0;
+      user.usage.lastResetDate = now;
+      await user.save();
+    }
+
+    // 플랜별 제한 정보
+    const limits = {
+      free: 5,
+      pro: 50,
+      premier: null // 무제한
+    };
+
+    const currentLimit = limits[user.subscription.plan];
+    const canGenerate = user.canGenerateScript();
+    const nextResetDate = new Date(user.usage.lastResetDate.getFullYear(), user.usage.lastResetDate.getMonth() + 1, 1);
+
+    res.json({
+      success: true,
+      usage: {
+        currentMonth: user.usage.currentMonth,
+        totalGenerated: user.usage.totalGenerated,
+        limit: currentLimit,
+        canGenerate: canGenerate,
+        planType: user.subscription.plan,
+        nextResetDate: nextResetDate.toISOString(),
+        daysUntilReset: Math.ceil((nextResetDate - now) / (1000 * 60 * 60 * 24))
+      }
+    });
+  } catch (error) {
+    console.error('사용량 조회 오류:', error);
+    res.status(500).json({
+      error: '사용량 조회 중 오류가 발생했습니다.'
     });
   }
 });

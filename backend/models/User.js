@@ -507,7 +507,7 @@ userSchema.methods.canGenerateScript = function() {
   // 플랜별 제한 확인
   switch (this.subscription.plan) {
     case 'free':
-      return this.usage.currentMonth < 3;
+      return this.usage.currentMonth < 5; // 월 5개로 증가
     case 'pro':
       return this.usage.currentMonth < 50;
     case 'premier':

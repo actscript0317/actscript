@@ -40,15 +40,15 @@ const Payment = () => {
         return;
       }
 
-      // 기존 스크립트 태그가 있는지 확인
-      const existingScript = document.querySelector('script[src*="pay.nicepay.co.kr"]');
+      // 기존 스크립트 태그가 있는지 확인 (운영/샌드박스 모두)
+      const existingScript = document.querySelector('script[src*="pay.nicepay.co.kr"], script[src*="sandbox-pay.nicepay.co.kr"]');
       if (existingScript) {
         existingScript.remove();
       }
 
-      // 새로운 스크립트 태그 생성
+      // 새로운 스크립트 태그 생성 (샌드박스 환경용)
       const script = document.createElement('script');
-      script.src = 'https://pay.nicepay.co.kr/v1/js/';
+      script.src = 'https://sandbox-pay.nicepay.co.kr/v1/js/'; // 샌드박스용 SDK
       script.async = true;
       
       script.onload = () => {
@@ -86,8 +86,8 @@ const Payment = () => {
       await loadNicePaySDK();
 
       const orderId = generateOrderId();
-      // 가이드 기준 Server 승인 모델 클라이언트 키 (S2_로 시작)
-      const clientKey = 'S2_af4543a0be4d49a98122e01ec2059a56'; // 가이드 예시 키
+      // 실제 테스트용 클라이언트 키 (샌드박스)
+      const clientKey = 'R2_38961c9b2b494219adacb01cbd31f583'; // 실제 발급받은 테스트 키
       
       // URL 구성 디버깅
       const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:10000';
@@ -108,19 +108,19 @@ const Payment = () => {
       console.log('실제 클라이언트 키 사용:', clientKey);
 
       // 나이스페이먼츠 JS SDK를 사용한 결제창 호출
-      window.AUTHNICE.requestPay({
-        clientId: clientKey, // 실제 클라이언트 키 사용
-        method: 'card', // 결제 수단 (card, bank, vbank 등)
+      const paymentParams = {
+        clientId: clientKey,
+        method: 'card',
         orderId: orderId,
         amount: paymentData.amount,
         goodsName: paymentData.orderName,
-        returnUrl: callbackUrl, // 결제 완료 후 서버 콜백 URL
-        buyerName: paymentData.customerName,
-        buyerEmail: paymentData.customerEmail,
+        returnUrl: callbackUrl,
+        buyerName: paymentData.customerName || '고객',
+        buyerEmail: paymentData.customerEmail || '',
         mallReserved: JSON.stringify({
           userId: user?._id,
           planType: planInfo?.planType || 'pro'
-        }), // 사용자 정보를 콜백에 전달
+        }),
         
         // 결제 성공 시 콜백 (Server 승인 모델에서는 서버에서 자동 처리)
         fnSuccess: function(result) {
@@ -138,7 +138,16 @@ const Payment = () => {
           alert(`결제 실패: ${result.errorMsg || '알 수 없는 오류가 발생했습니다.'}`);
           setLoading(false);
         }
+      };
+
+      console.log('💳 결제 파라미터 확인:', {
+        ...paymentParams,
+        mallReserved: '사용자정보JSON',
+        fnSuccess: '[Function]',
+        fnError: '[Function]'
       });
+
+      window.AUTHNICE.requestPay(paymentParams);
 
     } catch (error) {
       console.error('결제 요청 실패:', error);

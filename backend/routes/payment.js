@@ -9,11 +9,10 @@ const router = express.Router();
 
 // 나이스페이먼트 Basic 인증 헤더 생성
 const getAuthHeader = () => {
-  // 클라이언트키:시크릿키 문자열 생성
+  // Basic 인증 방식 사용 (발급받은 키 기준)
   const authString = `${config.NICEPAY_CLIENT_KEY}:${config.NICEPAY_SECRET_KEY}`;
-  console.log('🔑 인증 문자열:', authString);
+  console.log('🔑 Basic 인증 문자열:', authString);
   
-  // Base64 인코딩
   const credentials = Buffer.from(authString).toString('base64');
   console.log('🔐 Basic 인증 Credentials:', credentials);
   
@@ -40,9 +39,9 @@ router.get('/test-auth', (req, res) => {
   try {
     const authHeader = getAuthHeader();
     
-    // 예상되는 결과와 비교 (가이드 기준)
-    const expectedClientKey = 'S2_af4543a0be4d49a98122e01ec2059a56';
-    const expectedSecretKey = '9eb85607103646da9f9c02b128f2e5ee';
+    // 예상되는 결과와 비교 (실제 테스트 키)
+    const expectedClientKey = 'R2_38961c9b2b494219adacb01cbd31f583';
+    const expectedSecretKey = '534fa658a8a24b4c8f8d7ded325cf569';
     const expectedAuthString = `${expectedClientKey}:${expectedSecretKey}`;
     const expectedCredentials = Buffer.from(expectedAuthString).toString('base64');
     

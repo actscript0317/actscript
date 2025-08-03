@@ -933,7 +933,7 @@ const AIScript = () => {
                     className="flex items-center justify-center px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
                   >
                     <Copy className="w-5 h-5 mr-2" />
-                    📄 복사하기
+                    복사
                   </button>
                   <button
                     onClick={() => {
@@ -961,14 +961,14 @@ const AIScript = () => {
                     className="flex items-center justify-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
                   >
                     <Save className="w-5 h-5 mr-2" />
-                    🔖 저장하기
+                    저장
                   </button>
                   <button
                     onClick={() => navigate('/script-vault')}
                     className="flex items-center justify-center px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md"
                   >
                     <Archive className="w-5 h-5 mr-2" />
-                    📚 대본함 가기
+                    대본함
                   </button>
                   <button
                     onClick={() => {
@@ -979,7 +979,7 @@ const AIScript = () => {
                     className="flex items-center justify-center px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md"
                   >
                     <RefreshCw className="w-5 h-5 mr-2" />
-                    🔁 다시 생성
+                    다시 생성
                   </button>
                 </div>
               </motion.div>
@@ -1142,7 +1142,7 @@ const AIScript = () => {
                             className="flex items-center justify-center px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors"
                           >
                             <RotateCcw className="w-5 h-5 mr-2" />
-                            다시하기
+                            재시도
                           </button>
                         </div>
                       </motion.div>
@@ -1227,7 +1227,7 @@ const AIScript = () => {
                         className="flex items-center justify-center px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
                         <Copy className="w-4 h-4 mr-2" />
-                        복사하기
+                        복사
                       </button>
                       <button
                         onClick={() => {
@@ -1255,7 +1255,7 @@ const AIScript = () => {
                         className="flex items-center justify-center px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
                         <Save className="w-4 h-4 mr-2" />
-                        저장하기
+                        저장
                       </button>
                       <button
                         onClick={() => {
@@ -1296,7 +1296,7 @@ const AIScript = () => {
                         className="flex items-center justify-center px-4 py-3 bg-slate-500 hover:bg-slate-600 text-white rounded-xl font-medium transition-colors shadow-md"
                       >
                         <RotateCcw className="w-4 h-4 mr-2" />
-                        새로 생성
+                        새 생성
                       </button>
                     </div>
                   </div>

@@ -15,6 +15,7 @@ import {
   authAPI,
   adminAPI
 } from '../services/api';
+import api from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const MyPage = () => {
@@ -47,6 +48,17 @@ const MyPage = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
+  
+  // 사용량 정보 상태
+  const [usageData, setUsageData] = useState({
+    used: 0,
+    limit: 5,
+    totalGenerated: 0,
+    planType: 'free',
+    nextResetDate: null,
+    daysUntilReset: 0
+  });
+  const [loadingUsage, setLoadingUsage] = useState(true);
 
   // 게시판 타입별 색상 설정
   const getBoardTypeColor = (boardType) => {
@@ -78,6 +90,37 @@ const MyPage = () => {
       month: 'short', 
       day: 'numeric' 
     });
+  };
+
+  // 사용량 정보 가져오기
+  const fetchUsageInfo = async () => {
+    try {
+      setLoadingUsage(true);
+      const response = await api.get('/ai-script/usage');
+      const { usage } = response.data;
+      
+      setUsageData({
+        used: usage.currentMonth,
+        limit: usage.limit,
+        totalGenerated: usage.totalGenerated,
+        planType: usage.planType,
+        nextResetDate: usage.nextResetDate,
+        daysUntilReset: usage.daysUntilReset
+      });
+    } catch (error) {
+      console.error('사용량 정보 로딩 실패:', error);
+      // 기본값으로 설정 (user 정보 기준)
+      setUsageData(prev => ({
+        ...prev,
+        used: user?.usage?.currentMonth || 0,
+        limit: user?.subscription?.plan === 'pro' ? 50 : 
+               user?.subscription?.plan === 'premier' ? null : 5,
+        totalGenerated: user?.usage?.totalGenerated || 0,
+        planType: user?.subscription?.plan || 'free'
+      }));
+    } finally {
+      setLoadingUsage(false);
+    }
   };
 
   useEffect(() => {
@@ -205,6 +248,13 @@ const MyPage = () => {
       loadAdminStats();
     }
   }, [activeTab, user?.role]);
+
+  // 사용량 정보 로딩
+  useEffect(() => {
+    if (user) {
+      fetchUsageInfo();
+    }
+  }, [user]);
 
   // 게시판 경로 가져오기
   const getBoardPath = (board) => {
@@ -794,41 +844,47 @@ const MyPage = () => {
                 </div>
 
                 {/* 사용량 현황 */}
-                {user?.usage && (
-                  <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">이번 달 사용량</h3>
+                <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">이번 달 사용량</h3>
+                  {loadingUsage ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto"></div>
+                      <p className="text-gray-500 mt-2">사용량 정보를 불러오는 중...</p>
+                    </div>
+                  ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="text-center">
                         <div className="text-2xl font-bold text-blue-600">
-                          {user.usage.currentMonth || 0}
+                          {usageData.used}
                         </div>
                         <div className="text-sm text-gray-500">이번 달 생성</div>
                         <div className="text-xs text-gray-400 mt-1">
-                          {user?.subscription?.plan === 'pro' ? '/ 50회' :
-                           user?.subscription?.plan === 'premier' ? '무제한' : '/ 3회'}
+                          {usageData.limit === null ? '무제한' : `/ ${usageData.limit}회`}
                         </div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-green-600">
-                          {user.usage.totalGenerated || 0}
+                          {usageData.totalGenerated}
                         </div>
                         <div className="text-sm text-gray-500">총 생성 횟수</div>
                       </div>
                       <div className="text-center">
                         <div className={`text-2xl font-bold ${
-                          (user?.subscription?.plan === 'free' && (user.usage.currentMonth || 0) >= 3) ||
-                          (user?.subscription?.plan === 'pro' && (user.usage.currentMonth || 0) >= 50) ?
+                          usageData.limit !== null && usageData.used >= usageData.limit ?
                           'text-red-600' : 'text-green-600'
                         }`}>
-                          {user?.subscription?.plan === 'free' ? Math.max(0, 3 - (user.usage.currentMonth || 0)) :
-                           user?.subscription?.plan === 'pro' ? Math.max(0, 50 - (user.usage.currentMonth || 0)) :
-                           '무제한'}
+                          {usageData.limit === null ? '무제한' : Math.max(0, usageData.limit - usageData.used)}
                         </div>
                         <div className="text-sm text-gray-500">남은 횟수</div>
+                        {usageData.limit !== null && usageData.daysUntilReset > 0 && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {usageData.daysUntilReset}일 후 리셋
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* 결제 이력 */}
                 {user?.subscription?.paymentHistory && user.subscription.paymentHistory.length > 0 && (
@@ -885,7 +941,7 @@ const MyPage = () => {
                       <ul className="mt-4 space-y-2 text-sm">
                         <li className="flex items-center">
                           <span className="text-green-500 mr-2">✓</span>
-                          AI 대본 생성 (월 3회)
+                          AI 대본 생성 (월 5회)
                         </li>
                         <li className="flex items-center">
                           <span className="text-green-500 mr-2">✓</span>

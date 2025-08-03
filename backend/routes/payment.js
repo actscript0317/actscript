@@ -494,10 +494,21 @@ router.post('/callback', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ 결제 콜백 처리 오류:', error.response?.data || error.message);
+    console.error('❌ 결제 콜백 처리 오류:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.config?.data
+      }
+    });
     
-    // 에러 페이지로 리다이렉트
-    const errorUrl = `${config.CLIENT_URL}/payment/fail?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다')}`;
+    // 에러 페이지로 리다이렉트 - 디버깅을 위해 더 자세한 정보 포함
+    const errorMessage = `결제 처리 중 오류: ${error.message}`;
+    const errorUrl = `${config.CLIENT_URL}/payment/fail?error=${encodeURIComponent(errorMessage)}`;
     return res.redirect(errorUrl);
   }
 });

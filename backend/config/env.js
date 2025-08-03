@@ -22,7 +22,7 @@ if (!process.env.CORS_ORIGIN) {
 }
 
 if (!process.env.CLIENT_URL) {
-  process.env.CLIENT_URL = 'https://www.actpiece.com';
+  process.env.CLIENT_URL = 'https://actscript-1.onrender.com';
 }
 
 // 나이스페이먼트 설정 (가이드 기준 Server 승인 모델)

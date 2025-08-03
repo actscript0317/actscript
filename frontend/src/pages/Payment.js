@@ -86,7 +86,8 @@ const Payment = () => {
       await loadNicePaySDK();
 
       const orderId = generateOrderId();
-      const clientKey = 'R2_38961c9b2b494219adacb01cbd31f583'; // 실제 클라이언트 키 직접 사용
+      // 가이드 기준 Server 승인 모델 클라이언트 키 (S2_로 시작)
+      const clientKey = 'S2_af4543a0be4d49a98122e01ec2059a56'; // 가이드 예시 키
       
       // URL 구성 디버깅
       const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:10000';

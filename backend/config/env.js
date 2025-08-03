@@ -25,13 +25,13 @@ if (!process.env.CLIENT_URL) {
   process.env.CLIENT_URL = 'https://www.actpiece.com';
 }
 
-// 나이스페이먼트 설정
+// 나이스페이먼트 설정 (가이드 기준 Server 승인 모델)
 if (!process.env.NICEPAY_CLIENT_KEY) {
-  process.env.NICEPAY_CLIENT_KEY = 'R2_38961c9b2b494219adacb01cbd31f583';
+  process.env.NICEPAY_CLIENT_KEY = 'S2_af4543a0be4d49a98122e01ec2059a56';
 }
 
 if (!process.env.NICEPAY_SECRET_KEY) {
-  process.env.NICEPAY_SECRET_KEY = '534fa658a8a24b4c8f8d7ded325cf569';
+  process.env.NICEPAY_SECRET_KEY = '9eb85607103646da9f9c02b128f2e5ee';
 }
 
 if (!process.env.NICEPAY_API_URL) {

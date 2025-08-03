@@ -124,20 +124,32 @@ app.use('/api/community-posts', require('./routes/community-posts'));
 // 결제 라우트
 app.use('/api/payment', require('./routes/payment'));
 
-// 프로덕션 환경에서 정적 파일 제공
+// SPA 라우팅 지원 (모든 환경)
+const buildPath = path.join(__dirname, '../frontend/build');
+
+// 프로덕션에서 정적 파일 제공
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
-  
-  // API가 아닌 모든 요청에 대해 React 앱 제공 (SPA 라우팅 지원)
-  app.get('*', (req, res) => {
-    // API 경로가 아닌 경우에만 React 앱 제공
-    if (!req.path.startsWith('/api/')) {
-      res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-    } else {
-      res.status(404).json({ message: 'API 엔드포인트를 찾을 수 없습니다.' });
-    }
-  });
+  app.use(express.static(buildPath, {
+    index: false // index.html 자동 제공 비활성화
+  }));
 }
+
+// API가 아닌 모든 요청에 대해 React 앱 제공 (SPA 라우팅 지원)
+app.get('*', (req, res, next) => {
+  // API 경로는 제외
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+    return next(); // 다음 미들웨어로 전달
+  }
+  
+  // React 앱의 index.html 제공 (프로덕션만)
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`📄 SPA 라우팅: ${req.path} → index.html`);
+    res.sendFile(path.join(buildPath, 'index.html'));
+  } else {
+    // 개발 환경에서는 React dev server가 처리
+    return next();
+  }
+});
 
 // 에러 핸들러
 app.use((error, req, res, next) => {
@@ -151,11 +163,6 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 프로덕션에서 모든 React Router 경로를 index.html로 리다이렉트
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../frontend/build', 'index.html'));
-  });
-}
+// 중복 제거됨 - 위에서 이미 처리
 
 module.exports = app; 

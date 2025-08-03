@@ -520,8 +520,9 @@ router.post('/callback', async (req, res) => {
         }
       }
 
-      // 결제 성공 페이지로 리다이렉트
-      const successUrl = `${config.CLIENT_URL}/payment/success?orderId=${orderId}&tid=${tid}&amount=${amount}`;
+      // 결제 성공 시 메인 페이지로 리다이렉트 (사용자 요청)
+      const successUrl = `${config.CLIENT_URL}/?payment=success&orderId=${orderId}&tid=${tid}&amount=${amount}`;
+      console.log('✅ 결제 성공 - 메인 페이지로 리다이렉트:', successUrl);
       return res.redirect(successUrl);
       
     } else {

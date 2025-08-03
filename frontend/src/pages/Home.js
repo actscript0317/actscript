@@ -1,12 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Users, Eye, Calendar, Heart, User, Mic, GraduationCap, Star, Bookmark, MessageCircle, TrendingUp } from 'lucide-react';
 import { emotionAPI } from '../services/api';
+import { toast } from 'react-hot-toast';
 
 const Home = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // 결제 성공 알림 처리
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    const orderId = searchParams.get('orderId');
+    const amount = searchParams.get('amount');
+    
+    if (paymentStatus === 'success') {
+      toast.success(
+        `🎉 결제가 완료되었습니다!\n주문번호: ${orderId}\n결제금액: ${parseInt(amount).toLocaleString()}원`,
+        {
+          duration: 5000,
+          style: {
+            background: '#059669',
+            color: '#fff',
+            fontSize: '14px',
+            padding: '16px',
+          }
+        }
+      );
+      
+      // URL에서 파라미터 제거 (깔끔하게)
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams]);
 
   if (loading) {
     return (

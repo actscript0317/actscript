@@ -143,8 +143,16 @@ router.post('/approve', protect, async (req, res) => {
     // 운영 환경에서는 실제 결제 승인 API 호출
 
     // 나이스페이먼츠 승인 API 호출 (가이드 기준)
+    const apiUrl = `${config.NICEPAY_API_URL}/v1/payments/${tid}`;
+    console.log('🌐 API 호출 URL:', apiUrl);
+    console.log('🔧 설정값 확인:', {
+      NICEPAY_API_URL: config.NICEPAY_API_URL,
+      tid: tid,
+      amount: amount
+    });
+    
     const response = await axios.post(
-      `${config.NICEPAY_API_URL}/v1/payments/${tid}`,
+      apiUrl,
       {
         amount: parseInt(amount)
       },
@@ -414,8 +422,16 @@ router.post('/callback', async (req, res) => {
     console.log('✅ 인증 성공, 승인 API 호출 시작');
 
     // 결제 승인 API 호출 (가이드 기준)
+    const apiUrl = `${config.NICEPAY_API_URL}/v1/payments/${tid}`;
+    console.log('🌐 콜백 API 호출 URL:', apiUrl);
+    console.log('🔧 콜백 설정값 확인:', {
+      NICEPAY_API_URL: config.NICEPAY_API_URL,
+      tid: tid,
+      amount: amount
+    });
+    
     const approvalResponse = await axios.post(
-      `${config.NICEPAY_API_URL}/v1/payments/${tid}`,
+      apiUrl,
       {
         amount: parseInt(amount)
       },

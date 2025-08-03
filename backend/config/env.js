@@ -35,7 +35,7 @@ if (!process.env.NICEPAY_SECRET_KEY) {
 }
 
 if (!process.env.NICEPAY_API_URL) {
-  process.env.NICEPAY_API_URL = 'https://sandbox-api.nicepay.co.kr'; // 테스트 환경으로 변경
+  process.env.NICEPAY_API_URL = 'https://api.nicepay.co.kr'; // 테스트 키도 운영 API 사용
 }
 
 
@@ -50,7 +50,7 @@ if (missingVars.length > 0) {
   }
 }
 
-module.exports = {
+const config = {
   PORT: process.env.PORT || 10000,
   MONGODB_URI: process.env.MONGODB_URI,
   NODE_ENV: process.env.NODE_ENV || 'production',
@@ -64,4 +64,13 @@ module.exports = {
   NICEPAY_CLIENT_KEY: process.env.NICEPAY_CLIENT_KEY,
   NICEPAY_SECRET_KEY: process.env.NICEPAY_SECRET_KEY,
   NICEPAY_API_URL: process.env.NICEPAY_API_URL
-}; 
+};
+
+// 디버깅: 나이스페이먼츠 설정 확인
+console.log('🔧 나이스페이먼츠 설정 확인:', {
+  NICEPAY_CLIENT_KEY: config.NICEPAY_CLIENT_KEY ? `${config.NICEPAY_CLIENT_KEY.substring(0, 10)}...` : '미설정',
+  NICEPAY_SECRET_KEY: config.NICEPAY_SECRET_KEY ? '[설정됨]' : '미설정',
+  NICEPAY_API_URL: config.NICEPAY_API_URL
+});
+
+module.exports = config; 

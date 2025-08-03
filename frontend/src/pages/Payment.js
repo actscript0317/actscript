@@ -46,9 +46,9 @@ const Payment = () => {
         existingScript.remove();
       }
 
-      // 새로운 스크립트 태그 생성 (샌드박스 환경용)
+      // 새로운 스크립트 태그 생성 (운영용)
       const script = document.createElement('script');
-      script.src = 'https://sandbox-pay.nicepay.co.kr/v1/js/'; // 샌드박스용 SDK
+      script.src = 'https://pay.nicepay.co.kr/v1/js/'; // 운영용 SDK
       script.async = true;
       
       script.onload = () => {
@@ -63,8 +63,9 @@ const Payment = () => {
         }, 500);
       };
       
-      script.onerror = () => {
-        reject(new Error('나이스페이먼츠 SDK 로딩에 실패했습니다.'));
+      script.onerror = (error) => {
+        console.error('❌ SDK 로딩 실패:', error);
+        reject(new Error(`나이스페이먼츠 SDK 로딩에 실패했습니다. URL: ${script.src}`));
       };
       
       document.head.appendChild(script);
@@ -83,7 +84,18 @@ const Payment = () => {
       });
 
       // SDK 로딩 확인 및 필요시 동적 로딩
-      await loadNicePaySDK();
+      try {
+        await loadNicePaySDK();
+      } catch (sdkError) {
+        console.error('❌ SDK 동적 로딩 실패, 정적 로딩 확인:', sdkError);
+        
+        // 정적 로딩된 SDK 확인
+        if (typeof window.AUTHNICE === 'undefined') {
+          throw new Error('나이스페이먼츠 SDK를 로드할 수 없습니다. 네트워크 연결을 확인하거나 페이지를 새로고침해주세요.');
+        }
+        
+        console.log('✅ 정적 로딩된 SDK 사용');
+      }
 
       const orderId = generateOrderId();
       // 실제 테스트용 클라이언트 키 (샌드박스)

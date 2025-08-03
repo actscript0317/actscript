@@ -89,16 +89,8 @@ function App() {
                   <Payment />
                 </PrivateRoute>
               } />
-              <Route path="/payment/success" element={
-                <PrivateRoute>
-                  <PaymentSuccess />
-                </PrivateRoute>
-              } />
-              <Route path="/payment/fail" element={
-                <PrivateRoute>
-                  <PaymentFail />
-                </PrivateRoute>
-              } />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/fail" element={<PaymentFail />} />
 
               {/* 비로그인 사용자만 접근 가능한 라우트 */}
               <Route path="/login" element={

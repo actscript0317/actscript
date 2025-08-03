@@ -12,7 +12,9 @@
       "Bash(touch:*)",
       "Bash(find:*)",
       "Bash(node:*)",
-      "Bash(npm run start:*)"
+      "Bash(npm run start:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

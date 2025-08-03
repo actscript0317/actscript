@@ -105,7 +105,7 @@ const Payment = () => {
         orderId: orderId,
         amount: paymentData.amount,
         goodsName: paymentData.orderName,
-        returnUrl: `${window.location.origin}/api/payment/callback`, // 결제 완료 후 서버 콜백 URL
+        returnUrl: `${process.env.REACT_APP_API_URL || 'http://localhost:10000'}/api/payment/callback`, // 결제 완료 후 서버 콜백 URL
         buyerName: paymentData.customerName,
         buyerEmail: paymentData.customerEmail,
         mallReserved: JSON.stringify({
@@ -147,7 +147,8 @@ const Payment = () => {
       }
 
       // 백엔드에 결제 승인 요청
-      const response = await fetch('/api/payment/approve', {
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/payment/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -183,14 +184,25 @@ const Payment = () => {
       }
 
     } catch (error) {
-      console.error('❌ 결제 승인 실패:', error);
-      alert(`결제 승인 실패: ${error.message}`);
+      console.error('❌ 결제 승인 실패:', {
+        error: error.message,
+        authResult,
+        timestamp: new Date().toISOString(),
+        stack: error.stack
+      });
+      
+      const errorMessage = error.message || '결제 승인 중 알 수 없는 오류가 발생했습니다.';
+      alert(`결제 승인 실패: ${errorMessage}`);
       
       // 결제 실패 페이지로 이동
       navigate('/payment/fail', { 
         state: { 
-          error: error.message,
-          orderId: authResult?.orderId
+          error: errorMessage,
+          orderId: authResult?.orderId,
+          details: {
+            authResultCode: authResult?.authResultCode,
+            tid: authResult?.tid
+          }
         }
       });
     } finally {

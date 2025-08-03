@@ -24,6 +24,18 @@ const getAuthHeader = () => {
 };
 
 // Basic 인증 테스트 API 추가
+// 결제 시스템 상태 확인 API
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    environment: config.NODE_ENV,
+    api_url: config.NICEPAY_API_URL,
+    client_url: config.CLIENT_URL,
+    message: '결제 시스템이 정상 작동 중입니다.'
+  });
+});
+
 router.get('/test-auth', (req, res) => {
   try {
     const authHeader = getAuthHeader();
@@ -194,18 +206,32 @@ router.post('/approve', protect, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ 결제 승인 오류:', error.response?.data || error.message);
+    console.error('❌ 결제 승인 오류:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      },
+      stack: error.stack
+    });
     
     res.setHeader('Content-Type', 'application/json');
     return res.status(500).json({
       success: false,
       error: '결제 승인 중 오류가 발생했습니다.',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
+      details: process.env.NODE_ENV === 'development' ? {
+        status: error.response?.status,
+        data: error.response?.data
+      } : undefined
     });
   }
 });
 
-// 기존 결제 승인 (호환성 유지)
+// 기존 결제 승인 (레거시 - 호환성 유지용, 새로운 결제는 /approve 사용 권장)
 router.post('/confirm', protect, async (req, res) => {
   try {
     const { paymentKey, orderId, amount } = req.body;

@@ -127,42 +127,76 @@ app.use('/api/payment', require('./routes/payment'));
 // SPA 라우팅 지원 (모든 환경)
 const buildPath = path.join(__dirname, '../frontend/build');
 
+// 환경 확인 및 디버깅
+console.log('🔧 환경 설정 확인:', {
+  NODE_ENV: process.env.NODE_ENV,
+  buildPath: buildPath,
+  buildExists: require('fs').existsSync(buildPath),
+  indexExists: require('fs').existsSync(path.join(buildPath, 'index.html'))
+});
+
 // 프로덕션에서 정적 파일 제공
 if (process.env.NODE_ENV === 'production') {
+  console.log('📁 정적 파일 경로 설정:', buildPath);
+  
+  // 정적 파일 제공 (JS, CSS, 이미지 등)
   app.use(express.static(buildPath, {
-    index: false // index.html 자동 제공 비활성화
+    index: false, // index.html 자동 제공 비활성화
+    maxAge: '1d', // 캐시 설정
+    etag: true
   }));
+  
+  // favicon 등 루트 레벨 파일들 처리
+  app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(buildPath, 'favicon.ico'));
+  });
 }
 
-// API가 아닌 모든 요청에 대해 React 앱 제공 (SPA 라우팅 지원)
-app.get('*', (req, res, next) => {
-  // API 경로는 제외
-  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
-    return next(); // 다음 미들웨어로 전달
+// API 404 에러 처리 (API 경로만)
+app.use('/api/*', (req, res) => {
+  console.log(`❌ API 404: ${req.path}`);
+  res.status(404).json({ 
+    success: false,
+    message: 'API 엔드포인트를 찾을 수 없습니다.',
+    path: req.path 
+  });
+});
+
+// SPA 라우팅 - 모든 비API 요청에 대해 index.html 제공
+app.get('*', (req, res) => {
+  // uploads 경로는 정적 파일로 처리
+  if (req.path.startsWith('/uploads/')) {
+    return res.status(404).send('File not found');
   }
   
-  // React 앱의 index.html 제공 (프로덕션만)
   if (process.env.NODE_ENV === 'production') {
+    const indexPath = path.join(buildPath, 'index.html');
     console.log(`📄 SPA 라우팅: ${req.path} → index.html`);
-    res.sendFile(path.join(buildPath, 'index.html'));
+    
+    // 파일 존재 확인
+    if (require('fs').existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      console.error('❌ index.html 파일을 찾을 수 없습니다:', indexPath);
+      res.status(500).send('Application build not found');
+    }
   } else {
-    // 개발 환경에서는 React dev server가 처리
-    return next();
+    // 개발 환경에서는 404
+    res.status(404).send('Development mode - use React dev server');
   }
 });
 
-// 에러 핸들러
+// 전역 에러 핸들러 (맨 마지막)
 app.use((error, req, res, next) => {
-  console.error('❌ 서버 에러:', error.stack);
+  console.error('❌ 전역 에러:', error.stack);
   
   res.status(error.status || 500).json({
+    success: false,
     message: config.NODE_ENV === 'production' 
       ? '서버 내부 오류가 발생했습니다.' 
       : error.message,
     ...(config.NODE_ENV !== 'production' && { stack: error.stack })
   });
 });
-
-// 중복 제거됨 - 위에서 이미 처리
 
 module.exports = app; 

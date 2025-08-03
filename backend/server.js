@@ -334,14 +334,32 @@ app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payment', paymentRoutes);
 
-// 프로덕션 환경에서 React 앱 제공 설정
+// SPA 라우팅 지원 (모든 환경)
+const frontendBuildPath = path.join(__dirname, '../frontend/build');
+
+// 환경 확인 및 디버깅
+console.log('🔧 환경 설정 확인:', {
+  NODE_ENV: config.NODE_ENV,
+  buildPath: frontendBuildPath,
+  buildExists: fs.existsSync(frontendBuildPath),
+  indexExists: fs.existsSync(path.join(frontendBuildPath, 'index.html'))
+});
+
+// 프로덕션 환경에서 정적 파일 제공
 if (config.NODE_ENV === 'production') {
-  const frontendBuildPath = path.join(__dirname, '../frontend/build');
+  console.log('📁 정적 파일 경로 설정:', frontendBuildPath);
   
-  // React 앱의 빌드된 정적 파일들 제공
-  app.use(express.static(frontendBuildPath));
+  // 정적 파일 제공 (JS, CSS, 이미지 등)
+  app.use(express.static(frontendBuildPath, {
+    index: false, // index.html 자동 제공 비활성화
+    maxAge: '1d', // 캐시 설정
+    etag: true
+  }));
   
-  console.log('🎯 [프로덕션] React 빌드 파일 제공:', frontendBuildPath);
+  // favicon 등 루트 레벨 파일들 처리
+  app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(frontendBuildPath, 'favicon.ico'));
+  });
 }
 
 // 기본 라우트 (API 전용)
@@ -370,11 +388,21 @@ app.get('/health', (req, res) => {
   });
 });
 
-// SPA 라우팅을 위한 catch-all 핸들러 (모든 API가 아닌 요청을 React 앱으로 라우팅)
-app.get('*', (req, res, next) => {
-  // API 요청이나 uploads 요청은 제외
-  if (req.url.startsWith('/api/') || req.url.startsWith('/uploads/')) {
-    return next();
+// API 404 에러 처리 (API 경로만)
+app.use('/api/*', (req, res) => {
+  console.log(`❌ API 404: ${req.path}`);
+  res.status(404).json({ 
+    success: false,
+    message: 'API 엔드포인트를 찾을 수 없습니다.',
+    path: req.path 
+  });
+});
+
+// SPA 라우팅 - 모든 비API 요청에 대해 index.html 제공
+app.get('*', (req, res) => {
+  // uploads 경로는 정적 파일로 처리
+  if (req.path.startsWith('/uploads/')) {
+    return res.status(404).send('File not found');
   }
   
   // User-Agent 확인 (Render 헬스 체크)
@@ -385,45 +413,23 @@ app.get('*', (req, res, next) => {
       timestamp: new Date().toISOString()
     });
   }
-
-  // 프로덕션 환경에서는 React 앱 제공
+  
   if (config.NODE_ENV === 'production') {
     const frontendBuildPath = path.join(__dirname, '../frontend/build');
     const indexPath = path.join(frontendBuildPath, 'index.html');
+    console.log(`📄 SPA 라우팅: ${req.path} → index.html`);
     
+    // 파일 존재 확인
     if (fs.existsSync(indexPath)) {
-      console.log(`🎯 [SPA 라우팅] ${req.url} → React 앱 제공`);
-      return res.sendFile(indexPath);
+      res.sendFile(indexPath);
     } else {
-      console.log(`❌ [SPA 라우팅] React 빌드 파일 없음: ${indexPath}`);
+      console.error('❌ index.html 파일을 찾을 수 없습니다:', indexPath);
+      res.status(500).send('Application build not found');
     }
+  } else {
+    // 개발 환경에서는 404
+    res.status(404).send('Development mode - use React dev server');
   }
-  
-  // 개발 환경이거나 빌드 파일이 없는 경우 기본 API 응답
-  res.json({
-    message: '연기 대본 라이브러리 API',
-    version: '1.0.0',
-    environment: config.NODE_ENV,
-    status: 'running',
-    note: config.NODE_ENV === 'development' 
-      ? '개발 환경에서는 프론트엔드를 별도로 실행해주세요 (npm run dev)'
-      : 'React 빌드 파일을 찾을 수 없습니다.',
-    endpoints: {
-      auth: '/api/auth',
-      scripts: '/api/scripts',
-      emotions: '/api/emotions',
-      aiScript: '/api/ai-script'
-    }
-  });
-});
-
-// API 404 에러 핸들링 (위의 catch-all에서 처리되지 않은 API 요청들)
-app.use('/api/*', (req, res) => {
-  console.log('❌ API 404 에러:', req.originalUrl);
-  res.status(404).json({
-    message: '요청하신 API 엔드포인트를 찾을 수 없습니다.',
-    path: req.originalUrl
-  });
 });
 
 // 전역 에러 핸들링

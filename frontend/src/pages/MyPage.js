@@ -706,7 +706,7 @@ const MyPage = () => {
                               
                               <div className="flex space-x-2">
                                 <Link
-                                  to={`/posts/${post._id}`}
+                                  to={`/posts/${post._id}?from=script-vault`}
                                   className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm text-center"
                                 >
                                   보기
@@ -770,7 +770,7 @@ const MyPage = () => {
                               
                               <div className="flex space-x-2">
                                 <Link
-                                  to={`/posts/${post._id}`}
+                                  to={`/posts/${post._id}?from=script-vault`}
                                   className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm text-center"
                                 >
                                   보기

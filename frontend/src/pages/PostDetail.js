@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, User, Calendar, Eye, MessageCircle, Heart, Bookmark, Edit, Trash2, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +15,7 @@ import {
 const PostDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -326,20 +327,63 @@ const PostDetail = () => {
       console.log('🗑️ 게시글 삭제 시도:', { postId: post._id, boardType });
       const response = await api.delete(post._id);
       
-      if (response.success) {
+      console.log('🔍 삭제 API 응답 구조 확인:', {
+        response: response,
+        responseData: response.data,
+        responseSuccess: response.success,
+        responseDataSuccess: response.data?.success
+      });
+      
+      // API 응답 구조 확인 (response.data.success 또는 response.success)
+      const success = response.data?.success || response.success;
+      
+      if (success) {
         toast.success('게시글이 삭제되었습니다.');
-        navigate(getBackPath(boardType));
+        
+        // 대본함에서 온 경우 대본함으로 돌아가기
+        const fromScriptVault = new URLSearchParams(location.search).get('from') === 'script-vault';
+        if (fromScriptVault) {
+          navigate('/script-vault');
+        } else {
+          navigate(getBackPath(boardType));
+        }
       } else {
-        throw new Error(response.message || '삭제에 실패했습니다.');
+        const errorMessage = response.data?.message || response.message || '삭제에 실패했습니다.';
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('❌ 게시글 삭제 오류:', error);
-      toast.error('게시글 삭제 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message));
+      
+      // 삭제가 실제로 성공했지만 응답 구조 문제로 오류가 발생한 경우를 위해
+      // 404 오류이거나 "not found" 메시지가 있으면 삭제가 성공한 것으로 간주
+      const isDeletedAlready = error.response?.status === 404 || 
+                              error.message?.toLowerCase().includes('not found') ||
+                              error.response?.data?.message?.toLowerCase().includes('not found');
+      
+      if (isDeletedAlready) {
+        toast.success('게시글이 삭제되었습니다.');
+        
+        // 대본함에서 온 경우 대본함으로 돌아가기
+        const fromScriptVault = new URLSearchParams(location.search).get('from') === 'script-vault';
+        if (fromScriptVault) {
+          navigate('/script-vault');
+        } else {
+          navigate(getBackPath(boardType));
+        }
+      } else {
+        toast.error('게시글 삭제 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message));
+      }
     }
   };
 
   const handleBack = () => {
-    navigate(getBackPath(boardType));
+    // 대본함에서 온 경우 대본함으로 돌아가기
+    const fromScriptVault = new URLSearchParams(location.search).get('from') === 'script-vault';
+    if (fromScriptVault) {
+      navigate('/script-vault');
+    } else {
+      navigate(getBackPath(boardType));
+    }
   };
 
   const formatDate = (dateString) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Radio, RadioOff, Users, Activity, Bell, BellOff, Eye, Plus } from 'lucide-react';
+import { Radio, Users, Activity, Bell, BellOff, Eye, Plus, Square } from 'lucide-react';
 import { useScriptsRealtime, useOnlineUsers, useRealtimeStats } from '../hooks/useSupabaseRealtime';
 import supabaseAPI from '../services/supabaseAPI';
 
@@ -140,7 +140,7 @@ const RealtimeDemo = () => {
                   : 'bg-green-500 text-white hover:bg-green-600'
               }`}
             >
-              {isScriptsSubscribed ? <RadioOff className="w-4 h-4" /> : <Radio className="w-4 h-4" />}
+              {isScriptsSubscribed ? <Square className="w-4 h-4" /> : <Radio className="w-4 h-4" />}
               {isScriptsSubscribed ? '실시간 끄기' : '실시간 켜기'}
             </button>
 

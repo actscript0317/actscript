@@ -60,6 +60,11 @@ const config = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   CLIENT_URL: process.env.CLIENT_URL || 'https://actscript-1.onrender.com',
   
+  // Supabase 설정
+  SUPABASE_URL: process.env.SUPABASE_URL,
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  
   // 나이스페이먼트 설정
   NICEPAY_CLIENT_KEY: process.env.NICEPAY_CLIENT_KEY,
   NICEPAY_SECRET_KEY: process.env.NICEPAY_SECRET_KEY,

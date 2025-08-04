@@ -11,11 +11,23 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config/env');
 const connectDB = require('./config/database');
+const { testConnection } = require('./config/supabase');
 
 const app = express();
 
-// 데이터베이스 연결
+// 데이터베이스 연결 (MongoDB + Supabase)
 connectDB();
+
+// Supabase 연결 테스트
+testConnection().then(success => {
+  if (success) {
+    console.log('✅ Supabase 연결 성공');
+  } else {
+    console.log('⚠️ Supabase 연결 실패 - MongoDB로 계속 진행');
+  }
+}).catch(error => {
+  console.warn('⚠️ Supabase 연결 테스트 중 오류:', error.message);
+});
 
 // 간단한 CORS 설정 (server.js에서 이미 설정되어 있다면 생략 가능)
 app.use(cors({
@@ -38,7 +50,9 @@ app.use(helmet({
         "https://actscript.onrender.com",
         "https://actscript-1.onrender.com",
         "http://localhost:10000",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "https://stuaaylkugnbcedjjaei.supabase.co",
+        "wss://stuaaylkugnbcedjjaei.supabase.co"
       ],
       fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],
@@ -107,13 +121,19 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
   res.send(svg);
 });
 
-// API 라우트
+// API 라우트 (기존 MongoDB)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/scripts', require('./routes/scripts'));
 app.use('/api/emotions', require('./routes/emotions'));
 app.use('/api/ai-script', require('./routes/ai-script'));
 app.use('/api/likes', require('./routes/likes'));
 app.use('/api/bookmarks', require('./routes/bookmarks'));
+
+// Supabase API 라우트 (새로운)
+app.use('/api/v2/auth', require('./routes/supabase-auth'));
+app.use('/api/v2/scripts', require('./routes/supabase-scripts'));
+app.use('/api/v2/ai-script', require('./routes/supabase-ai-script'));
+app.use('/api/v2/test', require('./routes/supabase-test'));
 
 // 커뮤니티 라우트
 app.use('/api/actor-profiles', require('./routes/actor-profiles'));

@@ -31,6 +31,8 @@ import Payment from './pages/Payment';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import Pricing from './pages/Pricing';
+import SupabaseTest from './pages/SupabaseTest';
+import FileUploadDemo from './pages/FileUploadDemo';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -46,6 +48,8 @@ function App() {
               <Route path="/scripts" element={<Scripts />} />
               <Route path="/scripts/:id" element={<ScriptDetail />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/supabase-test" element={<SupabaseTest />} />
+              <Route path="/file-upload-demo" element={<FileUploadDemo />} />
               
               {/* 배우 관련 페이지 - 공개 접근 */}
               <Route path="/actor-profile" element={<ActorProfile />} />

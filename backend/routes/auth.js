@@ -126,16 +126,19 @@ router.post('/register', registerValidation, async (req, res) => {
 
     console.log('✅ 사용자명 사용 가능:', username);
 
-    // Supabase Auth에 사용자 생성
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Supabase Auth에 사용자 생성 (이메일 확인 포함)
+    console.log('🔐 Supabase Auth 사용자 생성 시작...');
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      user_metadata: {
-        username,
-        name,
-        role: 'user'
-      },
-      email_confirm: true // 이메일 확인 필요로 설정
+      options: {
+        data: {
+          username,
+          name,
+          role: 'user'
+        },
+        emailRedirectTo: `${process.env.CLIENT_URL}/verify-email`
+      }
     });
 
     if (authError) {
@@ -184,9 +187,52 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
-    // 이메일 확인 발송 (Supabase가 자동으로 처리함)
-    console.log('✅ 회원가입 완료. Supabase에서 이메일 확인 메일을 자동 발송합니다.');
-    console.log(`📧 이메일 확인 링크가 ${email}로 발송되었습니다.`);
+    // 이메일 확인 상태 체크
+    if (authData?.user) {
+      console.log('✅ 사용자 생성 완료:', {
+        id: authData.user.id,
+        email: authData.user.email,
+        email_confirmed_at: authData.user.email_confirmed_at,
+        confirmation_sent_at: authData.user.confirmation_sent_at
+      });
+
+      if (authData.user.confirmation_sent_at) {
+        console.log(`📧 이메일 확인 링크가 ${email}로 발송되었습니다.`);
+      } else {
+        console.log('⚠️ 이메일 확인 링크 발송이 확인되지 않았습니다.');
+        
+        // OTP 방식으로 이메일 인증 시도
+        try {
+          const { error: otpError } = await supabaseAdmin.auth.admin.generateLink({
+            type: 'magiclink',
+            email: email,
+            options: {
+              redirectTo: `${process.env.CLIENT_URL}/verify-email`
+            }
+          });
+          
+          if (otpError) {
+            console.error('❌ OTP 이메일 발송 실패:', otpError);
+            
+            // 최후 수단: 일반 재발송 시도
+            const { error: resendError } = await supabase.auth.resend({
+              type: 'signup',
+              email: email
+            });
+            
+            if (resendError) {
+              console.error('❌ 이메일 재발송도 실패:', resendError);
+            } else {
+              console.log('✅ 기본 이메일 확인 링크 재발송 성공');
+            }
+          } else {
+            console.log('✅ OTP 이메일 발송 성공');
+          }
+        } catch (otpErr) {
+          console.error('❌ OTP 이메일 발송 중 예외:', otpErr);
+        }
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -502,8 +548,94 @@ router.put('/password', authenticateToken, [
   }
 });
 
-// 이메일 확인 재발송
-router.post('/resend-verification', authenticateToken, async (req, res) => {
+// 이메일 확인 재발송 (로그인 없이도 가능)
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: '이메일 주소를 입력해주세요.'
+      });
+    }
+    
+    console.log(`📧 이메일 확인 재발송 요청: ${email}`);
+    
+    // 여러 방법으로 시도
+    let success = false;
+    let lastError = null;
+    
+    // 방법 1: 기본 재발송
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: `${process.env.CLIENT_URL}/verify-email`
+        }
+      });
+      
+      if (!resendError) {
+        console.log('✅ 기본 재발송 성공');
+        success = true;
+      } else {
+        console.error('❌ 기본 재발송 실패:', resendError);
+        lastError = resendError;
+      }
+    } catch (err) {
+      console.error('❌ 기본 재발송 예외:', err);
+      lastError = err;
+    }
+    
+    // 방법 2: 매직링크 방식
+    if (!success) {
+      try {
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: email,
+          options: {
+            redirectTo: `${process.env.CLIENT_URL}/verify-email`
+          }
+        });
+        
+        if (!linkError && linkData) {
+          console.log('✅ 매직링크 생성 성공');
+          success = true;
+        } else {
+          console.error('❌ 매직링크 생성 실패:', linkError);
+          lastError = linkError;
+        }
+      } catch (err) {
+        console.error('❌ 매직링크 생성 예외:', err);
+        lastError = err;
+      }
+    }
+    
+    if (success) {
+      res.json({
+        success: true,
+        message: '이메일 확인 링크가 재발송되었습니다.'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: '이메일 확인 발송에 실패했습니다.',
+        error: lastError?.message
+      });
+    }
+    
+  } catch (error) {
+    console.error('이메일 확인 재발송 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '이메일 확인 재발송 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 기존 인증된 사용자용 재발송 엔드포인트
+router.post('/resend-verification-auth', authenticateToken, async (req, res) => {
   try {
     const { error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',

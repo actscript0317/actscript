@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, Eye, EyeOff, Mail, Key, Clock } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Mail } from 'lucide-react';
 import { authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 
 const Register = () => {
-  const [step, setStep] = useState(1); // 1: 회원가입 폼, 2: 인증 코드 입력
   const [formData, setFormData] = useState({
     email: '',
     username: '',
@@ -14,16 +13,15 @@ const Register = () => {
     confirmPassword: '',
     name: ''
   });
-  const [verificationCode, setVerificationCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(600); // 10분
+  const [registrationComplete, setRegistrationComplete] = useState(false);
   const navigate = useNavigate();
   const { setUserAuth } = useAuth();
 
-  // 1단계: 회원가입 정보 제출
+  // 회원가입 정보 제출
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -104,9 +102,8 @@ const Register = () => {
       });
 
       if (response.data.success) {
-        toast.success('인증 코드가 이메일로 발송되었습니다!');
-        setStep(2); // 인증 코드 입력 단계로 이동
-        startTimer(); // 타이머 시작
+        toast.success('회원가입이 완료되었습니다! 이메일을 확인해주세요.');
+        setRegistrationComplete(true);
       } else {
         setError(response.data.message || '회원가입에 실패했습니다.');
         toast.error(response.data.message || '회원가입에 실패했습니다.');
@@ -135,97 +132,6 @@ const Register = () => {
     }
   };
 
-  // 2단계: 인증 코드 확인
-  const handleVerificationSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!verificationCode || verificationCode.length !== 6) {
-      setError('6자리 인증 코드를 입력해주세요.');
-      toast.error('6자리 인증 코드를 입력해주세요.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const response = await authAPI.verifyRegistration({
-        email: formData.email,
-        code: verificationCode
-      });
-
-      if (response.data.success) {
-        toast.success('회원가입이 완료되었습니다! 로그인할 수 있습니다.');
-        navigate('/login', { 
-          state: { 
-            email: formData.email,
-            message: '회원가입이 완료되었습니다. 로그인해주세요.' 
-          } 
-        });
-      } else {
-        setError(response.data.message || '인증에 실패했습니다.');
-        toast.error(response.data.message || '인증에 실패했습니다.');
-      }
-    } catch (err) {
-      console.error('인증 에러:', err);
-      
-      let errorMessage = '인증 중 오류가 발생했습니다.';
-      
-      if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      }
-      
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 인증 코드 재발송
-  const handleResendCode = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await authAPI.resendRegistrationCode({
-        email: formData.email
-      });
-
-      if (response.data.success) {
-        toast.success('인증 코드가 재발송되었습니다.');
-        setTimeLeft(600); // 타이머 리셋
-        startTimer();
-      } else {
-        toast.error(response.data.message || '재발송에 실패했습니다.');
-      }
-    } catch (err) {
-      console.error('재발송 에러:', err);
-      toast.error('재발송 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 타이머 시작
-  const startTimer = () => {
-    const timer = setInterval(() => {
-      setTimeLeft((prevTime) => {
-        if (prevTime <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prevTime - 1;
-      });
-    }, 1000);
-  };
-
-  // 시간 포맷팅
-  const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -234,50 +140,69 @@ const Register = () => {
     }));
   };
 
-  const handleVerificationChange = (e) => {
-    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-    setVerificationCode(value);
-  };
-
-  const goBack = () => {
-    setStep(1);
-    setVerificationCode('');
-    setError('');
-  };
+  if (registrationComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-green-100">
+              <Mail className="h-6 w-6 text-green-600" />
+            </div>
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+              이메일을 확인해주세요
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              <strong>{formData.email}</strong>로 인증 링크를 발송했습니다.
+            </p>
+            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-md p-4">
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">📧 다음 단계:</p>
+                <ol className="mt-2 list-decimal list-inside space-y-1">
+                  <li>이메일함을 확인하세요</li>
+                  <li>스팸함도 확인해보세요</li>
+                  <li>인증 링크를 클릭하세요</li>
+                  <li>자동으로 로그인 페이지로 이동합니다</li>
+                </ol>
+              </div>
+            </div>
+            <div className="mt-6">
+              <Link
+                to="/login"
+                className="text-primary hover:text-primary-dark font-medium"
+              >
+                로그인 페이지로 이동
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary/10">
-            {step === 1 ? <UserPlus className="h-6 w-6 text-primary" /> : <Key className="h-6 w-6 text-primary" />}
+            <UserPlus className="h-6 w-6 text-primary" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {step === 1 ? '회원가입' : '이메일 인증'}
+            회원가입
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            {step === 1 ? (
-              <>
-                이미 계정이 있으신가요?{' '}
-                <Link to="/login" className="font-medium text-primary hover:text-primary-dark">
-                  로그인
-                </Link>
-              </>
-            ) : (
-              <>
-                {formData.email}로 발송된 인증 코드를 입력해주세요
-              </>
-            )}
+            이미 계정이 있으신가요?{' '}
+            <Link to="/login" className="font-medium text-primary hover:text-primary-dark">
+              로그인
+            </Link>
           </p>
         </div>
 
-        {step === 1 ? (
-          <form className="mt-8 space-y-6" onSubmit={handleRegisterSubmit}>
-            {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="text-sm text-red-700">{error}</div>
-              </div>
-            )}
+        <form className="mt-8 space-y-6" onSubmit={handleRegisterSubmit}>
+          {error && (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
+          )}
 
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
@@ -372,77 +297,16 @@ const Register = () => {
               </div>
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? '처리 중...' : '인증 코드 발송'}
-              </button>
-            </div>
-          </form>
-        ) : (
-          <form className="mt-8 space-y-6" onSubmit={handleVerificationSubmit}>
-            {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="text-sm text-red-700">{error}</div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700">
-                  인증 코드 (6자리)
-                </label>
-                <input
-                  id="verificationCode"
-                  name="verificationCode"
-                  type="text"
-                  maxLength="6"
-                  required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary text-center text-lg tracking-widest"
-                  placeholder="000000"
-                  value={verificationCode}
-                  onChange={handleVerificationChange}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center text-gray-500">
-                  <Clock className="h-4 w-4 mr-1" />
-                  남은 시간: {formatTime(timeLeft)}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleResendCode}
-                  disabled={loading || timeLeft > 0}
-                  className="text-primary hover:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  재발송
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <button
-                type="submit"
-                disabled={loading || verificationCode.length !== 6}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? '인증 중...' : '회원가입 완료'}
-              </button>
-              
-              <button
-                type="button"
-                onClick={goBack}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-              >
-                이전 단계로
-              </button>
-            </div>
-          </form>
-        )}
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? '처리 중...' : '회원가입'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

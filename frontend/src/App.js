@@ -16,6 +16,7 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
+import AuthCallback from './pages/AuthCallback';
 import MyPage from './pages/MyPage';
 import NotFound from './pages/NotFound';
 // 새로운 배우 관련 페이지들
@@ -122,6 +123,7 @@ function App() {
                   <VerifyEmail />
                 </PublicRoute>
               } />
+              <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* 404 페이지 */}
               <Route path="/404" element={<NotFound />} />

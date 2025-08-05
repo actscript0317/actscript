@@ -16,7 +16,13 @@
       "Bash(npm run dev:*)",
       "Bash(ls:*)",
       "Bash(npm run build:*)",
-      "Bash(NODE_ENV=production node server.js)"
+      "Bash(NODE_ENV=production node server.js)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(set NODE_ENV=development)",
+      "Bash(taskkill:*)",
+      "Bash(timeout 10 npm start)",
+      "Bash(timeout 5 npm start)"
     ],
     "deny": []
   }

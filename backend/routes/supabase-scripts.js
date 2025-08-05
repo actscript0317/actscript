@@ -114,6 +114,72 @@ router.get('/bookmarked', authenticateToken, async (req, res) => {
   }
 });
 
+// 인기 대본 조회
+router.get('/popular', async (req, res) => {
+  try {
+    const { limit = 6 } = req.query;
+    
+    const result = await safeQuery(async () => {
+      return await supabase
+        .from('scripts')
+        .select('*')
+        .order('views', { ascending: false })
+        .limit(parseInt(limit));
+    }, '인기 대본 조회');
+
+    if (!result.success) {
+      return res.status(result.error.code).json({
+        success: false,
+        message: result.error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      scripts: result.data || []
+    });
+  } catch (error) {
+    console.error('인기 대본 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '인기 대본 조회 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 최신 대본 조회
+router.get('/latest', async (req, res) => {
+  try {
+    const { limit = 6 } = req.query;
+    
+    const result = await safeQuery(async () => {
+      return await supabase
+        .from('scripts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(parseInt(limit));
+    }, '최신 대본 조회');
+
+    if (!result.success) {
+      return res.status(result.error.code).json({
+        success: false,
+        message: result.error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      scripts: result.data || []
+    });
+  } catch (error) {
+    console.error('최신 대본 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '최신 대본 조회 중 오류가 발생했습니다.'
+    });
+  }
+});
+
 // 모든 대본 조회 (필터링, 검색, 페이지네이션 포함)
 router.get('/', optionalAuth, async (req, res) => {
   try {

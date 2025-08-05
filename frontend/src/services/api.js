@@ -6,24 +6,44 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:10000/ap
 // axios 인스턴스 생성
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // 타임아웃을 60초로 증가
+  timeout: 120000, // 타임아웃을 120초로 증가 (Render 환경 고려)
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
-  withCredentials: true
+  withCredentials: true,
+  // CORS 관련 추가 설정
+  maxRedirects: 5,
+  validateStatus: function (status) {
+    return status >= 200 && status < 500; // 5xx 에러만 reject
+  }
 });
 
 // 재시도 로직을 위한 헬퍼 함수
-const withRetry = async (apiCall, retries = 2, delay = 1000) => {
+const withRetry = async (apiCall, retries = 3, delay = 2000) => {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       return await apiCall();
     } catch (error) {
+      console.log(`API 호출 시도 ${attempt + 1}/${retries} 실패:`, {
+        code: error.code,
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      
       if (attempt === retries - 1) throw error;
       
-      // 네트워크 오류나 타임아웃인 경우 재시도
-      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) {
-        console.log(`API 재시도 ${attempt + 1}/${retries}...`);
+      // CORS, 네트워크 오류, 타임아웃, 5xx 서버 에러인 경우 재시도
+      const shouldRetry = 
+        error.code === 'ECONNABORTED' || 
+        error.code === 'ERR_NETWORK' || 
+        !error.response ||
+        (error.response && error.response.status >= 500) ||
+        error.message.includes('CORS');
+        
+      if (shouldRetry) {
+        console.log(`재시도 대기 중... (${delay * (attempt + 1)}ms)`);
         await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
         continue;
       }
@@ -236,10 +256,8 @@ export const emotionAPI = {
   },
 };
 
-// 인증 API
+// 인증 API (Supabase 기반)
 export const authAPI = {
-  // 이메일 인증 코드 요청
-  requestVerificationCode: (data) => withRetry(() => api.post('/auth/request-verification-code', data)),
   // 회원가입
   register: (data) => withRetry(() => api.post('/auth/register', data)),
   // 로그인
@@ -254,15 +272,11 @@ export const authAPI = {
   changePassword: (data) => withRetry(() => api.put('/auth/password', data)),
   // 비밀번호 재설정 요청
   forgotPassword: (data) => withRetry(() => api.post('/auth/forgot-password', data)),
-  // 비밀번호 재설정 실행
-  resetPassword: (token, data) => withRetry(() => api.put(`/auth/reset-password/${token}`, data)),
-  // 이메일 인증 요청
-  sendVerification: () => withRetry(() => api.post('/auth/send-verification')),
-  // 이메일 인증 확인
-  verifyEmail: (token) => withRetry(() => api.get(`/auth/verify-email/${token}`)),
-  // 이메일 인증 상태 확인
-  getVerificationStatus: () => withRetry(() => api.get('/auth/verification-status')),
-  // 회원탈퇴
+  // 비밀번호 업데이트
+  updatePassword: (data) => withRetry(() => api.put('/auth/update-password', data)),
+  // 이메일 확인 재발송
+  resendVerification: (data) => withRetry(() => api.post('/auth/resend-verification', data)),
+  // 회원탈퇴 (향후 구현 예정)
   deleteAccount: (data) => withRetry(() => api.delete('/auth/delete-account', { data })),
 };
 

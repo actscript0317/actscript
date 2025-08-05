@@ -8,7 +8,8 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Supabase configuration missing. Please set SUPABASE_URL and SUPABASE_ANON_KEY in your .env file');
-  process.exit(1);
+  console.error('Current values:', { supabaseUrl, supabaseAnonKey });
+  throw new Error('Supabase configuration missing');
 }
 
 // Client for public operations (uses RLS)
@@ -19,7 +20,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Admin client for administrative operations (bypasses RLS)
+// Admin client for authentication operations (bypasses RLS)  
 const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,

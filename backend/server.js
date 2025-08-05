@@ -8,16 +8,13 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
-const connectDB = require('./config/database');
-const checkDBConnection = require('./middleware/dbCheck');
 const visitorTracker = require('./middleware/visitorTracker');
-const mongoose = require('mongoose');
 
-// 라우트 임포트
-const scriptRoutes = require('./routes/scripts');
-const emotionRoutes = require('./routes/emotions');
-const authRoutes = require('./routes/auth');
-const aiScriptRoutes = require('./routes/ai-script');
+// Supabase 라우트 임포트
+const scriptRoutes = require('./routes/supabase-scripts');
+const emotionRoutes = require('./routes/supabase-emotions');
+const authRoutes = require('./routes/supabase-auth');
+const aiScriptRoutes = require('./routes/supabase-ai-script');
 const actorProfileRoutes = require('./routes/actor-profiles');
 const actorRecruitmentRoutes = require('./routes/actor-recruitments');
 const communityPostRoutes = require('./routes/community-posts');
@@ -52,42 +49,93 @@ const allowedOrigins = [
   'http://localhost:3001'              // 추가 로컬 포트
 ];
 
+// CORS 디버깅을 위한 로깅
+console.log('🌐 CORS 허용 도메인 목록:', allowedOrigins);
+
 const corsOptions = {
   origin: function(origin, callback) {
     console.log('🔍 CORS 요청 origin:', origin);
+    console.log('🔍 허용된 origins:', allowedOrigins);
     
-    // 실제 허용된 origin 확인
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      console.log('✅ CORS 허용됨:', origin);
+    // origin이 undefined인 경우 (같은 도메인 요청) 또는 허용된 origin인 경우
+    if (!origin) {
+      console.log('✅ 같은 도메인 요청으로 CORS 허용');
+      callback(null, true);
+    } else if (allowedOrigins.includes(origin)) {
+      console.log('✅ 허용된 origin으로 CORS 허용:', origin);
       callback(null, true);
     } else {
-      console.warn('⚠️ CORS 정책으로 인해 차단된 요청:', origin);
-      console.log('허용된 origins:', allowedOrigins);
-      // 임시로 허용 (프로덕션에서는 제거 필요)
-      console.log('🚧 임시로 허용합니다.');
+      console.warn('⚠️ 허용되지 않은 origin:', origin);
+      // 프로덕션 환경에서도 임시로 허용 (CORS 문제 해결을 위해)
+      console.log('🚧 보안을 위해 임시로 허용합니다.');
       callback(null, true);
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600 // 프리플라이트 요청 캐시 시간 (10분)
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept', 
+    'Origin',
+    'Cache-Control',
+    'Pragma'
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range', 'Access-Control-Allow-Origin'],
+  optionsSuccessStatus: 200,
+  preflightContinue: false, // 프리플라이트 요청을 CORS 미들웨어에서 처리
+  maxAge: 86400 // 프리플라이트 요청 캐시 시간 (24시간)
 };
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // 프리플라이트 요청 허용
 
+// 강화된 CORS 헤더 설정 (수동)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  console.log('🔧 수동 CORS 헤더 설정:', {
+    method: req.method,
+    url: req.url,
+    origin: origin,
+    headers: Object.keys(req.headers)
+  });
+  
+  // Origin 헤더 설정
+  if (origin && (allowedOrigins.includes(origin) || origin.includes('actpiece.com'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    console.log('✅ Origin 헤더 설정:', origin);
+  } else if (!origin) {
+    res.header('Access-Control-Allow-Origin', '*');
+    console.log('✅ Origin 헤더 설정: * (no origin)');
+  } else {
+    // 임시로 모든 origin 허용
+    res.header('Access-Control-Allow-Origin', origin);
+    console.log('🚧 임시 Origin 헤더 설정:', origin);
+  }
+  
+  // 필수 CORS 헤더들
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.header('Vary', 'Origin');
+  
+  // OPTIONS 프리플라이트 요청 처리
+  if (req.method === 'OPTIONS') {
+    console.log('🔧 OPTIONS 프리플라이트 요청 처리완료:', req.url);
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
 // 방문자 추적 미들웨어 (CORS 설정 이후, 다른 미들웨어 이전)
 app.use(visitorTracker);
 
-// 데이터베이스 연결
-connectDB().then(() => {
-  console.log('✅ 데이터베이스 연결 완료');
-}).catch(err => {
-  console.error('❌ 데이터베이스 연결 실패:', err);
-  process.exit(1);
-});
+// Supabase를 주 데이터베이스로 사용
+console.log('✅ Supabase 데이터베이스 연결 준비 완료');
 
 // 미들웨어 설정 - 기본 보안 정책
 console.log('🔐 [CSP 설정] 기본 보안 정책 적용');
@@ -276,8 +324,7 @@ app.use('/uploads', (req, res, next) => {
 app.use('/uploads', express.static(uploadsPath));
 console.log('📁 [server.js] 정적 파일 제공 설정 완료:', uploadsPath);
 
-// 데이터베이스 연결 확인 미들웨어
-app.use('/api', checkDBConnection);
+// Supabase 연결은 각 요청에서 개별적으로 처리
 
 // 플레이스홀더 이미지 API
 app.get('/api/placeholder/:width/:height', (req, res) => {
@@ -333,6 +380,56 @@ app.use('/api/likes', likeRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payment', paymentRoutes);
+
+// 전역 에러 핸들링 미들웨어 (모든 라우트 이후에 위치)
+app.use((error, req, res, next) => {
+  console.error('🚨 전역 에러 핸들러:', {
+    error: error.message,
+    stack: error.stack,
+    url: req.url,
+    method: req.method,
+    origin: req.headers.origin
+  });
+
+  // CORS 헤더 강제 설정
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  // 에러 응답
+  const status = error.status || error.statusCode || 500;
+  res.status(status).json({
+    success: false,
+    message: error.message || '서버 오류가 발생했습니다.',
+    ...(config.NODE_ENV !== 'production' && { 
+      error: error.message,
+      stack: error.stack 
+    })
+  });
+});
+
+// 404 핸들러
+app.use((req, res) => {
+  console.log('📭 404 요청:', req.method, req.url, 'Origin:', req.headers.origin);
+  
+  // CORS 헤더 설정
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  res.status(404).json({
+    success: false,
+    message: '요청하신 리소스를 찾을 수 없습니다.'
+  });
+});
 
 // SPA 라우팅 지원 (모든 환경)
 const frontendBuildPath = path.join(__dirname, '../frontend/build');
@@ -447,7 +544,7 @@ app.use((error, req, res, next) => {
 // 서버 시작 함수
 const startServer = async () => {
   try {
-    await connectDB();
+    console.log('🔄 Supabase 데이터베이스 준비 완료');
     
     // uploads 디렉토리 상태 확인
     const uploadsPath = path.join(__dirname, 'uploads');
@@ -476,7 +573,7 @@ const startServer = async () => {
       console.log(`📍 환경: ${config.NODE_ENV}`);
       console.log(`🌐 CORS 허용 도메인: ${config.CORS_ORIGIN}`);
       console.log('📁 정적 파일 제공: /uploads -> ' + uploadsPath);
-      console.log(`💾 MongoDB 연결: ${config.MONGODB_URI ? '설정됨' : '미설정'}`);
+      console.log(`💾 Supabase 데이터베이스: ${process.env.SUPABASE_URL ? '설정됨' : '미설정'}`);
       console.log('==================================================\n');
     });
 

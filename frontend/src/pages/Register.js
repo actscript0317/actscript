@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, Eye, EyeOff, Mail, CheckCircle } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Mail } from 'lucide-react';
 import { authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 
 const Register = () => {
-  const [step, setStep] = useState(1); // 1: 이메일 입력, 2: 인증 코드 입력, 3: 회원정보 입력
-  const [email, setEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
   const [formData, setFormData] = useState({
+    email: '',
     username: '',
     password: '',
     confirmPassword: '',
@@ -22,68 +20,23 @@ const Register = () => {
   const navigate = useNavigate();
   const { setUserAuth } = useAuth();
 
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!email) {
-      setError('이메일을 입력해주세요.');
-      toast.error('이메일을 입력해주세요.');
-      return;
-    }
-
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError('올바른 이메일 형식이 아닙니다.');
-      toast.error('올바른 이메일 형식이 아닙니다.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await authAPI.requestVerificationCode({ email });
-      
-      if (response.data.success) {
-        toast.success('인증 코드가 이메일로 전송되었습니다.');
-        setStep(2);
-      } else {
-        setError(response.data.message || '인증 코드 전송에 실패했습니다.');
-        toast.error(response.data.message || '인증 코드 전송에 실패했습니다.');
-      }
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || '서버 오류가 발생했습니다.';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCodeVerification = () => {
-    if (!verificationCode) {
-      setError('인증 코드를 입력해주세요.');
-      toast.error('인증 코드를 입력해주세요.');
-      return;
-    }
-
-    if (verificationCode.length !== 6) {
-      setError('인증 코드는 6자리 숫자입니다.');
-      toast.error('인증 코드는 6자리 숫자입니다.');
-      return;
-    }
-
-    setStep(3);
-  };
-
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    const { username, password, confirmPassword, name } = formData;
+    const { email, username, password, confirmPassword, name } = formData;
 
     // 필수 필드 확인
-    if (!username || !password || !confirmPassword || !name) {
+    if (!email || !username || !password || !confirmPassword || !name) {
       setError('모든 필드를 입력해주세요.');
       toast.error('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    // 이메일 형식 확인
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError('올바른 이메일 형식이 아닙니다.');
+      toast.error('올바른 이메일 형식이 아닙니다.');
       return;
     }
 
@@ -132,31 +85,21 @@ const Register = () => {
       setLoading(true);
       const response = await authAPI.register({
         email,
-        verificationCode,
         username,
         password,
         name
       });
 
       if (response.data.success) {
-        // 회원가입 성공 시 자동 로그인
-        const { token, user } = response.data;
+        toast.success('회원가입이 완료되었습니다! 이메일을 확인하여 계정을 인증해주세요.');
         
-        if (token && user) {
-          // 토큰과 사용자 정보 저장
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(user));
-          
-          // AuthContext 업데이트
-          setUserAuth(user, token);
-          
-          toast.success('회원가입이 완료되었습니다! 환영합니다!');
-          navigate('/', { replace: true });
-        } else {
-          // 토큰이 없으면 로그인 페이지로
-          toast.success('회원가입이 완료되었습니다! 로그인해주세요.');
-          navigate('/login');
-        }
+        // 회원가입 후 로그인 페이지로 이동
+        navigate('/login', { 
+          state: { 
+            email: email,
+            message: '회원가입이 완료되었습니다. 이메일을 확인한 후 로그인해주세요.' 
+          } 
+        });
       } else {
         setError(response.data.message || '회원가입에 실패했습니다.');
         toast.error(response.data.message || '회원가입에 실패했습니다.');
@@ -164,25 +107,9 @@ const Register = () => {
     } catch (err) {
       console.error('회원가입 에러:', err);
       
-      // 네트워크 오류 처리
-      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        setError('네트워크 연결이 불안정합니다. 잠시 후 다시 시도해주세요.');
-        toast.error('네트워크 연결이 불안정합니다. 잠시 후 다시 시도해주세요.');
-      } else if (err.response?.status === 400) {
-        // 400 에러 - 클라이언트 오류
-        const errorMessage = err.response?.data?.message || '입력 정보를 확인해주세요.';
-        setError(errorMessage);
-        toast.error(errorMessage);
-      } else if (err.response?.status === 500) {
-        // 500 에러 - 서버 오류이지만 회원가입이 성공했을 수 있음
-        toast.success('회원가입이 완료되었습니다! 로그인해주세요.');
-        navigate('/login');
-        return; // finally 블록은 실행되지만 loading은 이미 false가 됨
-      } else {
-        const errorMessage = err.response?.data?.message || '회원가입 중 오류가 발생했습니다.';
-        setError(errorMessage);
-        toast.error(errorMessage);
-      }
+      const errorMessage = err.response?.data?.message || '회원가입 중 오류가 발생했습니다.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -197,164 +124,19 @@ const Register = () => {
     setError('');
   };
 
-
-  // Step 1: 이메일 입력
-  if (step === 1) {
-    return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">이메일 회원가입</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              이메일 인증을 통한 회원가입
-            </p>
-            <p className="mt-2 text-sm text-gray-600">
-              이미 계정이 있으신가요?{' '}
-              <Link to="/login" className="text-primary hover:text-primary-dark">
-                로그인하기
-              </Link>
-            </p>
-          </div>
-
-
-
-          <form className="mt-8 space-y-6" onSubmit={handleEmailSubmit}>
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                이메일 주소
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                placeholder="example@email.com"
-              />
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-                    인증 코드 전송 중...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-5 h-5 mr-2" />
-                    인증 코드 받기
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 2: 인증 코드 입력
-  if (step === 2) {
-    return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <Mail className="w-8 h-8 text-blue-600" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900">이메일 인증</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              <strong>{email}</strong>로 보낸<br />
-              6자리 인증 코드를 입력해주세요.
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700">
-              인증 코드
-            </label>
-            <input
-              id="verificationCode"
-              name="verificationCode"
-              type="text"
-              maxLength={6}
-              pattern="[0-9]{6}"
-              required
-              value={verificationCode}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, ''); // 숫자만 허용
-                setVerificationCode(value);
-                setError('');
-              }}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary text-center text-2xl letter-spacing-wide"
-              placeholder="123456"
-            />
-          </div>
-
-          <div className="flex space-x-3">
-            <button
-              onClick={() => setStep(1)}
-              className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-            >
-              이전
-            </button>
-            <button
-              onClick={handleCodeVerification}
-              disabled={verificationCode.length !== 6}
-              className="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              인증 확인
-            </button>
-          </div>
-
-          <div className="text-center">
-            <button
-              onClick={() => {
-                setStep(1);
-                setVerificationCode('');
-              }}
-              className="text-sm text-primary hover:text-primary-dark"
-            >
-              다른 이메일로 인증받기
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 3: 회원정보 입력
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900">회원정보 입력</h2>
+          <h2 className="text-3xl font-bold text-gray-900">회원가입</h2>
           <p className="mt-2 text-sm text-gray-600">
-            마지막 단계입니다!<br />
-            사용하실 정보를 입력해주세요.
+            ActScript에 오신 것을 환영합니다
+          </p>
+          <p className="mt-2 text-sm text-gray-600">
+            이미 계정이 있으신가요?{' '}
+            <Link to="/login" className="text-primary hover:text-primary-dark">
+              로그인하기
+            </Link>
           </p>
         </div>
 
@@ -367,8 +149,25 @@ const Register = () => {
 
           <div className="space-y-4">
             <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                이메일 주소 *
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="example@email.com"
+              />
+            </div>
+
+            <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                이름
+                이름 *
               </label>
               <input
                 id="name"
@@ -384,7 +183,7 @@ const Register = () => {
 
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                사용자명
+                사용자명 *
               </label>
               <input
                 id="username"
@@ -403,7 +202,7 @@ const Register = () => {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                비밀번호
+                비밀번호 *
               </label>
               <div className="relative">
                 <input
@@ -413,7 +212,7 @@ const Register = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary pr-10"
                   placeholder="비밀번호를 입력하세요"
                 />
                 <button
@@ -428,7 +227,7 @@ const Register = () => {
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                비밀번호 확인
+                비밀번호 확인 *
               </label>
               <div className="relative">
                 <input
@@ -438,7 +237,7 @@ const Register = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary pr-10"
                   placeholder="비밀번호를 다시 입력하세요"
                 />
                 <button
@@ -491,18 +290,11 @@ const Register = () => {
             </div>
           )}
 
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-            >
-              이전
-            </button>
+          <div>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -512,10 +304,24 @@ const Register = () => {
               ) : (
                 <>
                   <UserPlus className="w-5 h-5 mr-2" />
-                  회원가입 완료
+                  회원가입
                 </>
               )}
             </button>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              회원가입을 진행하시면{' '}
+              <Link to="/terms" className="text-primary hover:text-primary-dark">
+                이용약관
+              </Link>
+              {' '}및{' '}
+              <Link to="/privacy" className="text-primary hover:text-primary-dark">
+                개인정보처리방침
+              </Link>
+              에 동의하신 것으로 간주됩니다.
+            </p>
           </div>
         </form>
       </div>

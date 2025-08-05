@@ -45,6 +45,9 @@ export const AuthProvider = ({ children }) => {
       if (res.data.success && res.data.user) {
         setAuthState(res.data.user, token);
         return true;
+      } else if (res.data.success && res.data.data && res.data.data.user) {
+        setAuthState(res.data.data.user, token);
+        return true;
       } else {
         setAuthState(null, null);
         return false;
@@ -66,9 +69,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authAPI.login({ email, password });
       
-      if (res.data.success && res.data.token && res.data.user) {
+      if (res.data.success && res.data.session && res.data.user) {
+        // Supabase 세션 토큰 사용
+        const token = res.data.session.access_token;
+        
         // 즉시 인증 상태 업데이트
-        setAuthState(res.data.user, res.data.token);
+        setAuthState(res.data.user, token);
         
         // 강제로 모든 컴포넌트 리렌더링 트리거
         setLoading(false);
@@ -77,6 +83,19 @@ export const AuthProvider = ({ children }) => {
           success: true,
           user: res.data.user
         };
+      } else if (res.data.success && res.data.data) {
+        // 다른 응답 형식 지원
+        const token = res.data.data.session?.access_token;
+        const user = res.data.data.user;
+        
+        if (token && user) {
+          setAuthState(user, token);
+          setLoading(false);
+          return { 
+            success: true,
+            user: user
+          };
+        }
       }
 
       throw new Error('로그인 응답에 필요한 데이터가 없습니다.');

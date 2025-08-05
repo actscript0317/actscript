@@ -182,7 +182,20 @@ app.use(helmet({
   crossOriginOpenerPolicy: { policy: "same-origin" }
 }));
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev')); // 로깅
-app.use(express.json({ limit: '10mb' })); // JSON 파싱
+// JSON 파싱 에러 처리
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req, res, buf, encoding) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      console.error('❌ JSON 파싱 오류:', e.message);
+      console.error('❌ 요청 본문:', buf.toString());
+      e.status = 400;
+      throw e;
+    }
+  }
+})); // JSON 파싱
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL 인코딩 파싱
 app.use(cookieParser()); // 쿠키 파싱
 
@@ -540,6 +553,19 @@ app.use((req, res) => {
     success: false,
     message: '요청하신 리소스를 찾을 수 없습니다.'
   });
+});
+
+// JSON 파싱 에러 핸들링
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    console.error('❌ JSON 파싱 에러:', error.message);
+    return res.status(400).json({
+      success: false,
+      message: '잘못된 JSON 형식입니다. 특수문자를 확인해주세요.',
+      error: error.message
+    });
+  }
+  next(error);
 });
 
 // 전역 에러 핸들링

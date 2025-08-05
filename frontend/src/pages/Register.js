@@ -83,6 +83,15 @@ const Register = () => {
 
     try {
       setLoading(true);
+      
+      // 데이터 전송 전 로깅
+      console.log('📤 회원가입 데이터 전송:', {
+        email: email,
+        username: username,
+        password: '***',
+        name: name
+      });
+      
       const response = await authAPI.register({
         email,
         username,
@@ -106,8 +115,28 @@ const Register = () => {
       }
     } catch (err) {
       console.error('회원가입 에러:', err);
+      console.error('에러 상세:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: err.message
+      });
       
-      const errorMessage = err.response?.data?.message || '회원가입 중 오류가 발생했습니다.';
+      let errorMessage = '회원가입 중 오류가 발생했습니다.';
+      
+      if (err.response?.status === 400) {
+        if (err.response.data?.errors) {
+          // 검증 오류
+          errorMessage = err.response.data.errors.map(e => e.msg).join(', ');
+        } else {
+          errorMessage = err.response.data?.message || '입력 데이터를 확인해주세요.';
+        }
+      } else if (err.response?.status === 409) {
+        errorMessage = err.response.data?.message || '이미 존재하는 정보입니다.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

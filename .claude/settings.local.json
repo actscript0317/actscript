@@ -25,7 +25,8 @@
       "Bash(timeout 5 npm start)",
       "Bash(yarn install)",
       "Bash(npx yarn install:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(PORT=10001 node server.js)"
     ],
     "deny": []
   }

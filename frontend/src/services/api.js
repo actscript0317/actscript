@@ -258,8 +258,12 @@ export const emotionAPI = {
 
 // 인증 API (Supabase 기반)
 export const authAPI = {
-  // 회원가입
+  // 1단계: 회원가입 시작 (이메일 코드 발송)
   register: (data) => withRetry(() => api.post('/auth/register', data)),
+  // 2단계: 이메일 인증 코드 확인 및 회원가입 완료
+  verifyRegistration: (data) => withRetry(() => api.post('/auth/verify-registration', data)),
+  // 인증 코드 재발송
+  resendRegistrationCode: (data) => withRetry(() => api.post('/auth/resend-registration-code', data)),
   // 로그인
   login: (data) => withRetry(() => api.post('/auth/login', data)),
   // 로그아웃

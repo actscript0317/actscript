@@ -133,36 +133,30 @@ router.post('/register', registerValidation, async (req, res) => {
 
     console.log('✅ 중복 확인 완료');
 
-    // 임시 사용자 데이터를 temp_users 테이블에 저장
+    // 임시 사용자 데이터를 메모리에 저장 (임시 방법)
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const tempUserData = {
       email,
       password_hash: password, // 실제로는 해시해야 하지만 임시로
       username,
       name,
-      verification_code: Math.floor(100000 + Math.random() * 900000).toString(), // 6자리 코드
+      verification_code: verificationCode,
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10분 후 만료
       created_at: new Date().toISOString()
     };
 
-    // temp_users 테이블에 저장
-    const tempResult = await safeQuery(async () => {
-      return await supabase
-        .from('temp_users')
-        .insert(tempUserData)
-        .select()
-        .single();
-    }, '임시 사용자 생성');
-
-    if (!tempResult.success) {
-      console.error('❌ 임시 사용자 생성 실패:', tempResult.error);
-      return res.status(500).json({
-        success: false,
-        message: '회원가입 처리 중 오류가 발생했습니다.'
-      });
+    // 글로벌 변수로 임시 저장 (실제로는 Redis나 DB 사용해야 함)
+    if (!global.tempUsers) {
+      global.tempUsers = new Map();
     }
+    
+    global.tempUsers.set(email, tempUserData);
+    console.log('✅ 임시 사용자 데이터 저장:', { email, code: verificationCode });
 
     // 이메일 인증 코드 발송
-    console.log('📧 이메일 인증 코드 발송 시작...');
+    console.log('📧 이메일 인증 코드 발송 시작...', verificationCode);
+    
+    let emailSent = false;
     
     try {
       // OTP 발송 시도
@@ -172,7 +166,8 @@ router.post('/register', registerValidation, async (req, res) => {
           emailRedirectTo: `${process.env.CLIENT_URL}/verify-email`,
           data: {
             type: 'registration_verification',
-            verification_code: tempUserData.verification_code
+            verification_code: verificationCode,
+            message: `회원가입 인증 코드: ${verificationCode}`
           }
         }
       });
@@ -185,7 +180,7 @@ router.post('/register', registerValidation, async (req, res) => {
           type: 'magiclink',
           email: email,
           options: {
-            redirectTo: `${process.env.CLIENT_URL}/verify-email?code=${tempUserData.verification_code}&email=${email}`
+            redirectTo: `${process.env.CLIENT_URL}/verify-email?code=${verificationCode}&email=${email}`
           }
         });
         
@@ -193,13 +188,18 @@ router.post('/register', registerValidation, async (req, res) => {
           console.error('❌ 매직링크도 실패:', linkError);
         } else {
           console.log('✅ 매직링크 생성 성공');
+          emailSent = true;
         }
       } else {
         console.log('✅ 이메일 인증 코드 발송 성공');
+        emailSent = true;
       }
     } catch (emailErr) {
       console.error('❌ 이메일 발송 중 예외:', emailErr);
     }
+    
+    // 이메일 발송 실패 시에도 일단 진행 (개발 중이므로)
+    console.log('📧 인증 코드 (개발용):', verificationCode);
 
     res.status(200).json({
       success: true,
@@ -743,35 +743,35 @@ router.post('/verify-registration', async (req, res) => {
       });
     }
 
-    // temp_users에서 인증 코드 확인
-    const tempUserResult = await safeQuery(async () => {
-      return await supabase
-        .from('temp_users')
-        .select('*')
-        .eq('email', email)
-        .eq('verification_code', code)
-        .single();
-    }, '임시 사용자 조회');
-
-    if (!tempUserResult.success) {
-      console.error('❌ 인증 코드 확인 실패:', tempUserResult.error);
+    // 메모리에서 임시 사용자 데이터 조회
+    if (!global.tempUsers) {
+      global.tempUsers = new Map();
+    }
+    
+    const tempUser = global.tempUsers.get(email);
+    
+    if (!tempUser) {
+      console.error('❌ 임시 사용자 데이터 없음:', email);
       return res.status(400).json({
         success: false,
-        message: '잘못된 인증 코드이거나 존재하지 않는 요청입니다.'
+        message: '회원가입 요청을 찾을 수 없습니다. 다시 시도해주세요.'
       });
     }
-
-    const tempUser = tempUserResult.data;
+    
+    if (tempUser.verification_code !== code) {
+      console.error('❌ 인증 코드 불일치:', { expected: tempUser.verification_code, received: code });
+      return res.status(400).json({
+        success: false,
+        message: '인증 코드가 올바르지 않습니다.'
+      });
+    }
     
     // 만료 시간 확인
     if (new Date() > new Date(tempUser.expires_at)) {
       console.log('❌ 인증 코드 만료:', email);
       
       // 만료된 임시 사용자 데이터 삭제
-      await supabase
-        .from('temp_users')
-        .delete()
-        .eq('email', email);
+      global.tempUsers.delete(email);
       
       return res.status(400).json({
         success: false,
@@ -844,10 +844,7 @@ router.post('/verify-registration', async (req, res) => {
     }
 
     // 임시 사용자 데이터 삭제
-    await supabase
-      .from('temp_users')
-      .delete()
-      .eq('email', email);
+    global.tempUsers.delete(email);
 
     console.log('✅ 회원가입 최종 완료:', {
       id: userResult.data.id,
@@ -890,16 +887,14 @@ router.post('/resend-registration-code', async (req, res) => {
 
     console.log(`📧 인증 코드 재발송 요청: ${email}`);
 
-    // temp_users에서 기존 데이터 조회
-    const tempUserResult = await safeQuery(async () => {
-      return await supabase
-        .from('temp_users')
-        .select('*')
-        .eq('email', email)
-        .single();
-    }, '임시 사용자 조회');
-
-    if (!tempUserResult.success) {
+    // 메모리에서 기존 데이터 조회
+    if (!global.tempUsers) {
+      global.tempUsers = new Map();
+    }
+    
+    const tempUser = global.tempUsers.get(email);
+    
+    if (!tempUser) {
       return res.status(404).json({
         success: false,
         message: '회원가입 요청을 찾을 수 없습니다. 처음부터 다시 시도해주세요.'
@@ -910,14 +905,10 @@ router.post('/resend-registration-code', async (req, res) => {
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
     const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    // temp_users 업데이트
-    await supabase
-      .from('temp_users')
-      .update({
-        verification_code: newCode,
-        expires_at: newExpiresAt
-      })
-      .eq('email', email);
+    // 메모리에서 업데이트
+    tempUser.verification_code = newCode;
+    tempUser.expires_at = newExpiresAt;
+    global.tempUsers.set(email, tempUser);
 
     // 이메일 재발송
     try {

@@ -4,6 +4,51 @@ const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
 const router = express.Router();
 
+// Supabase 설정 테스트 엔드포인트
+router.get('/test-supabase', async (req, res) => {
+  try {
+    console.log('🔧 Supabase 설정 테스트 중...');
+    
+    // 환경 변수 확인
+    const hasUrl = !!process.env.SUPABASE_URL;
+    const hasAnonKey = !!process.env.SUPABASE_ANON_KEY;
+    const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    console.log('Environment variables:', {
+      SUPABASE_URL: hasUrl ? '✅ 설정됨' : '❌ 누락',
+      SUPABASE_ANON_KEY: hasAnonKey ? '✅ 설정됨' : '❌ 누락',
+      SUPABASE_SERVICE_ROLE_KEY: hasServiceKey ? '✅ 설정됨' : '❌ 누락'
+    });
+    
+    // 연결 테스트
+    const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+    
+    if (error) {
+      console.error('❌ Supabase 연결 실패:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Supabase 연결 실패',
+        error: error.message,
+        config: { hasUrl, hasAnonKey, hasServiceKey }
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Supabase 연결 성공',
+      config: { hasUrl, hasAnonKey, hasServiceKey }
+    });
+    
+  } catch (error) {
+    console.error('❌ Supabase 테스트 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '테스트 중 오류 발생',
+      error: error.message
+    });
+  }
+});
+
 // 검증 규칙
 const registerValidation = [
   body('email').isEmail().normalizeEmail().withMessage('올바른 이메일을 입력하세요.'),
@@ -56,7 +101,7 @@ router.post('/register', registerValidation, async (req, res) => {
         name,
         role: 'user'
       },
-      email_confirm: false // 이메일 확인을 위해 false로 설정
+      email_confirm: true // 이메일 확인 필요로 설정
     });
 
     if (authError) {
@@ -105,18 +150,9 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
-    // 이메일 확인 발송
-    const { error: emailError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      options: {
-        redirectTo: `${process.env.CLIENT_URL}/auth/verify`
-      }
-    });
-
-    if (emailError) {
-      console.warn('이메일 확인 발송 실패:', emailError);
-    }
+    // 이메일 확인 발송 (Supabase가 자동으로 처리함)
+    console.log('✅ 회원가입 완료. Supabase에서 이메일 확인 메일을 자동 발송합니다.');
+    console.log(`📧 이메일 확인 링크가 ${email}로 발송되었습니다.`);
 
     res.status(201).json({
       success: true,

@@ -126,19 +126,17 @@ router.post('/register', registerValidation, async (req, res) => {
 
     console.log('✅ 사용자명 사용 가능:', username);
 
-    // Supabase Auth에 사용자 생성 (이메일 확인 포함)
+    // Supabase Auth에 사용자 생성 (이메일 확인 비활성화)
     console.log('🔐 Supabase Auth 사용자 생성 시작...');
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          username,
-          name,
-          role: 'user'
-        },
-        emailRedirectTo: `${process.env.CLIENT_URL}/verify-email`
-      }
+      user_metadata: {
+        username,
+        name,
+        role: 'user'
+      },
+      email_confirm: false // 일단 이메일 확인 없이 계정 생성
     });
 
     if (authError) {
@@ -187,50 +185,51 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
-    // 이메일 확인 상태 체크
+    // 회원가입 완료 후 이메일 인증 코드 발송
     if (authData?.user) {
       console.log('✅ 사용자 생성 완료:', {
         id: authData.user.id,
-        email: authData.user.email,
-        email_confirmed_at: authData.user.email_confirmed_at,
-        confirmation_sent_at: authData.user.confirmation_sent_at
+        email: authData.user.email
       });
 
-      if (authData.user.confirmation_sent_at) {
-        console.log(`📧 이메일 확인 링크가 ${email}로 발송되었습니다.`);
-      } else {
-        console.log('⚠️ 이메일 확인 링크 발송이 확인되지 않았습니다.');
-        
-        // OTP 방식으로 이메일 인증 시도
-        try {
-          const { error: otpError } = await supabaseAdmin.auth.admin.generateLink({
+      // 이메일 인증 코드 발송 시도
+      console.log('📧 이메일 인증 코드 발송 시작...');
+      
+      try {
+        // OTP 발송
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email: email,
+          options: {
+            emailRedirectTo: `${process.env.CLIENT_URL}/verify-email`,
+            data: {
+              type: 'email_verification',
+              user_id: authData.user.id
+            }
+          }
+        });
+
+        if (otpError) {
+          console.error('❌ OTP 발송 실패:', otpError);
+          
+          // 대안: 매직링크 생성
+          const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
             type: 'magiclink',
             email: email,
             options: {
-              redirectTo: `${process.env.CLIENT_URL}/verify-email`
+              redirectTo: `${process.env.CLIENT_URL}/verify-email?user_id=${authData.user.id}`
             }
           });
           
-          if (otpError) {
-            console.error('❌ OTP 이메일 발송 실패:', otpError);
-            
-            // 최후 수단: 일반 재발송 시도
-            const { error: resendError } = await supabase.auth.resend({
-              type: 'signup',
-              email: email
-            });
-            
-            if (resendError) {
-              console.error('❌ 이메일 재발송도 실패:', resendError);
-            } else {
-              console.log('✅ 기본 이메일 확인 링크 재발송 성공');
-            }
+          if (linkError) {
+            console.error('❌ 매직링크 생성도 실패:', linkError);
           } else {
-            console.log('✅ OTP 이메일 발송 성공');
+            console.log('✅ 매직링크 생성 성공:', linkData.properties?.action_link);
           }
-        } catch (otpErr) {
-          console.error('❌ OTP 이메일 발송 중 예외:', otpErr);
+        } else {
+          console.log('✅ 이메일 인증 코드 발송 성공');
         }
+      } catch (emailErr) {
+        console.error('❌ 이메일 발송 중 예외:', emailErr);
       }
     }
 
@@ -260,6 +259,7 @@ router.post('/login', loginValidation, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.error('❌ 로그인 입력 검증 실패:', errors.array());
       return res.status(400).json({
         success: false,
         message: '입력 데이터가 올바르지 않습니다.',
@@ -268,6 +268,7 @@ router.post('/login', loginValidation, async (req, res) => {
     }
 
     const { email, password } = req.body;
+    console.log('🔐 로그인 시도:', email);
 
     // Supabase Auth로 로그인
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -276,13 +277,55 @@ router.post('/login', loginValidation, async (req, res) => {
     });
 
     if (authError) {
-      console.error('로그인 실패:', authError);
+      console.error('❌ Supabase 로그인 실패:', {
+        message: authError.message,
+        status: authError.status,
+        code: authError.code
+      });
       
       let message = '로그인에 실패했습니다.';
+      let shouldAllowLogin = false;
+      
       if (authError.message.includes('Invalid login credentials')) {
         message = '이메일 또는 비밀번호가 올바르지 않습니다.';
       } else if (authError.message.includes('Email not confirmed')) {
-        message = '이메일 인증이 필요합니다.';
+        message = '이메일 인증이 필요합니다. 인증 메일을 확인해주세요.';
+        shouldAllowLogin = true; // 이메일 미인증이어도 일단 진행
+      } else if (authError.message.includes('Invalid email')) {
+        message = '올바르지 않은 이메일 형식입니다.';
+      }
+      
+      // 이메일 미인증 사용자는 임시로 로그인 허용
+      if (shouldAllowLogin) {
+        console.log('⚠️ 이메일 미인증 사용자 임시 로그인 시도');
+        
+        // users 테이블에서 직접 사용자 조회
+        const userResult = await safeQuery(async () => {
+          return await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+        }, '미인증 사용자 조회');
+        
+        if (userResult.success) {
+          console.log('✅ 미인증 사용자 정보 조회 성공');
+          return res.json({
+            success: true,
+            message: '로그인이 완료되었습니다. (이메일 인증 필요)',
+            user: {
+              id: userResult.data.id,
+              username: userResult.data.username,
+              email: userResult.data.email,
+              name: userResult.data.name,
+              role: userResult.data.role,
+              isEmailVerified: false,
+              subscription: userResult.data.subscription,
+              usage: userResult.data.usage
+            },
+            needsEmailVerification: true
+          });
+        }
       }
       
       return res.status(401).json({
@@ -290,6 +333,11 @@ router.post('/login', loginValidation, async (req, res) => {
         message
       });
     }
+
+    console.log('✅ Supabase 인증 성공:', {
+      userId: authData.user.id,
+      email: authData.user.email
+    });
 
     // 사용자 프로필 정보 조회
     const userResult = await safeQuery(async () => {
@@ -301,11 +349,18 @@ router.post('/login', loginValidation, async (req, res) => {
     }, '사용자 프로필 조회');
 
     if (!userResult.success) {
-      return res.status(userResult.error.code).json({
+      console.error('❌ 사용자 프로필 조회 실패:', userResult.error);
+      return res.status(userResult.error.code || 404).json({
         success: false,
         message: '사용자 정보를 찾을 수 없습니다.'
       });
     }
+
+    console.log('✅ 사용자 프로필 조회 성공:', {
+      id: userResult.data.id,
+      username: userResult.data.username,
+      email: userResult.data.email
+    });
 
     // 마지막 로그인 시간 업데이트
     await supabase
@@ -705,6 +760,85 @@ router.post('/forgot-password', [
     res.status(500).json({
       success: false,
       message: '비밀번호 재설정 요청 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 이메일 인증 확인
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { token, email, otp } = req.body;
+    
+    console.log('📧 이메일 인증 확인 요청:', { token: !!token, email, otp: !!otp });
+    
+    let verificationResult = null;
+    
+    // OTP 코드로 인증
+    if (otp && email) {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'email'
+      });
+      
+      if (error) {
+        console.error('❌ OTP 인증 실패:', error);
+        return res.status(400).json({
+          success: false,
+          message: '인증 코드가 올바르지 않거나 만료되었습니다.'
+        });
+      }
+      
+      verificationResult = data;
+    }
+    // 토큰으로 인증 (매직링크)
+    else if (token) {
+      const { data, error } = await supabase.auth.getUser(token);
+      
+      if (error) {
+        console.error('❌ 토큰 인증 실패:', error);
+        return res.status(400).json({
+          success: false,
+          message: '인증 링크가 올바르지 않거나 만료되었습니다.'
+        });
+      }
+      
+      verificationResult = data;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: '인증 코드 또는 토큰이 필요합니다.'
+      });
+    }
+    
+    if (verificationResult?.user) {
+      // 사용자 이메일 인증 상태 업데이트
+      await supabase
+        .from('users')
+        .update({ 
+          is_email_verified: true,
+          email_verified_at: new Date().toISOString()
+        })
+        .eq('id', verificationResult.user.id);
+      
+      console.log('✅ 이메일 인증 완료:', verificationResult.user.email);
+      
+      res.json({
+        success: true,
+        message: '이메일 인증이 완료되었습니다. 이제 로그인할 수 있습니다.'
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: '인증에 실패했습니다.'
+      });
+    }
+    
+  } catch (error) {
+    console.error('이메일 인증 확인 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '이메일 인증 확인 중 오류가 발생했습니다.'
     });
   }
 });

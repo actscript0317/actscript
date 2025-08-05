@@ -22,7 +22,9 @@
       "Bash(set NODE_ENV=development)",
       "Bash(taskkill:*)",
       "Bash(timeout 10 npm start)",
-      "Bash(timeout 5 npm start)"
+      "Bash(timeout 5 npm start)",
+      "Bash(yarn install)",
+      "Bash(npx yarn install:*)"
     ],
     "deny": []
   }

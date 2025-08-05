@@ -412,24 +412,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 핸들러
-app.use((req, res) => {
-  console.log('📭 404 요청:', req.method, req.url, 'Origin:', req.headers.origin);
-  
-  // CORS 헤더 설정
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin) || !origin) {
-    res.header('Access-Control-Allow-Origin', origin || '*');
-  }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.header('Access-Control-Allow-Credentials', 'true');
-
-  res.status(404).json({
-    success: false,
-    message: '요청하신 리소스를 찾을 수 없습니다.'
-  });
-});
+// 404 핸들러는 SPA 라우팅 이후에 정의됨 (아래로 이동됨)
 
 // SPA 라우팅 지원 (모든 환경)
 const frontendBuildPath = path.join(__dirname, '../frontend/build');
@@ -497,6 +480,7 @@ app.use('/api/*', (req, res) => {
 
 // SPA 라우팅 - 모든 비API 요청에 대해 index.html 제공
 app.get('*', (req, res) => {
+  console.log(`🚦 SPA 라우팅 호출됨: ${req.method} ${req.path}`);
   // uploads 경로는 정적 파일로 처리
   if (req.path.startsWith('/uploads/')) {
     return res.status(404).send('File not found');
@@ -527,6 +511,35 @@ app.get('*', (req, res) => {
     // 개발 환경에서는 404
     res.status(404).send('Development mode - use React dev server');
   }
+});
+
+// 최종 404 핸들러 (SPA 라우팅 이후)
+app.use((req, res) => {
+  console.log('📭 최종 404 요청:', req.method, req.url, 'Origin:', req.headers.origin);
+  
+  // CORS 헤더 설정
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://actscript-1.onrender.com',
+    'https://actscript.onrender.com',
+    'https://www.actpiece.com',
+    'https://actpiece.com',
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'http://localhost:3001'
+  ];
+  
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  res.status(404).json({
+    success: false,
+    message: '요청하신 리소스를 찾을 수 없습니다.'
+  });
 });
 
 // 전역 에러 핸들링

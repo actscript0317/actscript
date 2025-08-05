@@ -12,18 +12,23 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase configuration missing');
 }
 
-// Validate key format
-if (!supabaseAnonKey.startsWith('eyJ')) {
-  console.error('❌ Invalid Supabase anon key format. Key should start with "eyJ" (JWT format)');
+// Validate key format (support both legacy JWT and new sb_ format)
+const isValidAnonKey = supabaseAnonKey.startsWith('eyJ') || supabaseAnonKey.startsWith('sb_publishable_');
+const isValidServiceKey = !supabaseServiceKey || supabaseServiceKey.startsWith('eyJ') || supabaseServiceKey.startsWith('sb_secret_');
+
+if (!isValidAnonKey) {
+  console.error('❌ Invalid Supabase anon key format. Key should start with "eyJ" or "sb_publishable_"');
   console.error('Current key format:', supabaseAnonKey.substring(0, 20) + '...');
-  console.error('Please get the correct anon key from your Supabase dashboard > Settings > API');
+  console.error('Please get the correct publishable key from your Supabase dashboard > Settings > API');
 }
 
-if (supabaseServiceKey && !supabaseServiceKey.startsWith('eyJ')) {
-  console.error('❌ Invalid Supabase service key format. Key should start with "eyJ" (JWT format)');
+if (supabaseServiceKey && !isValidServiceKey) {
+  console.error('❌ Invalid Supabase service key format. Key should start with "eyJ" or "sb_secret_"');
   console.error('Current key format:', supabaseServiceKey.substring(0, 20) + '...');
-  console.error('Please get the correct service role key from your Supabase dashboard > Settings > API');
+  console.error('Please get the correct secret key from your Supabase dashboard > Settings > API');
 }
+
+console.log('✅ Supabase keys format validation passed');
 
 // Client for public operations (uses RLS)
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {

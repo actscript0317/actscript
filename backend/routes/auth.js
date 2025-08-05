@@ -65,8 +65,11 @@ const loginValidation = [
 // 회원가입
 router.post('/register', registerValidation, async (req, res) => {
   try {
+    console.log('📝 회원가입 요청 데이터:', req.body);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.error('❌ 입력 검증 실패:', errors.array());
       return res.status(400).json({
         success: false,
         message: '입력 데이터가 올바르지 않습니다.',
@@ -75,6 +78,7 @@ router.post('/register', registerValidation, async (req, res) => {
     }
 
     const { email, password, username, name } = req.body;
+    console.log('✅ 입력 검증 통과, 사용자명 중복 확인 시작...');
 
     // 사용자명 중복 확인
     const usernameCheck = await safeQuery(async () => {
@@ -86,11 +90,24 @@ router.post('/register', registerValidation, async (req, res) => {
     }, '사용자명 중복 확인');
 
     if (usernameCheck.success) {
+      console.log('❌ 사용자명 중복:', username);
       return res.status(409).json({
         success: false,
         message: '이미 사용 중인 사용자명입니다.'
       });
     }
+
+    // 사용자명 중복 확인 중 오류 발생
+    if (!usernameCheck.success && usernameCheck.error.code !== 404) {
+      console.error('❌ 사용자명 중복 확인 중 오류:', usernameCheck.error);
+      return res.status(500).json({
+        success: false,
+        message: '사용자명 확인 중 오류가 발생했습니다.',
+        error: usernameCheck.error.message
+      });
+    }
+
+    console.log('✅ 사용자명 사용 가능:', username);
 
     // Supabase Auth에 사용자 생성
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({

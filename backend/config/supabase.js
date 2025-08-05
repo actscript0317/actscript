@@ -12,6 +12,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase configuration missing');
 }
 
+// Validate key format
+if (!supabaseAnonKey.startsWith('eyJ')) {
+  console.error('❌ Invalid Supabase anon key format. Key should start with "eyJ" (JWT format)');
+  console.error('Current key format:', supabaseAnonKey.substring(0, 20) + '...');
+  console.error('Please get the correct anon key from your Supabase dashboard > Settings > API');
+}
+
+if (supabaseServiceKey && !supabaseServiceKey.startsWith('eyJ')) {
+  console.error('❌ Invalid Supabase service key format. Key should start with "eyJ" (JWT format)');
+  console.error('Current key format:', supabaseServiceKey.substring(0, 20) + '...');
+  console.error('Please get the correct service role key from your Supabase dashboard > Settings > API');
+}
+
 // Client for public operations (uses RLS)
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

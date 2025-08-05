@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import EmailVerificationBanner from './EmailVerificationBanner';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -306,8 +305,6 @@ const Navbar = () => {
         </div>
       </div>
       
-      {/* 이메일 인증 배너 */}
-      <EmailVerificationBanner />
     </nav>
   );
 };

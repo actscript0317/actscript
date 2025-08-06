@@ -12,59 +12,49 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // URL에서 액세스 토큰과 리프레시 토큰 추출
-        const hash = window.location.hash;
-        const params = new URLSearchParams(hash.substring(1));
+        // URL 쿼리 파라미터에서 결과 확인
+        const success = searchParams.get('success');
+        const error = searchParams.get('error');
+        const email = searchParams.get('email');
         
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        const type = params.get('type');
+        console.log('📧 인증 콜백 결과:', { success, error, email });
         
-        console.log('📧 인증 콜백 처리:', { hasAccessToken: !!accessToken, type });
-        
-        if (!accessToken) {
+        if (success === 'true') {
+          setStatus('success');
+          setMessage('회원가입이 완료되었습니다!');
+          
+          toast.success('회원가입 완료! 이제 로그인할 수 있습니다.');
+          
+          // 3초 후 로그인 페이지로 이동
+          setTimeout(() => {
+            navigate('/login', { 
+              state: { 
+                message: '회원가입이 완료되었습니다. 로그인해주세요.',
+                email: email
+              } 
+            });
+          }, 3000);
+        } else if (error) {
           setStatus('error');
-          setMessage('인증 토큰이 없습니다.');
-          return;
-        }
-
-        if (type === 'signup') {
-          // 백엔드 API 호출하여 회원가입 완료 처리
-          const response = await fetch('/api/auth/auth/callback', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            })
-          });
-          
-          const data = await response.json();
-          
-          if (data.success) {
-            setStatus('success');
-            setMessage('회원가입이 완료되었습니다!');
-            
-            toast.success('회원가입 완료! 이제 로그인할 수 있습니다.');
-            
-            // 3초 후 로그인 페이지로 이동
-            setTimeout(() => {
-              navigate('/login', { 
-                state: { 
-                  message: '회원가입이 완료되었습니다. 로그인해주세요.',
-                  email: data.user?.email
-                } 
-              });
-            }, 3000);
-          } else {
-            setStatus('error');
-            setMessage(data.message || '회원가입 완료에 실패했습니다.');
+          switch (error) {
+            case 'invalid_token':
+              setMessage('인증 링크가 올바르지 않거나 만료되었습니다.');
+              break;
+            case 'missing_data':
+              setMessage('사용자 정보가 부족합니다. 다시 회원가입을 진행해주세요.');
+              break;
+            case 'profile_creation_failed':
+              setMessage('사용자 프로필 생성에 실패했습니다.');
+              break;
+            case 'server_error':
+              setMessage('서버 오류가 발생했습니다.');
+              break;
+            default:
+              setMessage('인증 처리 중 오류가 발생했습니다.');
           }
         } else {
           setStatus('error');
-          setMessage('알 수 없는 인증 타입입니다.');
+          setMessage('인증 정보를 찾을 수 없습니다.');
         }
       } catch (error) {
         console.error('인증 콜백 처리 오류:', error);

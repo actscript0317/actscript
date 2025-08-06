@@ -110,36 +110,54 @@ router.post('/register', registerValidation, async (req, res) => {
     global.tempUsers.set(email, tempUserData);
     console.log('✅ 임시 사용자 데이터 저장:', email);
 
-    // 간단한 매직링크 생성 및 이메일 발송
-    console.log('📧 매직링크 생성 시작...');
+    // 실제 이메일 발송을 위한 Supabase signup 사용
+    console.log('📧 실제 이메일 발송 시작...');
     
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
+    const { data: signUpData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
-      options: {
-        redirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`,
-        data: {
-          username,
-          name,
-          role: 'user'
-        }
-      }
+      user_metadata: {
+        username,
+        name,
+        role: 'user'
+      },
+      email_confirm: false // 이메일 인증 필요 상태로 생성
     });
 
-    if (linkError) {
-      console.error('❌ 매직링크 생성 실패:', linkError.message);
+    if (signUpError) {
+      console.error('❌ 사용자 생성 실패:', signUpError.message);
+      
+      if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
+        return res.status(400).json({
+          success: false,
+          message: '이미 가입된 이메일입니다. 로그인을 시도해보세요.',
+          error: 'DUPLICATE_EMAIL'
+        });
+      }
+      
       return res.status(400).json({
         success: false,
         message: '이메일 발송에 실패했습니다.',
-        error: linkError.message
+        error: signUpError.message
       });
     }
 
-    const magicLink = linkData?.properties?.action_link;
-    console.log('✅ 매직링크 생성 성공:', email);
-    if (magicLink) {
-      console.log('📧 매직링크:', magicLink);
+    console.log('✅ 사용자 생성 성공:', email, '- ID:', signUpData.user.id);
+
+    // 이메일 확인 링크 재발송 (실제 이메일 발송)
+    const { error: resendError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'signup',
+      email: email,
+      options: {
+        redirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`
+      }
+    });
+
+    if (resendError) {
+      console.warn('⚠️ 이메일 발송 실패하지만 사용자는 생성됨:', resendError.message);
+      // 사용자는 이미 생성되었으므로 성공으로 처리
+    } else {
+      console.log('✅ 인증 이메일 발송 성공:', email);
     }
 
     res.status(200).json({
@@ -148,10 +166,8 @@ router.post('/register', registerValidation, async (req, res) => {
       data: {
         email: email,
         expires_in: 1800, // 30분
-        ...(magicLink ? { 
-          devMagicLink: magicLink,
-          devMessage: '매직링크가 생성되었습니다. 이메일이 오지 않으면 이 링크를 사용하세요.' 
-        } : {})
+        userId: signUpData.user.id,
+        emailSent: !resendError
       }
     });
 
@@ -164,110 +180,82 @@ router.post('/register', registerValidation, async (req, res) => {
   }
 });
 
-// 이메일 인증 콜백 처리 - 2단계: 매직링크 클릭 시 실제 사용자 생성
-router.post('/auth/callback', async (req, res) => {
+// 이메일 인증 완료 후 처리 - 실제로는 Supabase가 자동으로 처리
+router.get('/auth/callback', async (req, res) => {
   try {
-    const { access_token, refresh_token } = req.body;
+    // 이메일 링크에서 온 요청을 처리
+    const { token_hash, type, access_token, refresh_token } = req.query;
     
-    if (!access_token) {
-      return res.status(400).json({
-        success: false,
-        message: '인증 토큰이 필요합니다.'
+    console.log('📧 이메일 인증 콜백 처리:', { type, hasToken: !!token_hash });
+    
+    if (type === 'signup' && token_hash) {
+      // Supabase에서 토큰 검증
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: 'email'
       });
-    }
-
-    // 토큰으로 사용자 정보 가져오기
-    const { data: { user }, error: getUserError } = await supabase.auth.getUser(access_token);
-    
-    if (getUserError || !user) {
-      console.error('❌ 사용자 정보 조회 실패:', getUserError);
-      return res.status(400).json({
-        success: false,
-        message: '인증에 실패했습니다.'
-      });
-    }
-
-    console.log('✅ 이메일 인증 완료:', user.email);
-    
-    // 임시 데이터에서 사용자 정보 가져오기 (옵셔널)
-    let username = user.user_metadata?.username;
-    let name = user.user_metadata?.name;
-    
-    if (!username || !name) {
-      // 메모리에서 임시 데이터 조회
-      if (global.tempUsers && global.tempUsers.has(user.email)) {
-        const tempData = global.tempUsers.get(user.email);
-        username = username || tempData.username;
-        name = name || tempData.name;
-        
-        // 사용 후 삭제
-        global.tempUsers.delete(user.email);
+      
+      if (error) {
+        console.error('❌ 토큰 검증 실패:', error);
+        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=invalid_token`);
       }
-    }
-    
-    if (!username || !name) {
-      return res.status(400).json({
-        success: false,
-        message: '사용자 정보가 부족합니다. 다시 회원가입을 진행해주세요.'
-      });
-    }
+      
+      const user = data.user;
+      console.log('✅ 이메일 인증 완료:', user.email);
+      
+      // 사용자 메타데이터에서 정보 가져오기
+      const username = user.user_metadata?.username;
+      const name = user.user_metadata?.name;
+      
+      if (!username || !name) {
+        console.error('❌ 사용자 메타데이터 부족:', user.user_metadata);
+        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=missing_data`);
+      }
 
-    // users 테이블에 사용자 정보 저장
-    const userData = {
-      id: user.id,
-      username,
-      email: user.email,
-      name,
-      role: 'user',
-      is_active: true,
-      is_email_verified: true,
-      email_verified_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    };
+      // users 테이블에 사용자 정보 저장
+      const userData = {
+        id: user.id,
+        username,
+        email: user.email,
+        name,
+        role: 'user',
+        is_active: true,
+        is_email_verified: true,
+        email_verified_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      };
 
-    const userResult = await safeQuery(async () => {
-      return await supabase
-        .from('users')
-        .upsert(userData, { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        })
-        .select()
-        .single();
-    }, '사용자 프로필 생성');
+      const userResult = await safeQuery(async () => {
+        return await supabase
+          .from('users')
+          .upsert(userData, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          })
+          .select()
+          .single();
+      }, '사용자 프로필 생성');
 
-    if (!userResult.success) {
-      console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
-      return res.status(500).json({
-        success: false,
-        message: '사용자 프로필 생성에 실패했습니다.'
-      });
-    }
+      if (!userResult.success) {
+        console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
+        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=profile_creation_failed`);
+      }
 
-    console.log('✅ 회원가입 완료:', {
-      id: userResult.data.id,
-      username: userResult.data.username,
-      email: userResult.data.email
-    });
-
-    res.json({
-      success: true,
-      message: '회원가입이 완료되었습니다! 이제 로그인할 수 있습니다.',
-      user: {
+      console.log('✅ 회원가입 완료:', {
         id: userResult.data.id,
         username: userResult.data.username,
-        email: userResult.data.email,
-        name: userResult.data.name,
-        isEmailVerified: true
-      }
-    });
+        email: userResult.data.email
+      });
+
+      // 성공적으로 로그인 페이지로 리다이렉트
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?success=true&email=${user.email}`);
+    }
+    
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=unknown`);
 
   } catch (error) {
     console.error('이메일 인증 콜백 처리 오류:', error);
-    res.status(500).json({
-      success: false,
-      message: '회원가입 완료 중 오류가 발생했습니다.'
-    });
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=server_error`);
   }
 });
 

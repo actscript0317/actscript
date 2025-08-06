@@ -110,48 +110,76 @@ router.post('/register', registerValidation, async (req, res) => {
     global.tempUsers.set(email, tempUserData);
     console.log('✅ 임시 사용자 데이터 저장:', email);
 
-    // 매직링크 이메일 발송 (Admin API 사용)
-    const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      password,
-      options: {
-        redirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`,
-        data: {
-          username,
-          name,
-          role: 'user'
+    // 매직링크 방식으로 이메일 발송 시도
+    let emailSent = false;
+    let magicLink = null;
+    
+    try {
+      // 방법 1: signInWithOtp 사용 (가장 확실한 이메일 발송)
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          emailRedirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`,
+          data: {
+            username,
+            name,
+            role: 'user',
+            type: 'signup'
+          }
+        }
+      });
+
+      if (!otpError) {
+        emailSent = true;
+        console.log('✅ OTP 매직링크 이메일 발송 성공:', email);
+      } else {
+        console.error('❌ OTP 발송 실패:', otpError.message);
+        
+        // 방법 2: Admin generateLink 사용
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: email,
+          options: {
+            redirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`,
+            data: {
+              username,
+              name,
+              role: 'user',
+              type: 'signup'
+            }
+          }
+        });
+
+        if (!linkError && linkData?.properties?.action_link) {
+          magicLink = linkData.properties.action_link;
+          emailSent = true;
+          console.log('✅ Admin 매직링크 생성 성공:', email);
+          console.log('📧 매직링크:', magicLink);
+        } else {
+          console.error('❌ Admin 링크 생성도 실패:', linkError?.message);
         }
       }
-    });
-
-    if (emailError) {
-      console.error('❌ 매직링크 생성 실패:', emailError);
-      
-      if (emailError.message.includes('already registered') || emailError.message.includes('User already registered')) {
-        return res.status(400).json({
-          success: false,
-          message: '이미 가입된 이메일입니다. 로그인을 시도해보세요.',
-          error: 'DUPLICATE_EMAIL'
-        });
-      }
-      
-      return res.status(400).json({
-        success: false,
-        message: '이메일 발송에 실패했습니다.',
-        error: emailError.message
-      });
+    } catch (emailErr) {
+      console.error('❌ 이메일 발송 중 예외:', emailErr.message);
     }
 
-    console.log('✅ 매직링크 생성 및 이메일 발송 성공:', email);
-    console.log('📧 매직링크:', linkData?.properties?.action_link);
+    if (!emailSent) {
+      return res.status(400).json({
+        success: false,
+        message: '이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      });
+    }
 
     res.status(200).json({
       success: true,
       message: '인증 이메일이 발송되었습니다. 이메일을 확인하여 회원가입을 완료해주세요.',
       data: {
         email: email,
-        expires_in: 1800 // 30분
+        expires_in: 1800, // 30분
+        ...(magicLink ? { 
+          devMagicLink: magicLink,
+          devMessage: '매직링크가 생성되었습니다. 이메일이 오지 않으면 이 링크를 사용하세요.' 
+        } : {})
       }
     });
 

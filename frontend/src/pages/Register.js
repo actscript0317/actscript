@@ -104,6 +104,12 @@ const Register = () => {
       if (response.data.success) {
         toast.success('회원가입이 완료되었습니다! 이메일을 확인해주세요.');
         setRegistrationComplete(true);
+        
+        // 개발환경용 매직링크가 있으면 콘솔에 표시
+        if (response.data.data?.devMagicLink) {
+          console.log('📧 개발용 매직링크:', response.data.data.devMagicLink);
+          toast.success('개발용 매직링크가 콘솔에 표시되었습니다!', { duration: 5000 });
+        }
       } else {
         setError(response.data.message || '회원가입에 실패했습니다.');
         toast.error(response.data.message || '회원가입에 실패했습니다.');

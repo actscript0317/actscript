@@ -53,22 +53,24 @@ router.post('/register', registerValidation, async (req, res) => {
     const { email, password, username, name } = req.body;
     console.log('✅ 입력 검증 통과, 중복 확인 시작...');
 
-    // 이메일 중복 확인 (빠른 방법으로 변경)
+    // 이메일 중복 확인 - Admin API 사용
     try {
-      // 직접 매직링크 생성해보고 중복 체크
-      const { error: testError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: email
-      });
+      const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
       
-      if (testError && (testError.message.includes('already registered') || testError.message.includes('User already registered'))) {
-        console.log('❌ 이메일 중복:', email);
-        return res.status(400).json({
-          success: false,
-          message: '이미 가입된 이메일입니다. 로그인을 시도해보세요.',
-          error: 'DUPLICATE_EMAIL'
-        });
+      if (!listError && existingUsers?.users) {
+        const userExists = existingUsers.users.find(user => user.email === email);
+        
+        if (userExists) {
+          console.log('❌ 이메일 중복:', email);
+          return res.status(400).json({
+            success: false,
+            message: '이미 가입된 이메일입니다. 로그인을 시도해보세요.',
+            error: 'DUPLICATE_EMAIL'
+          });
+        }
       }
+      
+      console.log('✅ 이메일 중복 확인 완료 - 사용 가능');
     } catch (emailCheckError) {
       console.warn('⚠️ 이메일 중복 확인 실패, 계속 진행:', emailCheckError.message);
     }
@@ -126,8 +128,11 @@ router.post('/register', registerValidation, async (req, res) => {
 
     if (signUpError) {
       console.error('❌ 사용자 생성 실패:', signUpError.message);
+      console.error('❌ 에러 전체:', signUpError);
       
-      if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
+      if (signUpError.message.includes('already registered') || 
+          signUpError.message.includes('User already registered') ||
+          signUpError.message.includes('already been registered')) {
         return res.status(400).json({
           success: false,
           message: '이미 가입된 이메일입니다. 로그인을 시도해보세요.',
@@ -137,7 +142,7 @@ router.post('/register', registerValidation, async (req, res) => {
       
       return res.status(400).json({
         success: false,
-        message: '이메일 발송에 실패했습니다.',
+        message: '회원가입 중 오류가 발생했습니다.',
         error: signUpError.message
       });
     }

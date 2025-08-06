@@ -2,7 +2,6 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
-const emailService = require('../utils/emailService');
 const router = express.Router();
 
 // 검증 규칙

@@ -61,7 +61,7 @@ const config = {
   CLIENT_URL: process.env.CLIENT_URL || 'https://actscript-1.onrender.com',
   
   // Supabase 설정
-  SUPABASE_URL: process.env.SUPABASE_URL,
+  SUPABASE_URL: process.env.SUPABASE_URL || 'https://stuaaylkugnbcedjjaei.supabase.co',
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Eye, EyeOff, CheckCircle, Mail, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { authAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const Login = () => {
@@ -11,9 +12,32 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [welcomeMessage, setWelcomeMessage] = useState('');
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const { login, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 회원가입 완료 후 로그인 페이지에 온 경우 처리
+  useEffect(() => {
+    const state = location.state;
+    if (state?.message) {
+      setWelcomeMessage(state.message);
+      if (state.email) {
+        setFormData(prev => ({ ...prev, email: state.email }));
+      }
+      if (state.showWelcome) {
+        toast.success('회원가입이 완료되었습니다! 🎉', {
+          duration: 4000,
+          icon: '✨'
+        });
+      }
+      
+      // state 정리 (뒤로가기 시 메시지 중복 방지)
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // 인증 상태가 변경될 때 리다이렉션
   useEffect(() => {
@@ -39,6 +63,7 @@ const Login = () => {
       if (result.success) {
         console.log('로그인 성공:', { user: result.user });
         toast.success('로그인되었습니다!');
+        setNeedsEmailVerification(false);
         
         // 즉시 리다이렉트 시도
         const from = location.state?.from || '/';
@@ -48,13 +73,56 @@ const Login = () => {
       } else {
         console.error('로그인 실패:', result.message);
         setError(result.message);
-        toast.error(result.message);
+        
+        // 이메일 인증이 필요한 경우 특별 처리
+        if (result.message && result.message.includes('이메일 인증')) {
+          setNeedsEmailVerification(true);
+          toast.error('이메일 인증이 필요합니다.', {
+            duration: 5000
+          });
+        } else {
+          setNeedsEmailVerification(false);
+          toast.error(result.message);
+        }
       }
-    } catch (error) {
-      console.error('로그인 에러:', error);
-      const errorMessage = error.response?.data?.message || '로그인 중 오류가 발생했습니다.';
-      setError(errorMessage);
+    } catch (err) {
+      console.error('로그인 에러:', err);
+      setError('로그인 중 오류가 발생했습니다.');
+      setNeedsEmailVerification(false);
+      toast.error('로그인 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!formData.email) {
+      toast.error('이메일을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setResendLoading(true);
+      
+      const response = await authAPI.resendVerification({
+        email: formData.email
+      });
+
+      if (response.data.success) {
+        toast.success('인증 이메일이 재발송되었습니다!');
+        setNeedsEmailVerification(false);
+      } else {
+        toast.error(response.data.message || '재발송에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('이메일 재발송 에러:', err);
+      
+      let errorMessage = '재발송 중 오류가 발생했습니다.';
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
       toast.error(errorMessage);
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -105,6 +173,32 @@ const Login = () => {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
               {error}
+            </div>
+          )}
+
+          {welcomeMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm flex items-center">
+              <CheckCircle className="w-5 h-5 mr-2" />
+              {welcomeMessage}
+            </div>
+          )}
+
+          {needsEmailVerification && (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-600 px-4 py-3 rounded-lg text-sm flex items-center">
+              <Mail className="w-5 h-5 mr-2" />
+              이메일 인증이 필요합니다. 인증 메일을 확인해주세요.
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendLoading}
+                className="ml-2 text-yellow-600 hover:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              >
+                {resendLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+              </button>
             </div>
           )}
 

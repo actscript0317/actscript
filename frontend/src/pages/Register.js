@@ -18,6 +18,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [registrationComplete, setRegistrationComplete] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const navigate = useNavigate();
   const { setUserAuth } = useAuth();
 
@@ -102,14 +103,8 @@ const Register = () => {
       });
 
       if (response.data.success) {
-        toast.success('회원가입이 완료되었습니다! 이메일을 확인해주세요.');
+        toast.success('인증 이메일이 발송되었습니다! 이메일을 확인해주세요.');
         setRegistrationComplete(true);
-        
-        // 개발환경용 매직링크가 있으면 콘솔에 표시
-        if (response.data.data?.devMagicLink) {
-          console.log('📧 개발용 매직링크:', response.data.data.devMagicLink);
-          toast.success('개발용 매직링크가 콘솔에 표시되었습니다!', { duration: 5000 });
-        }
       } else {
         setError(response.data.message || '회원가입에 실패했습니다.');
         toast.error(response.data.message || '회원가입에 실패했습니다.');
@@ -142,6 +137,38 @@ const Register = () => {
       toast.error(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    if (!formData.email) {
+      toast.error('이메일 주소가 필요합니다.');
+      return;
+    }
+
+    try {
+      setResendLoading(true);
+      
+      const response = await authAPI.resendVerification({
+        email: formData.email
+      });
+
+      if (response.data.success) {
+        toast.success('인증 이메일이 재발송되었습니다!');
+      } else {
+        toast.error(response.data.message || '재발송에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('이메일 재발송 에러:', err);
+      
+      let errorMessage = '재발송 중 오류가 발생했습니다.';
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -178,10 +205,26 @@ const Register = () => {
                 </ol>
               </div>
             </div>
-            <div className="mt-6">
+            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
+              <div className="text-sm text-yellow-800">
+                <p className="font-medium">⚠️ 주의사항:</p>
+                <p className="mt-1">
+                  이메일 인증을 완료하지 않으면 로그인할 수 없습니다.
+                  인증 링크는 24시간 후 만료됩니다.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 space-y-3">
+              <button
+                onClick={handleResendEmail}
+                disabled={resendLoading}
+                className="w-full flex justify-center py-2 px-4 border border-primary text-sm font-medium rounded-md text-primary bg-white hover:bg-primary hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {resendLoading ? '재발송 중...' : '인증 이메일 재발송'}
+              </button>
               <Link
                 to="/login"
-                className="text-primary hover:text-primary-dark font-medium"
+                className="block text-center text-primary hover:text-primary-dark font-medium"
               >
                 로그인 페이지로 이동
               </Link>

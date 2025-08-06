@@ -60,13 +60,19 @@ router.post('/register', registerValidation, async (req, res) => {
       if (!listError && existingUsers?.users) {
         const userExists = existingUsers.users.find(user => user.email === email);
         
-        if (userExists) {
-          console.log('❌ 이메일 중복:', email);
+        if (userExists && userExists.email_confirmed_at) {
+          console.log('❌ 이미 인증된 이메일:', email);
           return res.status(400).json({
             success: false,
             message: '이미 가입된 이메일입니다. 로그인을 시도해보세요.',
             error: 'DUPLICATE_EMAIL'
           });
+        }
+        
+        // 인증되지 않은 기존 사용자가 있다면 삭제 후 새로 생성
+        if (userExists && !userExists.email_confirmed_at) {
+          console.log('🔄 인증되지 않은 기존 사용자 삭제:', email);
+          await supabaseAdmin.auth.admin.deleteUser(userExists.id);
         }
       }
       
@@ -95,40 +101,24 @@ router.post('/register', registerValidation, async (req, res) => {
 
     console.log('✅ 중복 확인 완료');
 
-    // 임시 사용자 데이터를 메모리에 저장
-    if (!global.tempUsers) {
-      global.tempUsers = new Map();
-    }
+    // Supabase Auth를 사용한 사용자 생성 및 이메일 발송
+    console.log('📧 Supabase 회원가입 및 이메일 발송 시작...');
     
-    const tempUserData = {
-      email,
-      password,
-      username,
-      name,
-      created_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30분 후 만료
-    };
-    
-    global.tempUsers.set(email, tempUserData);
-    console.log('✅ 임시 사용자 데이터 저장:', email);
-
-    // 실제 이메일 발송을 위한 Supabase signup 사용
-    console.log('📧 실제 이메일 발송 시작...');
-    
-    const { data: signUpData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
-      user_metadata: {
-        username,
-        name,
-        role: 'user'
-      },
-      email_confirm: false // 이메일 인증 필요 상태로 생성
+      options: {
+        data: {
+          username,
+          name,
+          role: 'user'
+        },
+        emailRedirectTo: `${process.env.CLIENT_URL || 'https://actscript.onrender.com'}/auth/callback`
+      }
     });
 
     if (signUpError) {
-      console.error('❌ 사용자 생성 실패:', signUpError.message);
-      console.error('❌ 에러 전체:', signUpError);
+      console.error('❌ 회원가입 실패:', signUpError.message);
       
       if (signUpError.message.includes('already registered') || 
           signUpError.message.includes('User already registered') ||
@@ -147,32 +137,15 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
-    console.log('✅ 사용자 생성 성공:', email, '- ID:', signUpData.user.id);
-
-    // 이메일 확인 링크 재발송 (실제 이메일 발송)
-    const { error: resendError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email: email,
-      options: {
-        redirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`
-      }
-    });
-
-    if (resendError) {
-      console.warn('⚠️ 이메일 발송 실패하지만 사용자는 생성됨:', resendError.message);
-      // 사용자는 이미 생성되었으므로 성공으로 처리
-    } else {
-      console.log('✅ 인증 이메일 발송 성공:', email);
-    }
+    console.log('✅ 회원가입 성공 - 이메일 발송됨:', email, '- ID:', signUpData.user?.id);
 
     res.status(200).json({
       success: true,
       message: '인증 이메일이 발송되었습니다. 이메일을 확인하여 회원가입을 완료해주세요.',
       data: {
         email: email,
-        expires_in: 1800, // 30분
-        userId: signUpData.user.id,
-        emailSent: !resendError
+        userId: signUpData.user?.id,
+        needsEmailVerification: true
       }
     });
 
@@ -185,13 +158,18 @@ router.post('/register', registerValidation, async (req, res) => {
   }
 });
 
-// 이메일 인증 완료 후 처리 - 실제로는 Supabase가 자동으로 처리
+// 이메일 인증 완료 후 처리 
 router.get('/auth/callback', async (req, res) => {
   try {
     // 이메일 링크에서 온 요청을 처리
-    const { token_hash, type, access_token, refresh_token } = req.query;
+    const { token_hash, type, access_token, refresh_token, error: authError } = req.query;
     
-    console.log('📧 이메일 인증 콜백 처리:', { type, hasToken: !!token_hash });
+    console.log('📧 이메일 인증 콜백 처리:', { type, hasToken: !!token_hash, authError });
+    
+    if (authError) {
+      console.error('❌ 인증 오류:', authError);
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=${authError}`);
+    }
     
     if (type === 'signup' && token_hash) {
       // Supabase에서 토큰 검증
@@ -557,28 +535,72 @@ router.put('/password', authenticateToken, [
   }
 });
 
-// 이메일 확인 재발송
-router.post('/resend-verification', authenticateToken, async (req, res) => {
+// 이메일 확인 재발송 - 로그인하지 않은 사용자도 이용 가능
+router.post('/resend-verification', [
+  body('email').isEmail().normalizeEmail().withMessage('올바른 이메일을 입력하세요.')
+], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: '올바른 이메일을 입력하세요.',
+        errors: errors.array()
+      });
+    }
+
+    const { email } = req.body;
+    console.log('📧 이메일 인증 재발송 요청:', email);
+
+    // 해당 이메일의 사용자가 존재하는지 확인
+    const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('❌ 사용자 목록 조회 실패:', listError);
+      return res.status(500).json({
+        success: false,
+        message: '사용자 확인 중 오류가 발생했습니다.'
+      });
+    }
+
+    const user = existingUsers.users.find(u => u.email === email);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '해당 이메일로 가입된 계정을 찾을 수 없습니다.'
+      });
+    }
+
+    if (user.email_confirmed_at) {
+      return res.status(400).json({
+        success: false,
+        message: '이미 이메일 인증이 완료된 계정입니다.'
+      });
+    }
+
+    // Admin API를 사용하여 인증 링크 재발송
     const { error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
-      email: req.user.email,
+      email: email,
       options: {
-        redirectTo: `${process.env.CLIENT_URL}/auth/verify`
+        redirectTo: `${process.env.CLIENT_URL || 'https://actscript.onrender.com'}/auth/callback`
       }
     });
 
     if (error) {
-      console.error('이메일 확인 재발송 실패:', error);
+      console.error('❌ 이메일 확인 재발송 실패:', error);
       return res.status(400).json({
         success: false,
-        message: '이메일 확인 발송에 실패했습니다.'
+        message: '이메일 인증 재발송에 실패했습니다.'
       });
     }
 
+    console.log('✅ 이메일 인증 재발송 성공:', email);
+
     res.json({
       success: true,
-      message: '확인 이메일이 재발송되었습니다.'
+      message: '인증 이메일이 재발송되었습니다. 이메일을 확인해주세요.'
     });
 
   } catch (error) {

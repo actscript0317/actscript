@@ -171,6 +171,7 @@ router.get('/callback', async (req, res) => {
     // 이메일 링크에서 온 요청을 처리 (token_hash 방식과 access_token 방식 둘 다 지원)
     const { token_hash, type, access_token, refresh_token, error: authError, token_type, expires_in } = req.query;
     
+    console.log('🚀 [AUTH CALLBACK] 콜백 처리 시작');
     console.log('📧 이메일 인증 콜백 처리 (백엔드 방식):', { 
       type, 
       hasTokenHash: !!token_hash, 
@@ -179,6 +180,7 @@ router.get('/callback', async (req, res) => {
     });
     console.log('🔗 현재 요청 URL:', req.originalUrl);
     console.log('🌐 요청 헤더 host:', req.headers.host);
+    console.log('📊 모든 query params:', req.query);
     
     const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
     console.log('🎯 설정된 CLIENT_URL:', clientUrl);
@@ -1160,7 +1162,36 @@ router.post('/recover-profile', async (req, res) => {
 
 // Test endpoint to verify file loading
 router.get('/test-route', (req, res) => {
-  res.json({ message: 'Updated supabase-auth.js is loaded!' });
+  res.json({ message: 'Updated supabase-auth.js is loaded!', timestamp: new Date().toISOString() });
+});
+
+// 디버깅용 Users 테이블 조회 엔드포인트
+router.get('/debug/users', async (req, res) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .limit(10);
+      
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    res.json({
+      success: true,
+      users: users,
+      count: users.length
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 module.exports = router;

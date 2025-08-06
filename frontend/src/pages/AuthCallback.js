@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader, Mail, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../utils/supabase';
 
 const AuthCallback = () => {
   const [status, setStatus] = useState('loading'); // 'loading', 'success', 'error'
@@ -13,14 +14,122 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // URL 쿼리 파라미터에서 결과 확인
+        console.log('📧 인증 콜백 시작');
+        console.log('🔗 현재 URL:', window.location.href);
+        console.log('🔗 Fragment:', window.location.hash);
+        
+        // URL Fragment에서 토큰 정보 파싱
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const tokenType = hashParams.get('token_type');
+        const type = hashParams.get('type');
+        const expiresIn = hashParams.get('expires_in');
+        
+        console.log('🎯 Fragment 파라미터:', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          tokenType,
+          type,
+          expiresIn
+        });
+
+        // Query Parameter에서도 확인 (fallback)
         const success = searchParams.get('success');
         const error = searchParams.get('error');
         const email = searchParams.get('email');
         
-        console.log('📧 인증 콜백 결과:', { success, error, email });
+        console.log('📧 Query 파라미터:', { success, error, email });
         
-        if (success === 'true') {
+        // Fragment 방식의 토큰이 있는 경우 (Supabase 기본 방식)
+        if (accessToken && type === 'signup') {
+          try {
+            // Supabase 세션 설정
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+
+            if (sessionError) {
+              console.error('❌ 세션 설정 실패:', sessionError);
+              throw sessionError;
+            }
+
+            const user = sessionData.user;
+            console.log('✅ 세션 설정 성공:', user.email);
+
+            // 사용자 메타데이터에서 정보 가져오기
+            const username = user.user_metadata?.username;
+            const name = user.user_metadata?.name;
+            
+            if (!username || !name) {
+              console.error('❌ 사용자 메타데이터 부족:', user.user_metadata);
+              setStatus('error');
+              setMessage('사용자 정보가 부족합니다. 다시 회원가입을 진행해주세요.');
+              return;
+            }
+
+            // 백엔드에 사용자 프로필 생성 요청
+            try {
+              const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:10000/api'}/auth/complete-signup`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({
+                  userId: user.id,
+                  email: user.email,
+                  username,
+                  name
+                })
+              });
+
+              const result = await response.json();
+              
+              if (!response.ok || !result.success) {
+                console.error('❌ 프로필 생성 실패:', result);
+                setStatus('error');
+                setMessage(result.message || '프로필 생성에 실패했습니다.');
+                return;
+              }
+
+              console.log('✅ 프로필 생성 완료:', result);
+              
+            } catch (profileError) {
+              console.error('❌ 프로필 생성 요청 실패:', profileError);
+              // 프로필 생성 실패해도 인증은 완료된 상태이므로 계속 진행
+            }
+
+            setStatus('success');
+            setUserEmail(user.email);
+            setMessage('이메일 인증이 완료되었습니다!');
+            
+            toast.success('회원가입 완료! 이제 로그인할 수 있습니다.', {
+              duration: 4000,
+              icon: '🎉'
+            });
+            
+            // 5초 후 로그인 페이지로 이동
+            setTimeout(() => {
+              navigate('/login', { 
+                state: { 
+                  message: '회원가입이 완료되었습니다. 로그인해주세요.',
+                  email: user.email,
+                  showWelcome: true
+                } 
+              });
+            }, 5000);
+
+          } catch (authError) {
+            console.error('❌ 인증 처리 실패:', authError);
+            setStatus('error');
+            setMessage('인증 처리 중 오류가 발생했습니다.');
+            toast.error('인증 처리에 실패했습니다.');
+          }
+        } 
+        // Query Parameter 방식 처리 (기존 백엔드 처리 방식)
+        else if (success === 'true') {
           setStatus('success');
           setUserEmail(email || '');
           setMessage('이메일 인증이 완료되었습니다!');
@@ -30,7 +139,6 @@ const AuthCallback = () => {
             icon: '🎉'
           });
           
-          // 5초 후 로그인 페이지로 이동
           setTimeout(() => {
             navigate('/login', { 
               state: { 
@@ -40,7 +148,9 @@ const AuthCallback = () => {
               } 
             });
           }, 5000);
-        } else if (error) {
+        } 
+        // 에러 처리
+        else if (error) {
           setStatus('error');
           switch (error) {
             case 'invalid_token':
@@ -68,7 +178,9 @@ const AuthCallback = () => {
           toast.error('이메일 인증에 실패했습니다.', {
             duration: 4000
           });
-        } else {
+        } 
+        // 토큰도 없고 성공/에러 파라미터도 없는 경우
+        else {
           setStatus('error');
           setMessage('인증 정보를 찾을 수 없습니다.');
           toast.error('인증 정보가 올바르지 않습니다.');

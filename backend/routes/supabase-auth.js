@@ -166,18 +166,25 @@ router.post('/register', registerValidation, async (req, res) => {
   }
 });
 
-// 이메일 인증 완료 후 처리 
+// 이메일 인증 완료 후 처리 (기존 백엔드 방식 - 호환성 유지)
 router.get('/auth/callback', async (req, res) => {
   try {
     // 이메일 링크에서 온 요청을 처리
     const { token_hash, type, access_token, refresh_token, error: authError } = req.query;
     
-    console.log('📧 이메일 인증 콜백 처리:', { type, hasToken: !!token_hash, authError });
+    console.log('📧 이메일 인증 콜백 처리 (백엔드 방식):', { type, hasToken: !!token_hash, authError });
     console.log('🔗 현재 요청 URL:', req.originalUrl);
     console.log('🌐 요청 헤더 host:', req.headers.host);
     
     const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
     console.log('🎯 설정된 CLIENT_URL:', clientUrl);
+    
+    // 프론트엔드에서 Fragment 방식으로 처리하도록 리다이렉트
+    // Fragment가 있는 경우 그대로 프론트엔드로 전달
+    if (req.originalUrl.includes('#')) {
+      console.log('🔄 Fragment 방식 감지, 프론트엔드로 리다이렉트');
+      return res.redirect(`${clientUrl}/auth/callback${req.originalUrl.substring(req.originalUrl.indexOf('#'))}`);
+    }
     
     if (authError) {
       console.error('❌ 인증 오류:', authError);
@@ -197,7 +204,7 @@ router.get('/auth/callback', async (req, res) => {
       }
       
       const user = data.user;
-      console.log('✅ 이메일 인증 완료:', user.email);
+      console.log('✅ 이메일 인증 완료 (백엔드 방식):', user.email);
       
       // 사용자 메타데이터에서 정보 가져오기
       const username = user.user_metadata?.username;
@@ -237,7 +244,7 @@ router.get('/auth/callback', async (req, res) => {
         return res.redirect(`${clientUrl}/auth/callback?error=profile_creation_failed`);
       }
 
-      console.log('✅ 회원가입 완료:', {
+      console.log('✅ 회원가입 완료 (백엔드 방식):', {
         id: userResult.data.id,
         username: userResult.data.username,
         email: userResult.data.email
@@ -254,6 +261,135 @@ router.get('/auth/callback', async (req, res) => {
     console.error('이메일 인증 콜백 처리 오류:', error);
     const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
     res.redirect(`${clientUrl}/auth/callback?error=server_error`);
+  }
+});
+
+// 회원가입 완료 처리 (프론트엔드에서 Fragment 토큰 처리 후 호출)
+router.post('/complete-signup', async (req, res) => {
+  try {
+    const { userId, email, username, name } = req.body;
+    
+    console.log('📝 회원가입 완료 처리:', { userId, email, username, name });
+    
+    if (!userId || !email || !username || !name) {
+      return res.status(400).json({
+        success: false,
+        message: '필수 정보가 누락되었습니다.'
+      });
+    }
+
+    // Authorization 헤더에서 토큰 확인
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: '인증 토큰이 필요합니다.'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    // Supabase를 통해 토큰 검증
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error('❌ 토큰 검증 실패:', userError);
+      return res.status(401).json({
+        success: false,
+        message: '유효하지 않은 토큰입니다.'
+      });
+    }
+    
+    if (user.id !== userId || user.email !== email) {
+      console.error('❌ 사용자 정보 불일치:', { 
+        tokenUserId: user.id, 
+        bodyUserId: userId,
+        tokenEmail: user.email,
+        bodyEmail: email
+      });
+      return res.status(400).json({
+        success: false,
+        message: '사용자 정보가 일치하지 않습니다.'
+      });
+    }
+
+    console.log('✅ 토큰 검증 완료:', user.email);
+
+    // 사용자명 중복 확인
+    const usernameCheck = await safeQuery(async () => {
+      return await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username)
+        .single();
+    }, '사용자명 중복 확인');
+
+    if (usernameCheck.success) {
+      console.log('❌ 사용자명 중복:', username);
+      return res.status(400).json({
+        success: false,
+        message: '이미 사용 중인 사용자명입니다. 다른 사용자명을 사용해주세요.',
+        error: 'DUPLICATE_USERNAME'
+      });
+    }
+
+    // users 테이블에 사용자 정보 저장
+    const userData = {
+      id: userId,
+      username,
+      email,
+      name,
+      role: 'user',
+      is_active: true,
+      is_email_verified: true,
+      email_verified_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    };
+
+    const userResult = await safeQuery(async () => {
+      return await supabase
+        .from('users')
+        .upsert(userData, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
+    }, '사용자 프로필 생성');
+
+    if (!userResult.success) {
+      console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
+      return res.status(500).json({
+        success: false,
+        message: '사용자 프로필 생성에 실패했습니다.'
+      });
+    }
+
+    console.log('✅ 회원가입 완료:', {
+      id: userResult.data.id,
+      username: userResult.data.username,
+      email: userResult.data.email
+    });
+
+    res.json({
+      success: true,
+      message: '회원가입이 완료되었습니다.',
+      user: {
+        id: userResult.data.id,
+        username: userResult.data.username,
+        email: userResult.data.email,
+        name: userResult.data.name,
+        role: userResult.data.role,
+        isEmailVerified: userResult.data.is_email_verified
+      }
+    });
+
+  } catch (error) {
+    console.error('회원가입 완료 처리 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '회원가입 완료 처리 중 오류가 발생했습니다.'
+    });
   }
 });
 

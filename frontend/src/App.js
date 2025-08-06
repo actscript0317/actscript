@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
@@ -37,6 +37,25 @@ import FileUploadDemo from './pages/FileUploadDemo';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
+  // 404 페이지에서 리다이렉트된 URL 복원
+  useEffect(() => {
+    const restoreUrl = () => {
+      const l = window.location;
+      if (l.search[1] === '/' ) {
+        const decoded = l.search.slice(1).split('&').map(function(s) { 
+          return s.replace(/~and~/g, '&')
+        }).join('?');
+        
+        const newUrl = l.pathname.slice(0, -1) + decoded + l.hash;
+        console.log('🔄 URL 복원:', newUrl);
+        
+        window.history.replaceState(null, null, newUrl);
+      }
+    };
+    
+    restoreUrl();
+  }, []);
+
   return (
     <AuthProvider>
       <Router>

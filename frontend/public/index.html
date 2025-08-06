@@ -2,17 +2,35 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#3b82f6" />
-    <meta name="description" content="다양한 감정과 상황의 연기 대본을 제공하는 플랫폼" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pay.nicepay.co.kr https://sandbox-pay.nicepay.co.kr; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://localhost:10000 https://actscript.onrender.com https://actscript-1.onrender.com https://pay.nicepay.co.kr https://api.nicepay.co.kr https://sandbox-pay.nicepay.co.kr; frame-src https://pay.nicepay.co.kr https://sandbox-pay.nicepay.co.kr;" />
-    <!-- 나이스페이먼츠 JS SDK (운영용) -->
-    <script src="https://pay.nicepay.co.kr/v1/js/"></script>
-    <title>연기 대본 라이브러리</title>
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="연기 대본 생성 및 공유 플랫폼"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <!-- SPA 라우팅을 위한 스크립트 -->
+    <script>
+      // 404 페이지에서 SPA 라우팅으로 리다이렉트
+      (function(l) {
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&')
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      }(window.location))
+    </script>
+    
+    <title>ActScript - 연기 대본 플랫폼</title>
   </head>
   <body>
-    <noscript>JavaScript를 활성화해주세요.</noscript>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>
 </html> 

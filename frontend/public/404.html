@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>ActScript - 연기 대본 플랫폼</title>
+  <script>
+    // SPA 404 처리: 모든 경로를 index.html로 리다이렉트
+    var pathSegmentsToKeep = 0;
+    var l = window.location;
+    
+    // Fragment가 있는 경우 (Supabase 인증 콜백)
+    if (l.hash) {
+      console.log('🔗 Fragment 감지:', l.hash);
+      // Fragment를 유지하면서 index.html로 리다이렉트
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + 
+        '/?/' + l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    } else {
+      // 일반 라우팅
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + 
+        '/?/' + l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    }
+  </script>
+</head>
+<body>
+  <div style="text-align: center; margin-top: 50px;">
+    <h2>페이지를 로딩 중입니다...</h2>
+    <p>잠시만 기다려주세요.</p>
+  </div>
+</body>
+</html> 

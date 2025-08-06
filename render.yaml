@@ -1,0 +1,26 @@
+services:
+  # 백엔드 API 서버
+  - type: web
+    name: actscript-backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        value: https://actscript-frontend.onrender.com
+    
+  # 프론트엔드 React 앱
+  - type: web
+    name: actscript-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/build
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://actscript-backend.onrender.com/api 

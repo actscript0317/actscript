@@ -18,11 +18,11 @@ if (!process.env.NODE_ENV) {
 }
 
 if (!process.env.CORS_ORIGIN) {
-  process.env.CORS_ORIGIN = 'https://www.actpiece.com,https://actpiece.com,https://actscript-1.onrender.com';
+  process.env.CORS_ORIGIN = 'https://actscript-frontend.onrender.com,https://actscript-1.onrender.com,https://www.actpiece.com,https://actpiece.com';
 }
 
 if (!process.env.CLIENT_URL) {
-  process.env.CLIENT_URL = 'https://actscript-1.onrender.com';
+  process.env.CLIENT_URL = 'https://actscript-frontend.onrender.com';
 }
 
 // 나이스페이먼트 설정 (테스트용 키)

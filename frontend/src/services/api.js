@@ -1,7 +1,30 @@
 import axios from 'axios';
 
-// API 기본 설정 - 백엔드 서버 URL 수정
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://actscript-1.onrender.com/api';
+// API 기본 설정 - 환경에 따른 동적 URL 설정
+const getApiBaseUrl = () => {
+  // 운영 환경에서는 환경 변수 사용
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // 배포된 도메인 기반 자동 감지
+  const hostname = window.location.hostname;
+  
+  if (hostname.includes('actscript-frontend.onrender.com')) {
+    return 'https://actscript-backend.onrender.com/api';
+  } else if (hostname.includes('actscript-1.onrender.com')) {
+    return 'https://actscript-1.onrender.com/api';
+  } else if (hostname.includes('actpiece.com')) {
+    return 'https://api.actpiece.com/api';
+  }
+  
+  // 로컬 개발 환경
+  return 'http://localhost:10000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+console.log('🌐 API Base URL:', API_BASE_URL);
 
 // axios 인스턴스 생성
 const api = axios.create({

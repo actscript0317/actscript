@@ -4,6 +4,25 @@ import { CheckCircle, XCircle, Loader, Mail, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../utils/supabase';
 
+// API URL 동적 설정
+const getApiBaseUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  const hostname = window.location.hostname;
+  
+  if (hostname.includes('actscript-frontend.onrender.com')) {
+    return 'https://actscript-backend.onrender.com/api';
+  } else if (hostname.includes('actscript-1.onrender.com')) {
+    return 'https://actscript-1.onrender.com/api';
+  } else if (hostname.includes('actpiece.com')) {
+    return 'https://api.actpiece.com/api';
+  }
+  
+  return 'http://localhost:10000/api';
+};
+
 const AuthCallback = () => {
   const [status, setStatus] = useState('loading'); // 'loading', 'success', 'error'
   const [message, setMessage] = useState('');
@@ -24,7 +43,7 @@ const AuthCallback = () => {
       
       console.log('🔧 수동 프로필 복구 시도:', userEmail);
       
-      const response = await fetch('https://actscript-1.onrender.com/api/auth/recover-profile', {
+      const response = await fetch(`${getApiBaseUrl()}/auth/recover-profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -132,7 +151,7 @@ const AuthCallback = () => {
                 name
               });
 
-              const response = await fetch('https://actscript-1.onrender.com/api/auth/complete-signup', {
+              const response = await fetch(`${getApiBaseUrl()}/auth/complete-signup`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

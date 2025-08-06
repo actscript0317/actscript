@@ -24,6 +24,8 @@ const loginValidation = [
 // 회원가입 (이메일 인증 필요)
 router.post('/register', registerValidation, async (req, res) => {
   try {
+    console.log('🚀 회원가입 요청 시작:', req.body.email);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -52,6 +54,12 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
+    // 운영환경에 맞는 리다이렉트 URL 설정
+    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
+    const redirectTo = `${clientUrl}/auth/callback`;
+    
+    console.log('📧 이메일 리다이렉트 URL:', redirectTo);
+
     // Supabase Auth에 사용자 생성 (이메일 인증 필요)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -62,18 +70,20 @@ router.post('/register', registerValidation, async (req, res) => {
           name,
           role: 'user'
         },
-        emailRedirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`
+        emailRedirectTo: redirectTo
       }
     });
 
     if (authError) {
-      console.error('회원가입 실패:', authError);
+      console.error('❌ 회원가입 실패:', authError);
       
       let message = '회원가입에 실패했습니다.';
       if (authError.message.includes('already registered')) {
         message = '이미 가입된 이메일입니다.';
       } else if (authError.message.includes('Password should be at least')) {
         message = '비밀번호는 최소 8자 이상이어야 합니다.';
+      } else if (authError.message.includes('Unable to validate email')) {
+        message = '이메일 형식이 올바르지 않습니다.';
       }
       
       return res.status(400).json({
@@ -83,22 +93,45 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
-    console.log('회원가입 요청 완료:', email);
-
-    res.json({
-      success: true,
-      message: '회원가입 요청이 완료되었습니다. 이메일을 확인하여 계정을 활성화해주세요.',
-      data: {
-        email: authData.user?.email,
-        needsEmailVerification: !authData.user?.email_confirmed_at
-      }
+    console.log('✅ 회원가입 Auth 생성 완료:', {
+      userId: authData.user?.id,
+      email: authData.user?.email,
+      emailConfirmed: !!authData.user?.email_confirmed_at
     });
 
+    // 이메일 인증이 필요한 경우
+    if (!authData.user?.email_confirmed_at) {
+      console.log('📧 이메일 인증 필요 - 인증 메일 발송됨');
+      
+      res.json({
+        success: true,
+        message: '회원가입 요청이 완료되었습니다. 이메일을 확인하여 계정을 활성화해주세요.',
+        data: {
+          email: authData.user?.email,
+          needsEmailVerification: true,
+          redirectTo: redirectTo
+        }
+      });
+    } else {
+      // 즉시 가입 완료 (개발환경 등에서 이메일 인증 비활성화된 경우)
+      console.log('✅ 이메일 인증 없이 즉시 가입 완료');
+      
+      res.json({
+        success: true,
+        message: '회원가입이 완료되었습니다.',
+        data: {
+          email: authData.user?.email,
+          needsEmailVerification: false
+        }
+      });
+    }
+
   } catch (error) {
-    console.error('회원가입 오류:', error);
+    console.error('❌ 회원가입 오류:', error);
     res.status(500).json({
       success: false,
-      message: '회원가입 중 오류가 발생했습니다.'
+      message: '회원가입 중 오류가 발생했습니다.',
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -116,6 +149,7 @@ router.post('/login', loginValidation, async (req, res) => {
     }
 
     const { email, password } = req.body;
+    console.log('🔐 로그인 시도:', email);
 
     // Supabase Auth로 로그인
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -124,7 +158,7 @@ router.post('/login', loginValidation, async (req, res) => {
     });
 
     if (authError) {
-      console.error('로그인 실패:', authError);
+      console.error('❌ 로그인 실패:', authError);
       
       let message = '로그인에 실패했습니다.';
       if (authError.message.includes('Invalid login credentials')) {
@@ -149,7 +183,7 @@ router.post('/login', loginValidation, async (req, res) => {
     }, '사용자 프로필 조회');
 
     if (!userResult.success) {
-      console.error('사용자 프로필 조회 실패:', userResult.error);
+      console.error('❌ 사용자 프로필 조회 실패:', userResult.error);
       return res.status(404).json({
         success: false,
         message: '사용자 정보를 찾을 수 없습니다. 이메일 인증을 완료해주세요.'
@@ -162,7 +196,7 @@ router.post('/login', loginValidation, async (req, res) => {
       .update({ last_login: new Date().toISOString() })
       .eq('id', authData.user.id);
 
-    console.log('로그인 성공:', email);
+    console.log('✅ 로그인 성공:', email);
 
     res.json({
       success: true,
@@ -181,7 +215,7 @@ router.post('/login', loginValidation, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('로그인 오류:', error);
+    console.error('❌ 로그인 오류:', error);
     res.status(500).json({
       success: false,
       message: '로그인 중 오류가 발생했습니다.'
@@ -414,9 +448,10 @@ router.post('/forgot-password', [
     }
 
     const { email } = req.body;
+    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/reset-password`
+      redirectTo: `${clientUrl}/auth/reset-password`
     });
 
     if (error) {
@@ -460,6 +495,8 @@ router.post('/complete-signup', [
 
     const { userId, email, username, name } = req.body;
 
+    console.log('📝 사용자 프로필 생성 요청:', { userId, email, username, name });
+
     // 사용자명 중복 확인
     const usernameCheck = await safeQuery(async () => {
       return await supabase
@@ -501,14 +538,14 @@ router.post('/complete-signup', [
     }, '사용자 프로필 생성');
 
     if (!userResult.success) {
-      console.error('사용자 프로필 생성 실패:', userResult.error);
+      console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
       return res.status(500).json({
         success: false,
         message: '사용자 프로필 생성에 실패했습니다.'
       });
     }
 
-    console.log('회원가입 완료:', email);
+    console.log('✅ 회원가입 완료:', email);
 
     res.json({
       success: true,
@@ -524,7 +561,7 @@ router.post('/complete-signup', [
     });
 
   } catch (error) {
-    console.error('회원가입 완료 처리 오류:', error);
+    console.error('❌ 회원가입 완료 처리 오류:', error);
     res.status(500).json({
       success: false,
       message: '회원가입 완료 처리 중 오류가 발생했습니다.'

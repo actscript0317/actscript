@@ -269,6 +269,11 @@ router.post('/complete-signup', async (req, res) => {
     const { userId, email, username, name } = req.body;
     
     console.log('📝 회원가입 완료 처리:', { userId, email, username, name });
+    console.log('🔧 환경변수 확인:', {
+      SUPABASE_URL: process.env.SUPABASE_URL ? '설정됨' : '미설정',
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? '설정됨' : '미설정',
+      SERVICE_KEY_PREFIX: process.env.SUPABASE_SERVICE_ROLE_KEY ? process.env.SUPABASE_SERVICE_ROLE_KEY.substring(0, 10) + '...' : 'N/A'
+    });
     
     if (!userId || !email || !username || !name) {
       return res.status(400).json({
@@ -287,9 +292,11 @@ router.post('/complete-signup', async (req, res) => {
     }
 
     const token = authHeader.split(' ')[1];
+    console.log('🔧 토큰 검증 시작:', token.substring(0, 20) + '...');
     
-    // Supabase를 통해 토큰 검증
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    // Supabase Admin을 통해 토큰 검증
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    console.log('🔧 토큰 검증 결과:', { user: user ? '존재' : '없음', error: userError ? userError.message : '없음' });
     
     if (userError || !user) {
       console.error('❌ 토큰 검증 실패:', userError);
@@ -384,10 +391,13 @@ router.post('/complete-signup', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('회원가입 완료 처리 오류:', error);
+    console.error('❌ 회원가입 완료 처리 오류:', error);
+    console.error('❌ 오류 스택:', error.stack);
+    console.error('❌ 오류 메시지:', error.message);
     res.status(500).json({
       success: false,
-      message: '회원가입 완료 처리 중 오류가 발생했습니다.'
+      message: '회원가입 완료 처리 중 오류가 발생했습니다.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

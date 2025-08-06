@@ -101,6 +101,12 @@ router.post('/register', registerValidation, async (req, res) => {
 
     console.log('✅ 중복 확인 완료');
 
+    // 올바른 CLIENT_URL 설정 확인
+    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
+    const callbackUrl = `${clientUrl}/auth/callback`;
+    
+    console.log('🔗 리다이렉트 URL 설정:', callbackUrl);
+
     // Supabase Auth를 사용한 사용자 생성 및 이메일 발송
     console.log('📧 Supabase 회원가입 및 이메일 발송 시작...');
     
@@ -113,7 +119,7 @@ router.post('/register', registerValidation, async (req, res) => {
           name,
           role: 'user'
         },
-        emailRedirectTo: `${process.env.CLIENT_URL || 'https://actscript.onrender.com'}/auth/callback`
+        emailRedirectTo: callbackUrl
       }
     });
 
@@ -138,6 +144,7 @@ router.post('/register', registerValidation, async (req, res) => {
     }
 
     console.log('✅ 회원가입 성공 - 이메일 발송됨:', email, '- ID:', signUpData.user?.id);
+    console.log('📧 콜백 URL:', callbackUrl);
 
     res.status(200).json({
       success: true,
@@ -145,7 +152,8 @@ router.post('/register', registerValidation, async (req, res) => {
       data: {
         email: email,
         userId: signUpData.user?.id,
-        needsEmailVerification: true
+        needsEmailVerification: true,
+        callbackUrl: callbackUrl
       }
     });
 
@@ -165,10 +173,15 @@ router.get('/auth/callback', async (req, res) => {
     const { token_hash, type, access_token, refresh_token, error: authError } = req.query;
     
     console.log('📧 이메일 인증 콜백 처리:', { type, hasToken: !!token_hash, authError });
+    console.log('🔗 현재 요청 URL:', req.originalUrl);
+    console.log('🌐 요청 헤더 host:', req.headers.host);
+    
+    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
+    console.log('🎯 설정된 CLIENT_URL:', clientUrl);
     
     if (authError) {
       console.error('❌ 인증 오류:', authError);
-      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=${authError}`);
+      return res.redirect(`${clientUrl}/auth/callback?error=${authError}`);
     }
     
     if (type === 'signup' && token_hash) {
@@ -180,7 +193,7 @@ router.get('/auth/callback', async (req, res) => {
       
       if (error) {
         console.error('❌ 토큰 검증 실패:', error);
-        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=invalid_token`);
+        return res.redirect(`${clientUrl}/auth/callback?error=invalid_token`);
       }
       
       const user = data.user;
@@ -192,7 +205,7 @@ router.get('/auth/callback', async (req, res) => {
       
       if (!username || !name) {
         console.error('❌ 사용자 메타데이터 부족:', user.user_metadata);
-        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=missing_data`);
+        return res.redirect(`${clientUrl}/auth/callback?error=missing_data`);
       }
 
       // users 테이블에 사용자 정보 저장
@@ -221,7 +234,7 @@ router.get('/auth/callback', async (req, res) => {
 
       if (!userResult.success) {
         console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
-        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=profile_creation_failed`);
+        return res.redirect(`${clientUrl}/auth/callback?error=profile_creation_failed`);
       }
 
       console.log('✅ 회원가입 완료:', {
@@ -231,14 +244,16 @@ router.get('/auth/callback', async (req, res) => {
       });
 
       // 성공적으로 로그인 페이지로 리다이렉트
-      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?success=true&email=${user.email}`);
+      return res.redirect(`${clientUrl}/auth/callback?success=true&email=${encodeURIComponent(user.email)}`);
     }
     
-    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=unknown`);
+    console.log('❌ 알 수 없는 콜백 요청:', { type, hasToken: !!token_hash });
+    res.redirect(`${clientUrl}/auth/callback?error=unknown`);
 
   } catch (error) {
     console.error('이메일 인증 콜백 처리 오류:', error);
-    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback?error=server_error`);
+    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
+    res.redirect(`${clientUrl}/auth/callback?error=server_error`);
   }
 });
 
@@ -579,12 +594,18 @@ router.post('/resend-verification', [
       });
     }
 
+    // 올바른 CLIENT_URL 설정
+    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
+    const callbackUrl = `${clientUrl}/auth/callback`;
+    
+    console.log('🔗 재발송 리다이렉트 URL:', callbackUrl);
+
     // Admin API를 사용하여 인증 링크 재발송
     const { error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email: email,
       options: {
-        redirectTo: `${process.env.CLIENT_URL || 'https://actscript.onrender.com'}/auth/callback`
+        redirectTo: callbackUrl
       }
     });
 
@@ -600,7 +621,10 @@ router.post('/resend-verification', [
 
     res.json({
       success: true,
-      message: '인증 이메일이 재발송되었습니다. 이메일을 확인해주세요.'
+      message: '인증 이메일이 재발송되었습니다. 이메일을 확인해주세요.',
+      data: {
+        callbackUrl: callbackUrl
+      }
     });
 
   } catch (error) {

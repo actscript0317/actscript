@@ -1165,6 +1165,74 @@ router.get('/test-route', (req, res) => {
   res.json({ message: 'Updated supabase-auth.js is loaded!', timestamp: new Date().toISOString() });
 });
 
+// 테스트 사용자 생성 엔드포인트
+router.post('/debug/create-test-user', async (req, res) => {
+  try {
+    const testEmail = 'wjswhdcjs33@naver.com';
+    const testPassword = 'test123456';
+    
+    // 1. Supabase Auth에서 사용자 생성
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: testEmail,
+      password: testPassword,
+      email_confirm: true,
+      user_metadata: {
+        username: '정종철',
+        name: '정종철',
+        role: 'user'
+      }
+    });
+    
+    if (authError) {
+      return res.status(400).json({
+        success: false,
+        error: authError.message
+      });
+    }
+    
+    // 2. Users 테이블에 프로필 생성
+    const userData = {
+      id: authData.user.id,
+      username: '정종철',
+      email: testEmail,
+      name: '정종철',
+      role: 'user',
+      is_active: true,
+      is_email_verified: true,
+      created_at: new Date().toISOString()
+    };
+    
+    const { data: profileData, error: profileError } = await supabase
+      .from('users')
+      .upsert(userData)
+      .select()
+      .single();
+      
+    if (profileError) {
+      return res.status(500).json({
+        success: false,
+        error: profileError.message
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: '테스트 사용자 생성 완료',
+      user: profileData,
+      credentials: {
+        email: testEmail,
+        password: testPassword
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // 디버깅용 Users 테이블 조회 엔드포인트
 router.get('/debug/users', async (req, res) => {
   try {

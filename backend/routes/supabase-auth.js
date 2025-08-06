@@ -223,7 +223,6 @@ router.get('/auth/callback', async (req, res) => {
         role: 'user',
         is_active: true,
         is_email_verified: true,
-        email_verified_at: new Date().toISOString(),
         created_at: new Date().toISOString()
       };
 
@@ -369,10 +368,11 @@ router.post('/complete-signup', async (req, res) => {
       role: 'user',
       is_active: true,
       is_email_verified: true,
-      email_verified_at: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
 
+    console.log('📝 생성할 사용자 데이터:', userData);
+    
     const userResult = await safeQuery(async () => {
       return await supabase
         .from('users')
@@ -384,11 +384,18 @@ router.post('/complete-signup', async (req, res) => {
         .single();
     }, '사용자 프로필 생성');
 
+    console.log('📝 사용자 프로필 생성 결과:', { success: userResult.success, error: userResult.error });
+
     if (!userResult.success) {
       console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
+      console.error('❌ 실패한 데이터:', userData);
       return res.status(500).json({
         success: false,
-        message: '사용자 프로필 생성에 실패했습니다.'
+        message: '사용자 프로필 생성에 실패했습니다.',
+        debug: {
+          error: userResult.error,
+          userData: userData
+        }
       });
     }
 
@@ -1029,7 +1036,6 @@ router.post('/recover-profile', async (req, res) => {
       role: 'user',
       is_active: true,
       is_email_verified: true,
-      email_verified_at: authUser.email_confirmed_at,
       created_at: authUser.created_at
     };
     

@@ -143,6 +143,7 @@ app.use('/api/community-posts', require('./routes/community-posts'));
 
 // 결제 라우트
 app.use('/api/payment', require('./routes/payment'));
+app.use('/api/admin-users', require('./routes/admin-users'));
 
 // SPA 라우팅 지원 (모든 환경)
 const buildPath = path.join(__dirname, '../frontend/build');

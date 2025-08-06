@@ -70,7 +70,7 @@ const registerValidation = [
   body('username')
     .trim()
     .isLength({ min: 3, max: 20 }).withMessage('사용자명은 3-20자 사이여야 합니다.')
-    .matches(/^[a-zA-Z0-9_]+$/).withMessage('사용자명은 영문, 숫자, 언더스코어만 사용 가능합니다.'),
+    .matches(/^[a-zA-Z0-9_가-힣]+$/).withMessage('사용자명은 영문, 숫자, 한글, 언더스코어만 사용 가능합니다.'),
   body('name').trim().isLength({ min: 1, max: 50 }).withMessage('이름은 1-50자 사이여야 합니다.')
 ];
 
@@ -108,9 +108,10 @@ router.post('/register', registerValidation, async (req, res) => {
 
     if (emailCheck.success) {
       console.log('❌ 이메일 중복:', email);
-      return res.status(409).json({
+      return res.status(400).json({
         success: false,
-        message: '이미 등록된 이메일입니다.'
+        message: '이미 등록된 이메일입니다. 로그인을 시도해보세요.',
+        error: 'DUPLICATE_EMAIL'
       });
     }
 
@@ -125,9 +126,10 @@ router.post('/register', registerValidation, async (req, res) => {
 
     if (usernameCheck.success) {
       console.log('❌ 사용자명 중복:', username);
-      return res.status(409).json({
+      return res.status(400).json({
         success: false,
-        message: '이미 사용 중인 사용자명입니다.'
+        message: '이미 사용 중인 사용자명입니다. 다른 사용자명을 입력해주세요.',
+        error: 'DUPLICATE_USERNAME'
       });
     }
 

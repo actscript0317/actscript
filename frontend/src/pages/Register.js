@@ -78,9 +78,9 @@ const Register = () => {
       return;
     }
 
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      setError('사용자명은 영문, 숫자, 언더스코어만 사용 가능합니다.');
-      toast.error('사용자명은 영문, 숫자, 언더스코어만 사용 가능합니다.');
+    if (!/^[a-zA-Z0-9_가-힣]+$/.test(username)) {
+      setError('사용자명은 영문, 숫자, 한글, 언더스코어만 사용 가능합니다.');
+      toast.error('사용자명은 영문, 숫자, 한글, 언더스코어만 사용 가능합니다.');
       return;
     }
 
@@ -117,7 +117,14 @@ const Register = () => {
         if (err.response.data?.errors) {
           errorMessage = err.response.data.errors.map(e => e.msg).join(', ');
         } else {
-          errorMessage = err.response.data?.message || '입력 데이터를 확인해주세요.';
+          const error = err.response.data?.error;
+          if (error === 'DUPLICATE_EMAIL') {
+            errorMessage = '이미 가입된 이메일입니다. 로그인을 시도해보세요.';
+          } else if (error === 'DUPLICATE_USERNAME') {
+            errorMessage = '이미 사용 중인 사용자명입니다. 다른 사용자명을 사용해주세요.';
+          } else {
+            errorMessage = err.response.data?.message || '입력 데이터를 확인해주세요.';
+          }
         }
       } else if (err.response?.status === 409) {
         errorMessage = err.response.data?.message || '이미 존재하는 정보입니다.';

@@ -911,6 +911,144 @@ router.get('/debug/user/:email', async (req, res) => {
   }
 });
 
+// 누락된 사용자 프로필 복구 엔드포인트
+router.post('/recover-profile', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: '이메일이 필요합니다.'
+      });
+    }
+    
+    console.log('🔧 사용자 프로필 복구 시작:', email);
+    
+    // 1. Supabase Auth에서 사용자 확인
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (authError) {
+      console.error('❌ Auth 사용자 목록 조회 실패:', authError);
+      return res.status(500).json({
+        success: false,
+        message: 'Auth 사용자 목록 조회 실패'
+      });
+    }
+    
+    const authUser = authUsers.users.find(u => u.email === email);
+    
+    if (!authUser) {
+      return res.status(404).json({
+        success: false,
+        message: '해당 이메일의 사용자를 찾을 수 없습니다.'
+      });
+    }
+    
+    if (!authUser.email_confirmed_at) {
+      return res.status(400).json({
+        success: false,
+        message: '이메일 인증이 완료되지 않은 사용자입니다.'
+      });
+    }
+    
+    console.log('✅ Auth 사용자 확인 완료:', {
+      id: authUser.id,
+      email: authUser.email,
+      emailConfirmed: !!authUser.email_confirmed_at
+    });
+    
+    // 2. 이미 프로필이 있는지 확인
+    const existingProfile = await safeQuery(async () => {
+      return await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+    }, '기존 프로필 확인');
+    
+    if (existingProfile.success) {
+      return res.status(400).json({
+        success: false,
+        message: '이미 프로필이 존재합니다.',
+        data: existingProfile.data
+      });
+    }
+    
+    // 3. 사용자 메타데이터에서 정보 가져오기
+    const username = authUser.user_metadata?.username;
+    const name = authUser.user_metadata?.name;
+    
+    if (!username || !name) {
+      console.error('❌ 사용자 메타데이터 부족:', authUser.user_metadata);
+      return res.status(400).json({
+        success: false,
+        message: '사용자 메타데이터가 부족합니다. 다시 회원가입을 진행해주세요.',
+        debug: {
+          userMetadata: authUser.user_metadata
+        }
+      });
+    }
+    
+    // 4. users 테이블에 프로필 생성
+    const userData = {
+      id: authUser.id,
+      username,
+      email: authUser.email,
+      name,
+      role: 'user',
+      is_active: true,
+      is_email_verified: true,
+      email_verified_at: authUser.email_confirmed_at,
+      created_at: authUser.created_at
+    };
+    
+    const profileResult = await safeQuery(async () => {
+      return await supabase
+        .from('users')
+        .insert(userData)
+        .select()
+        .single();
+    }, '사용자 프로필 생성');
+    
+    if (!profileResult.success) {
+      console.error('❌ 프로필 생성 실패:', profileResult.error);
+      return res.status(500).json({
+        success: false,
+        message: '프로필 생성에 실패했습니다.',
+        error: profileResult.error
+      });
+    }
+    
+    console.log('✅ 프로필 복구 완료:', {
+      id: profileResult.data.id,
+      username: profileResult.data.username,
+      email: profileResult.data.email
+    });
+    
+    res.json({
+      success: true,
+      message: '사용자 프로필이 성공적으로 복구되었습니다.',
+      data: {
+        id: profileResult.data.id,
+        username: profileResult.data.username,
+        email: profileResult.data.email,
+        name: profileResult.data.name,
+        role: profileResult.data.role,
+        isEmailVerified: profileResult.data.is_email_verified
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ 프로필 복구 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '프로필 복구 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
+
 // Test endpoint to verify file loading
 router.get('/test-route', (req, res) => {
   res.json({ message: 'Updated supabase-auth.js is loaded!' });

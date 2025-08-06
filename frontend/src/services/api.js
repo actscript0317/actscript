@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// API 기본 설정 - 백엔드 서버 URL 직접 지정
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:10000/api';
+// API 기본 설정 - 백엔드 서버 URL 수정
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://actscript-1.onrender.com/api';
 
 // axios 인스턴스 생성
 const api = axios.create({

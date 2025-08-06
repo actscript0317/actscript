@@ -8,8 +8,59 @@ const AuthCallback = () => {
   const [status, setStatus] = useState('loading'); // 'loading', 'success', 'error'
   const [message, setMessage] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [retryLoading, setRetryLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  // 프로필 수동 복구 함수
+  const handleManualRecovery = async () => {
+    if (!userEmail) {
+      toast.error('이메일 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      setRetryLoading(true);
+      
+      console.log('🔧 수동 프로필 복구 시도:', userEmail);
+      
+      const response = await fetch('https://actscript-1.onrender.com/api/auth/recover-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: userEmail
+        })
+      });
+
+      const result = await response.json();
+      console.log('🔧 복구 결과:', result);
+
+      if (result.success) {
+        toast.success('프로필이 성공적으로 복구되었습니다!');
+        setStatus('success');
+        setMessage('프로필 복구가 완료되었습니다!');
+        
+        setTimeout(() => {
+          navigate('/login', { 
+            state: { 
+              message: '프로필이 복구되었습니다. 로그인해주세요.',
+              email: userEmail,
+              showWelcome: true
+            } 
+          });
+        }, 2000);
+      } else {
+        toast.error(`복구 실패: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('❌ 수동 복구 실패:', error);
+      toast.error(`복구 중 오류: ${error.message}`);
+    } finally {
+      setRetryLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -57,6 +108,9 @@ const AuthCallback = () => {
 
             const user = sessionData.user;
             console.log('✅ 세션 설정 성공:', user.email);
+            
+            // 이메일 정보 설정 (복구 버튼에서 사용)
+            setUserEmail(user.email);
 
             // 사용자 메타데이터에서 정보 가져오기
             const username = user.user_metadata?.username;
@@ -65,13 +119,20 @@ const AuthCallback = () => {
             if (!username || !name) {
               console.error('❌ 사용자 메타데이터 부족:', user.user_metadata);
               setStatus('error');
-              setMessage('사용자 정보가 부족합니다. 다시 회원가입을 진행해주세요.');
+              setMessage('사용자 정보가 부족합니다. 프로필 수동 복구를 시도해보세요.');
               return;
             }
 
             // 백엔드에 사용자 프로필 생성 요청
             try {
-              const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:10000/api'}/auth/complete-signup`, {
+              console.log('📤 백엔드에 프로필 생성 요청:', {
+                userId: user.id,
+                email: user.email,
+                username,
+                name
+              });
+
+              const response = await fetch('https://actscript-1.onrender.com/api/auth/complete-signup', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -85,20 +146,51 @@ const AuthCallback = () => {
                 })
               });
 
+              console.log('📥 백엔드 응답 상태:', response.status, response.statusText);
+
               const result = await response.json();
+              console.log('📥 백엔드 응답 데이터:', result);
               
-              if (!response.ok || !result.success) {
+              if (!response.ok) {
+                console.error('❌ HTTP 오류:', response.status, result);
+                
+                // 프로필 생성 실패 시 사용자에게 안내
+                setStatus('error');
+                setMessage(`프로필 생성 실패: ${result.message || '알 수 없는 오류'}`);
+                
+                // 수동 프로필 생성 안내
+                toast.error(`프로필 생성에 실패했습니다. 수동으로 계정을 복구해주세요. 오류: ${result.message}`, {
+                  duration: 10000
+                });
+                return;
+              }
+
+              if (!result.success) {
                 console.error('❌ 프로필 생성 실패:', result);
                 setStatus('error');
                 setMessage(result.message || '프로필 생성에 실패했습니다.');
+                
+                // 수동 프로필 생성 안내
+                toast.error(`프로필 생성에 실패했습니다: ${result.message}`, {
+                  duration: 10000
+                });
                 return;
               }
 
               console.log('✅ 프로필 생성 완료:', result);
+              toast.success('프로필이 성공적으로 생성되었습니다!');
               
             } catch (profileError) {
               console.error('❌ 프로필 생성 요청 실패:', profileError);
-              // 프로필 생성 실패해도 인증은 완료된 상태이므로 계속 진행
+              
+              // 네트워크 오류 등의 경우
+              setStatus('error');
+              setMessage('서버와의 통신에 실패했습니다. 잠시 후 다시 시도해주세요.');
+              
+              toast.error(`네트워크 오류: ${profileError.message}`, {
+                duration: 10000
+              });
+              return;
             }
 
             setStatus('success');
@@ -292,6 +384,15 @@ const AuthCallback = () => {
                 </div>
               </div>
               <div className="mt-6 space-y-3">
+                {userEmail && (
+                  <button
+                    onClick={handleManualRecovery}
+                    disabled={retryLoading}
+                    className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {retryLoading ? '복구 중...' : '🔧 프로필 수동 복구'}
+                  </button>
+                )}
                 <button
                   onClick={() => navigate('/register')}
                   className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"

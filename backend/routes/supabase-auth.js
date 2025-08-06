@@ -53,21 +53,21 @@ router.post('/register', registerValidation, async (req, res) => {
     const { email, password, username, name } = req.body;
     console.log('✅ 입력 검증 통과, 중복 확인 시작...');
 
-    // 이미 등록된 이메일인지 확인 (Auth 테이블 확인)
+    // 이메일 중복 확인 (빠른 방법으로 변경)
     try {
-      const { data: existingUser, error: getUserError } = await supabaseAdmin.auth.admin.listUsers();
+      // 직접 매직링크 생성해보고 중복 체크
+      const { error: testError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: email
+      });
       
-      if (!getUserError && existingUser?.users) {
-        const userExists = existingUser.users.find(user => user.email === email);
-        
-        if (userExists) {
-          console.log('❌ 이메일 중복:', email);
-          return res.status(400).json({
-            success: false,
-            message: '이미 가입된 이메일입니다. 로그인을 시도해보세요.',
-            error: 'DUPLICATE_EMAIL'
-          });
-        }
+      if (testError && (testError.message.includes('already registered') || testError.message.includes('User already registered'))) {
+        console.log('❌ 이메일 중복:', email);
+        return res.status(400).json({
+          success: false,
+          message: '이미 가입된 이메일입니다. 로그인을 시도해보세요.',
+          error: 'DUPLICATE_EMAIL'
+        });
       }
     } catch (emailCheckError) {
       console.warn('⚠️ 이메일 중복 확인 실패, 계속 진행:', emailCheckError.message);
@@ -110,64 +110,36 @@ router.post('/register', registerValidation, async (req, res) => {
     global.tempUsers.set(email, tempUserData);
     console.log('✅ 임시 사용자 데이터 저장:', email);
 
-    // 매직링크 방식으로 이메일 발송 시도
-    let emailSent = false;
-    let magicLink = null;
+    // 간단한 매직링크 생성 및 이메일 발송
+    console.log('📧 매직링크 생성 시작...');
     
-    try {
-      // 방법 1: signInWithOtp 사용 (가장 확실한 이메일 발송)
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          emailRedirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`,
-          data: {
-            username,
-            name,
-            role: 'user',
-            type: 'signup'
-          }
-        }
-      });
-
-      if (!otpError) {
-        emailSent = true;
-        console.log('✅ OTP 매직링크 이메일 발송 성공:', email);
-      } else {
-        console.error('❌ OTP 발송 실패:', otpError.message);
-        
-        // 방법 2: Admin generateLink 사용
-        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'magiclink',
-          email: email,
-          options: {
-            redirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`,
-            data: {
-              username,
-              name,
-              role: 'user',
-              type: 'signup'
-            }
-          }
-        });
-
-        if (!linkError && linkData?.properties?.action_link) {
-          magicLink = linkData.properties.action_link;
-          emailSent = true;
-          console.log('✅ Admin 매직링크 생성 성공:', email);
-          console.log('📧 매직링크:', magicLink);
-        } else {
-          console.error('❌ Admin 링크 생성도 실패:', linkError?.message);
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'signup',
+      email: email,
+      password: password,
+      options: {
+        redirectTo: `${process.env.CLIENT_URL || 'http://localhost:3000'}/auth/callback`,
+        data: {
+          username,
+          name,
+          role: 'user'
         }
       }
-    } catch (emailErr) {
-      console.error('❌ 이메일 발송 중 예외:', emailErr.message);
-    }
+    });
 
-    if (!emailSent) {
+    if (linkError) {
+      console.error('❌ 매직링크 생성 실패:', linkError.message);
       return res.status(400).json({
         success: false,
-        message: '이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+        message: '이메일 발송에 실패했습니다.',
+        error: linkError.message
       });
+    }
+
+    const magicLink = linkData?.properties?.action_link;
+    console.log('✅ 매직링크 생성 성공:', email);
+    if (magicLink) {
+      console.log('📧 매직링크:', magicLink);
     }
 
     res.status(200).json({

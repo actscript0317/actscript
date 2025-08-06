@@ -1165,7 +1165,139 @@ router.get('/test-route', (req, res) => {
   res.json({ message: 'Updated supabase-auth.js is loaded!', timestamp: new Date().toISOString() });
 });
 
-// 테스트 사용자 생성 엔드포인트
+// 테스트 사용자 생성 엔드포인트 (GET으로도 접근 가능)
+router.get('/debug/create-test-user', async (req, res) => {
+  try {
+    const testEmail = 'wjswhdcjs33@naver.com';
+    const testPassword = 'test123456';
+    
+    console.log('🔧 테스트 사용자 생성 시작:', testEmail);
+    
+    // 기존 사용자 확인
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === testEmail);
+    
+    if (existingUser) {
+      console.log('🔍 기존 사용자 발견, Users 테이블에서 확인');
+      
+      // Users 테이블에서 프로필 확인
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', existingUser.id)
+        .single();
+        
+      if (!profile) {
+        console.log('📝 Auth 사용자는 있지만 프로필이 없음, 프로필 생성');
+        
+        const userData = {
+          id: existingUser.id,
+          username: '정종철',
+          email: testEmail,
+          name: '정종철',
+          role: 'user',
+          is_active: true,
+          is_email_verified: true,
+          created_at: new Date().toISOString()
+        };
+        
+        const { data: newProfile, error: profileError } = await supabase
+          .from('users')
+          .insert(userData)
+          .select()
+          .single();
+          
+        if (profileError) {
+          return res.status(500).json({
+            success: false,
+            error: `프로필 생성 실패: ${profileError.message}`
+          });
+        }
+        
+        return res.json({
+          success: true,
+          message: '기존 Auth 사용자에 프로필 생성 완료',
+          user: newProfile,
+          credentials: { email: testEmail, password: testPassword }
+        });
+      } else {
+        return res.json({
+          success: true,
+          message: '사용자가 이미 존재합니다',
+          user: profile,
+          credentials: { email: testEmail, password: testPassword }
+        });
+      }
+    }
+    
+    // 새 사용자 생성
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: testEmail,
+      password: testPassword,
+      email_confirm: true,
+      user_metadata: {
+        username: '정종철',
+        name: '정종철',
+        role: 'user'
+      }
+    });
+    
+    if (authError) {
+      return res.status(400).json({
+        success: false,
+        error: `Auth 사용자 생성 실패: ${authError.message}`
+      });
+    }
+    
+    console.log('✅ Auth 사용자 생성 완료:', authData.user.id);
+    
+    // Users 테이블에 프로필 생성
+    const userData = {
+      id: authData.user.id,
+      username: '정종철',
+      email: testEmail,
+      name: '정종철',
+      role: 'user',
+      is_active: true,
+      is_email_verified: true,
+      created_at: new Date().toISOString()
+    };
+    
+    const { data: profileData, error: profileError } = await supabase
+      .from('users')
+      .insert(userData)
+      .select()
+      .single();
+      
+    if (profileError) {
+      return res.status(500).json({
+        success: false,
+        error: `프로필 생성 실패: ${profileError.message}`
+      });
+    }
+    
+    console.log('✅ Users 테이블에 프로필 생성 완료');
+    
+    res.json({
+      success: true,
+      message: '테스트 사용자 생성 완료',
+      user: profileData,
+      credentials: {
+        email: testEmail,
+        password: testPassword
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ 테스트 사용자 생성 실패:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST 방식도 지원
 router.post('/debug/create-test-user', async (req, res) => {
   try {
     const testEmail = 'wjswhdcjs33@naver.com';

@@ -115,10 +115,10 @@ router.post('/register', registerValidation, async (req, res) => {
       password: password,
       options: {
         data: {
-          username,
-          name,
-          role: 'user'
-        },
+        username,
+        name,
+        role: 'user'
+      },
         emailRedirectTo: callbackUrl
       }
     });
@@ -406,6 +406,7 @@ router.post('/login', loginValidation, async (req, res) => {
     }
 
     const { email, password } = req.body;
+    console.log('🔐 로그인 시도:', email);
 
     // Supabase Auth로 로그인
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -414,20 +415,36 @@ router.post('/login', loginValidation, async (req, res) => {
     });
 
     if (authError) {
-      console.error('로그인 실패:', authError);
+      console.error('❌ Supabase 로그인 실패:', {
+        email,
+        error: authError.message,
+        code: authError.status
+      });
       
       let message = '로그인에 실패했습니다.';
       if (authError.message.includes('Invalid login credentials')) {
         message = '이메일 또는 비밀번호가 올바르지 않습니다.';
       } else if (authError.message.includes('Email not confirmed')) {
         message = '이메일 인증이 필요합니다.';
+      } else if (authError.message.includes('Email not found')) {
+        message = '등록되지 않은 이메일입니다.';
       }
       
       return res.status(401).json({
         success: false,
-        message
+        message,
+        debug: {
+          originalError: authError.message,
+          errorCode: authError.status
+        }
       });
     }
+
+    console.log('✅ Supabase 로그인 성공:', {
+      userId: authData.user.id,
+      email: authData.user.email,
+      emailVerified: authData.user.email_confirmed_at ? true : false
+    });
 
     // 사용자 프로필 정보 조회
     const userResult = await safeQuery(async () => {
@@ -439,11 +456,27 @@ router.post('/login', loginValidation, async (req, res) => {
     }, '사용자 프로필 조회');
 
     if (!userResult.success) {
-      return res.status(userResult.error.code).json({
+      console.error('❌ 사용자 프로필 조회 실패:', {
+        userId: authData.user.id,
+        email: authData.user.email,
+        error: userResult.error
+      });
+      
+      return res.status(404).json({
         success: false,
-        message: '사용자 정보를 찾을 수 없습니다.'
+        message: '사용자 정보를 찾을 수 없습니다. 회원가입이 완료되지 않았을 수 있습니다.',
+        debug: {
+          userId: authData.user.id,
+          profileError: userResult.error
+        }
       });
     }
+
+    console.log('✅ 사용자 프로필 조회 성공:', {
+      id: userResult.data.id,
+      username: userResult.data.username,
+      isEmailVerified: userResult.data.is_email_verified
+    });
 
     // 마지막 로그인 시간 업데이트
     await supabase
@@ -468,10 +501,13 @@ router.post('/login', loginValidation, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('로그인 오류:', error);
+    console.error('❌ 로그인 처리 중 예외 발생:', error);
     res.status(500).json({
       success: false,
-      message: '로그인 중 오류가 발생했습니다.'
+      message: '로그인 중 오류가 발생했습니다.',
+      debug: {
+        error: error.message
+      }
     });
   }
 });
@@ -810,6 +846,67 @@ router.post('/forgot-password', [
     res.status(500).json({
       success: false,
       message: '비밀번호 재설정 요청 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 사용자 정보 디버깅 엔드포인트
+router.get('/debug/user/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    console.log('🔍 사용자 정보 디버깅:', email);
+    
+    // 1. Supabase Auth에서 사용자 확인
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (authError) {
+      console.error('❌ Auth 사용자 목록 조회 실패:', authError);
+      return res.status(500).json({
+        success: false,
+        message: 'Auth 사용자 목록 조회 실패',
+        error: authError
+      });
+    }
+    
+    const authUser = authUsers.users.find(u => u.email === email);
+    
+    // 2. users 테이블에서 프로필 확인
+    const profileResult = await safeQuery(async () => {
+      return await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+    }, '사용자 프로필 조회');
+    
+    const debugInfo = {
+      email,
+      authUser: authUser ? {
+        id: authUser.id,
+        email: authUser.email,
+        emailConfirmed: !!authUser.email_confirmed_at,
+        emailConfirmedAt: authUser.email_confirmed_at,
+        createdAt: authUser.created_at,
+        userMetadata: authUser.user_metadata
+      } : null,
+      profileUser: profileResult.success ? profileResult.data : null,
+      profileError: profileResult.success ? null : profileResult.error
+    };
+    
+    console.log('🔍 디버깅 결과:', debugInfo);
+    
+    res.json({
+      success: true,
+      data: debugInfo
+    });
+    
+  } catch (error) {
+    console.error('❌ 디버깅 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '디버깅 중 오류가 발생했습니다.',
+      error: error.message
     });
   }
 });

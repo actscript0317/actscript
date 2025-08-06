@@ -22,6 +22,18 @@ const Login = () => {
   // 회원가입 완료 후 로그인 페이지에 온 경우 처리
   useEffect(() => {
     const state = location.state;
+    const params = new URLSearchParams(location.search);
+    
+    // URL 파라미터에서 회원가입 성공 확인
+    if (params.get('signup') === 'success') {
+      const email = params.get('email');
+      const message = params.get('message');
+      if (message) setWelcomeMessage(decodeURIComponent(message));
+      if (email) setFormData(prev => ({ ...prev, email: decodeURIComponent(email) }));
+      toast.success('🎉 회원가입이 완료되었습니다!', { duration: 5000 });
+    }
+    
+    // state에서 메시지 확인 (기존 방식 유지)
     if (state?.message) {
       setWelcomeMessage(state.message);
       if (state.email) {

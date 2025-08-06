@@ -100,9 +100,9 @@ router.post('/register', registerValidation, async (req, res) => {
 
     console.log('✅ 중복 확인 완료');
 
-    // 올바른 CLIENT_URL 설정 확인
-    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
-    const callbackUrl = `${clientUrl}/auth/callback`;
+    // 올바른 CLIENT_URL 설정 확인 - 백엔드 콜백 방식 사용
+    const serverUrl = process.env.SERVER_URL || 'https://actscript.onrender.com';
+    const callbackUrl = `${serverUrl}/api/auth/callback`;
     
     console.log('🔗 리다이렉트 URL 설정:', callbackUrl);
 
@@ -165,8 +165,8 @@ router.post('/register', registerValidation, async (req, res) => {
   }
 });
 
-// 이메일 인증 완료 후 처리 (기존 백엔드 방식 - 호환성 유지)
-router.get('/auth/callback', async (req, res) => {
+// 이메일 인증 완료 후 처리 (백엔드 콜백 방식)
+router.get('/callback', async (req, res) => {
   try {
     // 이메일 링크에서 온 요청을 처리
     const { token_hash, type, access_token, refresh_token, error: authError } = req.query;
@@ -249,7 +249,7 @@ router.get('/auth/callback', async (req, res) => {
       });
 
       // 성공적으로 로그인 페이지로 리다이렉트
-      return res.redirect(`${clientUrl}/auth/callback?success=true&email=${encodeURIComponent(user.email)}`);
+      return res.redirect(`${clientUrl}/login?signup=success&email=${encodeURIComponent(user.email)}&message=${encodeURIComponent('회원가입이 완료되었습니다. 로그인해주세요.')}`);
     }
     
     console.log('❌ 알 수 없는 콜백 요청:', { type, hasToken: !!token_hash });
@@ -803,9 +803,9 @@ router.post('/resend-verification', [
       });
     }
 
-    // 올바른 CLIENT_URL 설정
-    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
-    const callbackUrl = `${clientUrl}/auth/callback`;
+    // 올바른 CLIENT_URL 설정 - 백엔드 콜백 방식 사용
+    const serverUrl = process.env.SERVER_URL || 'https://actscript.onrender.com';
+    const callbackUrl = `${serverUrl}/api/auth/callback`;
     
     console.log('🔗 재발송 리다이렉트 URL:', callbackUrl);
 

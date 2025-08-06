@@ -142,15 +142,26 @@ const AuthCallback = () => {
               return;
             }
 
-            // 백엔드에 사용자 프로필 생성 요청
+            // 백엔드 콜백 방식으로 처리하기 위해 토큰 정보를 백엔드로 전송
             try {
-              console.log('📤 백엔드에 프로필 생성 요청:', {
-                userId: user.id,
-                email: user.email,
-                username,
-                name
-              });
-
+              console.log('🔄 백엔드 콜백 방식으로 전환 - 토큰 정보 전송');
+              
+              // 백엔드 콜백 URL로 리다이렉트하여 처리
+              const serverUrl = 'https://actscript.onrender.com';
+              const callbackUrl = `${serverUrl}/api/auth/callback`;
+              
+              // 토큰을 query parameter로 전달하여 백엔드에서 처리
+              const redirectUrl = `${callbackUrl}?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}&type=signup&token_type=bearer&expires_in=${expiresIn}`;
+              
+              console.log('🔗 백엔드 콜백으로 리다이렉트:', redirectUrl);
+              window.location.href = redirectUrl;
+              return;
+              
+            } catch (error) {
+              console.error('❌ 백엔드 콜백 리다이렉트 실패:', error);
+              
+              // 백업: 기존 방식으로 시도
+              console.log('🔄 백업 방식으로 시도 - 직접 API 호출');
               const response = await fetch(`${getApiBaseUrl()}/auth/complete-signup`, {
                 method: 'POST',
                 headers: {

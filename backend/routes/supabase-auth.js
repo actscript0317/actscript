@@ -168,10 +168,15 @@ router.post('/register', registerValidation, async (req, res) => {
 // 이메일 인증 완료 후 처리 (백엔드 콜백 방식)
 router.get('/callback', async (req, res) => {
   try {
-    // 이메일 링크에서 온 요청을 처리
-    const { token_hash, type, access_token, refresh_token, error: authError } = req.query;
+    // 이메일 링크에서 온 요청을 처리 (token_hash 방식과 access_token 방식 둘 다 지원)
+    const { token_hash, type, access_token, refresh_token, error: authError, token_type, expires_in } = req.query;
     
-    console.log('📧 이메일 인증 콜백 처리 (백엔드 방식):', { type, hasToken: !!token_hash, authError });
+    console.log('📧 이메일 인증 콜백 처리 (백엔드 방식):', { 
+      type, 
+      hasTokenHash: !!token_hash, 
+      hasAccessToken: !!access_token,
+      authError 
+    });
     console.log('🔗 현재 요청 URL:', req.originalUrl);
     console.log('🌐 요청 헤더 host:', req.headers.host);
     
@@ -190,6 +195,74 @@ router.get('/callback', async (req, res) => {
       return res.redirect(`${clientUrl}/auth/callback?error=${authError}`);
     }
     
+    // access_token 방식 처리 (프론트엔드에서 리다이렉트된 경우)
+    if (type === 'signup' && access_token && !token_hash) {
+      console.log('🔄 Access Token 방식으로 사용자 정보 처리');
+      
+      try {
+        // access_token을 사용하여 사용자 정보 가져오기
+        const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(access_token);
+        
+        if (userError || !user) {
+          console.error('❌ Access Token으로 사용자 정보 가져오기 실패:', userError);
+          return res.redirect(`${clientUrl}/auth/callback?error=invalid_token`);
+        }
+        
+        console.log('✅ Access Token으로 사용자 정보 획득:', user.email);
+        
+        // 사용자 메타데이터에서 정보 가져오기
+        const username = user.user_metadata?.username;
+        const name = user.user_metadata?.name;
+        
+        if (!username || !name) {
+          console.error('❌ 사용자 메타데이터 부족:', user.user_metadata);
+          return res.redirect(`${clientUrl}/auth/callback?error=missing_data`);
+        }
+
+        // users 테이블에 사용자 정보 저장
+        const userData = {
+          id: user.id,
+          username,
+          email: user.email,
+          name,
+          role: 'user',
+          is_active: true,
+          is_email_verified: true,
+          created_at: new Date().toISOString()
+        };
+
+        const userResult = await safeQuery(async () => {
+          return await supabase
+            .from('users')
+            .upsert(userData, { 
+              onConflict: 'id',
+              ignoreDuplicates: false 
+            })
+            .select()
+            .single();
+        }, '사용자 프로필 생성');
+
+        if (!userResult.success) {
+          console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
+          return res.redirect(`${clientUrl}/auth/callback?error=profile_creation_failed`);
+        }
+
+        console.log('✅ 회원가입 완료 (Access Token 방식):', {
+          id: userResult.data.id,
+          username: userResult.data.username,
+          email: userResult.data.email
+        });
+
+        // 성공적으로 로그인 페이지로 리다이렉트
+        return res.redirect(`${clientUrl}/login?signup=success&email=${encodeURIComponent(user.email)}&message=${encodeURIComponent('회원가입이 완료되었습니다. 로그인해주세요.')}`);
+        
+      } catch (error) {
+        console.error('❌ Access Token 처리 중 오류:', error);
+        return res.redirect(`${clientUrl}/auth/callback?error=server_error`);
+      }
+    }
+    
+    // token_hash 방식 처리 (기존 이메일 링크 방식)
     if (type === 'signup' && token_hash) {
       // Supabase에서 토큰 검증
       const { data, error } = await supabase.auth.verifyOtp({

@@ -12,31 +12,56 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        const token = searchParams.get('token');
-        const type = searchParams.get('type');
+        // URL에서 액세스 토큰과 리프레시 토큰 추출
+        const hash = window.location.hash;
+        const params = new URLSearchParams(hash.substring(1));
         
-        if (!token) {
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        const type = params.get('type');
+        
+        console.log('📧 인증 콜백 처리:', { hasAccessToken: !!accessToken, type });
+        
+        if (!accessToken) {
           setStatus('error');
           setMessage('인증 토큰이 없습니다.');
           return;
         }
 
         if (type === 'signup') {
-          // 회원가입 이메일 인증 처리
-          // Supabase에서 자동으로 처리되므로 성공 메시지만 표시
-          setStatus('success');
-          setMessage('이메일 인증이 완료되었습니다!');
+          // 백엔드 API 호출하여 회원가입 완료 처리
+          const response = await fetch('/api/auth/auth/callback', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            })
+          });
           
-          toast.success('이메일 인증 완료! 이제 로그인할 수 있습니다.');
+          const data = await response.json();
           
-          // 3초 후 로그인 페이지로 이동
-          setTimeout(() => {
-            navigate('/login', { 
-              state: { 
-                message: '이메일 인증이 완료되었습니다. 로그인해주세요.' 
-              } 
-            });
-          }, 3000);
+          if (data.success) {
+            setStatus('success');
+            setMessage('회원가입이 완료되었습니다!');
+            
+            toast.success('회원가입 완료! 이제 로그인할 수 있습니다.');
+            
+            // 3초 후 로그인 페이지로 이동
+            setTimeout(() => {
+              navigate('/login', { 
+                state: { 
+                  message: '회원가입이 완료되었습니다. 로그인해주세요.',
+                  email: data.user?.email
+                } 
+              });
+            }, 3000);
+          } else {
+            setStatus('error');
+            setMessage(data.message || '회원가입 완료에 실패했습니다.');
+          }
         } else {
           setStatus('error');
           setMessage('알 수 없는 인증 타입입니다.');

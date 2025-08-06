@@ -304,14 +304,26 @@ router.post('/complete-signup', async (req, res) => {
     }
     
     // Supabase Admin을 통해 토큰 검증
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-    console.log('🔧 토큰 검증 결과:', { user: user ? '존재' : '없음', error: userError ? userError.message : '없음' });
-    
-    if (userError || !user) {
-      console.error('❌ 토큰 검증 실패:', userError);
+    let user;
+    try {
+      const { data, error: userError } = await supabaseAdmin.auth.getUser(token);
+      user = data?.user;
+      console.log('🔧 토큰 검증 결과:', { user: user ? '존재' : '없음', error: userError ? userError.message : '없음' });
+      
+      if (userError || !user) {
+        console.error('❌ 토큰 검증 실패:', userError);
+        return res.status(401).json({
+          success: false,
+          message: '유효하지 않은 토큰입니다.',
+          debug: userError ? userError.message : 'No user found'
+        });
+      }
+    } catch (tokenError) {
+      console.error('❌ 토큰 검증 중 예외:', tokenError);
       return res.status(401).json({
         success: false,
-        message: '유효하지 않은 토큰입니다.'
+        message: '토큰 검증 중 오류가 발생했습니다.',
+        debug: tokenError.message
       });
     }
     

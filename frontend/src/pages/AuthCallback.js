@@ -15,7 +15,7 @@ const getApiBaseUrl = () => {
   if (hostname.includes('actscript-frontend.onrender.com')) {
     return 'https://actscript-backend.onrender.com/api';
   } else if (hostname.includes('actscript-1.onrender.com')) {
-    return 'https://actscript-1.onrender.com/api';
+    return 'https://actscript.onrender.com/api';
   } else if (hostname.includes('actpiece.com')) {
     return 'https://api.actpiece.com/api';
   }

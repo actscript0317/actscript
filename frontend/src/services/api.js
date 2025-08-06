@@ -14,6 +14,9 @@ const getApiBaseUrl = () => {
     return 'https://actscript-backend.onrender.com/api';
   } else if (hostname.includes('actscript-1.onrender.com')) {
     return 'https://actscript-1.onrender.com/api';
+  } else if (hostname.includes('actscript.onrender.com')) {
+    // actscript.onrender.com도 actscript-1로 리다이렉트
+    return 'https://actscript-1.onrender.com/api';
   } else if (hostname.includes('actpiece.com')) {
     return 'https://api.actpiece.com/api';
   }

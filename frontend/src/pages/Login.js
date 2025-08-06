@@ -27,7 +27,22 @@ const Login = () => {
       if (state.email) {
         setFormData(prev => ({ ...prev, email: state.email }));
       }
-      if (state.showWelcome) {
+      if (state.showWelcome && state.success) {
+        // 회원가입 성공 시 특별한 환영 메시지
+        toast.success(state.message, {
+          duration: 8000,
+          icon: '🎉',
+          style: {
+            background: '#10B981',
+            color: 'white',
+            fontWeight: 'bold'
+          }
+        });
+        console.log('🎉 회원가입 완료된 사용자 로그인 페이지 도착:', {
+          email: state.email,
+          username: state.username
+        });
+      } else if (state.showWelcome) {
         toast.success('회원가입이 완료되었습니다! 🎉', {
           duration: 4000,
           icon: '✨'

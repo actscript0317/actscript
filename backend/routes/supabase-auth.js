@@ -34,7 +34,7 @@ const loginValidation = [
   body('password').notEmpty().withMessage('비밀번호를 입력하세요.')
 ];
 
-// Supabase 매직링크 회원가입 - 1단계: 임시 저장 및 이메일 발송
+// Supabase 이메일 인증 회원가입
 router.post('/register', registerValidation, async (req, res) => {
   try {
     console.log('📝 회원가입 요청 데이터:', req.body);
@@ -272,7 +272,8 @@ router.post('/complete-signup', async (req, res) => {
     console.log('🔧 환경변수 확인:', {
       SUPABASE_URL: process.env.SUPABASE_URL ? '설정됨' : '미설정',
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? '설정됨' : '미설정',
-      SERVICE_KEY_PREFIX: process.env.SUPABASE_SERVICE_ROLE_KEY ? process.env.SUPABASE_SERVICE_ROLE_KEY.substring(0, 10) + '...' : 'N/A'
+      SERVICE_KEY_PREFIX: process.env.SUPABASE_SERVICE_ROLE_KEY ? process.env.SUPABASE_SERVICE_ROLE_KEY.substring(0, 10) + '...' : 'N/A',
+      SUPABASE_ADMIN_EXISTS: !!supabaseAdmin
     });
     
     if (!userId || !email || !username || !name) {
@@ -293,6 +294,14 @@ router.post('/complete-signup', async (req, res) => {
 
     const token = authHeader.split(' ')[1];
     console.log('🔧 토큰 검증 시작:', token.substring(0, 20) + '...');
+    
+    if (!supabaseAdmin) {
+      console.error('❌ supabaseAdmin이 초기화되지 않음');
+      return res.status(500).json({
+        success: false,
+        message: 'Supabase 서비스 설정 오류가 발생했습니다.'
+      });
+    }
     
     // Supabase Admin을 통해 토큰 검증
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);

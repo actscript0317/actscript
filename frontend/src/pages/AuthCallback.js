@@ -196,8 +196,9 @@ const AuthCallback = () => {
                 return;
               }
 
-              console.log('✅ 프로필 생성 완료:', result);
-              toast.success('프로필이 성공적으로 생성되었습니다!');
+              console.log('✅ 프로필 생성 완료 - Users 테이블에 저장됨:', result);
+              console.log('👤 생성된 사용자 정보:', result.user);
+              toast.success('프로필이 성공적으로 생성되어 Users 테이블에 저장되었습니다!');
               
             } catch (profileError) {
               console.error('❌ 프로필 생성 요청 실패:', profileError);
@@ -214,23 +215,25 @@ const AuthCallback = () => {
 
             setStatus('success');
             setUserEmail(user.email);
-            setMessage('이메일 인증이 완료되었습니다!');
+            setMessage(`🎉 회원가입 완료! 환영합니다, ${name}님!`);
             
-            toast.success('회원가입 완료! 이제 로그인할 수 있습니다.', {
-              duration: 4000,
+            toast.success(`환영합니다, ${name}님! 회원가입이 완료되어 Users 테이블에 저장되었습니다.`, {
+              duration: 5000,
               icon: '🎉'
             });
             
-            // 5초 후 로그인 페이지로 이동
+            // 4초 후 로그인 페이지로 이동 (환영 메시지와 함께)
             setTimeout(() => {
               navigate('/login', { 
                 state: { 
-                  message: '회원가입이 완료되었습니다. 로그인해주세요.',
+                  message: `환영합니다, ${name}님! 회원가입이 완료되었습니다. 로그인해주세요.`,
                   email: user.email,
-                  showWelcome: true
+                  username: username,
+                  showWelcome: true,
+                  success: true
                 } 
               });
-            }, 5000);
+            }, 4000);
 
           } catch (authError) {
             console.error('❌ 인증 처리 실패:', authError);

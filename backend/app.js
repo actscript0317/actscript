@@ -121,8 +121,8 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
   res.send(svg);
 });
 
-// API 라우트 (기존 MongoDB)
-app.use('/api/auth', require('./routes/auth'));
+// API 라우트 (Supabase로 변경)
+app.use('/api/auth', require('./routes/supabase-auth'));
 app.use('/api/scripts', require('./routes/scripts'));
 app.use('/api/emotions', require('./routes/emotions'));
 app.use('/api/ai-script', require('./routes/ai-script'));

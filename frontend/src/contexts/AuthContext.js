@@ -1,20 +1,18 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { authAPI, scriptAPI } from '../services/api';
+import { supabase } from '../utils/supabase';
 import { toast } from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
-  const [loading, setLoading] = useState(true); // 초기에는 true로 시작
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [aiGeneratedScripts, setAIGeneratedScripts] = useState([]);
   const [savedScripts, setSavedScripts] = useState([]);
 
-  // 로그인 상태 설정
+  // 인증 상태 설정
   const setAuthState = useCallback((userData, token) => {
     if (userData && token) {
       localStorage.setItem('token', token);
@@ -24,7 +22,6 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);
-      // 로그아웃 시 스크립트 상태 초기화
       setAIGeneratedScripts([]);
       setSavedScripts([]);
     }
@@ -44,9 +41,6 @@ export const AuthProvider = ({ children }) => {
       const res = await authAPI.getMe();
       if (res.data.success && res.data.user) {
         setAuthState(res.data.user, token);
-        return true;
-      } else if (res.data.success && res.data.data && res.data.data.user) {
-        setAuthState(res.data.data.user, token);
         return true;
       } else {
         setAuthState(null, null);
@@ -70,32 +64,14 @@ export const AuthProvider = ({ children }) => {
       const res = await authAPI.login({ email, password });
       
       if (res.data.success && res.data.session && res.data.user) {
-        // Supabase 세션 토큰 사용
         const token = res.data.session.access_token;
-        
-        // 즉시 인증 상태 업데이트
         setAuthState(res.data.user, token);
-        
-        // 강제로 모든 컴포넌트 리렌더링 트리거
         setLoading(false);
         
         return { 
           success: true,
           user: res.data.user
         };
-      } else if (res.data.success && res.data.data) {
-        // 다른 응답 형식 지원
-        const token = res.data.data.session?.access_token;
-        const user = res.data.data.user;
-        
-        if (token && user) {
-          setAuthState(user, token);
-          setLoading(false);
-          return { 
-            success: true,
-            user: user
-          };
-        }
       }
 
       throw new Error('로그인 응답에 필요한 데이터가 없습니다.');
@@ -113,11 +89,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-
   // 로그아웃
   const logout = useCallback(async () => {
     try {
       await authAPI.logout();
+      await supabase.auth.signOut(); // Supabase 세션도 정리
     } catch (error) {
       console.error('[로그아웃 실패]', error);
     } finally {
@@ -152,23 +128,19 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // AI 생성 스크립트 추가 (AI 생성 직후 자동 저장된 것)
+  // AI 생성 스크립트 추가
   const addAIGeneratedScript = useCallback((scriptData) => {
-    // 생성된 스크립트는 이미 백엔드에서 저장되었으므로 상태만 업데이트
     setAIGeneratedScripts(prev => [scriptData, ...prev]);
   }, []);
 
-  // 저장된 스크립트 추가 (대본함에 저장)
+  // 저장된 스크립트 추가
   const addSavedScript = useCallback(async (scriptData) => {
     try {
-      // scriptData가 AI 생성 스크립트 ID를 포함하고 있으면 백엔드 API 호출
       if (scriptData.scriptId) {
         await scriptAPI.saveAIScript(scriptData.scriptId);
-        // 로컬 상태 업데이트 - 저장된 스크립트 목록에 추가
         await loadSavedScripts();
         toast.success('대본이 대본함에 저장되었습니다.');
       } else {
-        // 기존 로직 유지 (localStorage 기반)
         const newScript = {
           _id: Date.now().toString(),
           ...scriptData,
@@ -198,22 +170,18 @@ export const AuthProvider = ({ children }) => {
   // 저장된 스크립트 삭제
   const removeSavedScript = useCallback(async (scriptId) => {
     try {
-      // MongoDB에서 저장된 AI 스크립트인지 확인
-      const script = savedScripts.find(s => s._id === scriptId);
-      if (script && script._id.length === 24) { // MongoDB ObjectId 길이
-        // 실제로는 isSaved를 false로 변경 (삭제하지 않음)
-        // await scriptAPI.deleteSavedScript(scriptId); // 구현 필요시
-        setSavedScripts(prev => prev.filter(script => script._id !== scriptId));
-      } else {
-        // localStorage 기반 스크립트
-        setSavedScripts(prev => prev.filter(script => script._id !== scriptId));
-      }
+      setSavedScripts(prev => prev.filter(script => script._id !== scriptId));
       toast.success('저장된 스크립트가 삭제되었습니다.');
     } catch (error) {
       console.error('저장된 스크립트 삭제 실패:', error);
       toast.error('저장된 스크립트 삭제에 실패했습니다.');
     }
-  }, [savedScripts]);
+  }, []);
+
+  // 직접 로그인 상태 설정 (회원가입 완료 후 사용)
+  const setUserAuth = useCallback((userData, token) => {
+    setAuthState(userData, token);
+  }, [setAuthState]);
 
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {
@@ -225,9 +193,8 @@ export const AuthProvider = ({ children }) => {
         const userData = JSON.parse(savedUser);
         setUser(userData);
         setLoading(false);
-        // 백그라운드에서 토큰 유효성 검사 (비동기, 빠른 로딩을 위해)
+        // 백그라운드에서 토큰 유효성 검사
         checkAuth().catch(() => {
-          // 토큰이 만료된 경우 조용히 로그아웃
           setAuthState(null, null);
         });
       } catch (error) {
@@ -247,10 +214,33 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, loadAIGeneratedScripts, loadSavedScripts]);
 
-  // 직접 로그인 상태 설정 (회원가입 완료 후 사용)
-  const setUserAuth = useCallback((userData, token) => {
-    setAuthState(userData, token);
-  }, [setAuthState]);
+  // Supabase Auth 상태 변화 감지
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 Supabase Auth 상태 변화:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_IN' && session) {
+        // 이미 프론트엔드에서 로그인 처리가 된 경우가 아니라면 업데이트
+        if (!user && session.user) {
+          try {
+            const res = await authAPI.getMe();
+            if (res.data.success && res.data.user) {
+              setAuthState(res.data.user, session.access_token);
+            }
+          } catch (error) {
+            console.error('Auth state change 사용자 정보 조회 실패:', error);
+          }
+        }
+      } else if (event === 'SIGNED_OUT') {
+        // 로그아웃 이벤트 감지 시 상태 정리
+        if (user) {
+          setAuthState(null, null);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [user, setAuthState]);
 
   const value = {
     user,
@@ -259,7 +249,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     checkAuth,
-    setUserAuth, // 추가
+    setUserAuth,
     isAuthenticated: !!user,
     aiGeneratedScripts,
     savedScripts,
@@ -286,4 +276,4 @@ export const useAuth = () => {
   return context;
 };
 
-export default AuthContext; 
+export default AuthContext;

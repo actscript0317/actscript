@@ -15,8 +15,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import VerifyEmail from './pages/VerifyEmail';
-// import AuthCallback from './pages/AuthCallback'; // 백엔드 콜백 방식 사용으로 불필요
+import AuthCallback from './pages/AuthCallback';
 import MyPage from './pages/MyPage';
 import NotFound from './pages/NotFound';
 // 새로운 배우 관련 페이지들
@@ -137,12 +136,7 @@ function App() {
                   <ResetPassword />
                 </PublicRoute>
               } />
-              <Route path="/verify-email/:token" element={
-                <PublicRoute>
-                  <VerifyEmail />
-                </PublicRoute>
-              } />
-              {/* <Route path="/auth/callback" element={<AuthCallback />} /> 백엔드 콜백 방식 사용으로 불필요 */}
+              <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* 404 페이지 */}
               <Route path="/404" element={<NotFound />} />

@@ -304,6 +304,8 @@ export const authAPI = {
   updatePassword: (data) => withRetry(() => api.put('/auth/update-password', data)),
   // 이메일 확인 재발송
   resendVerification: (data) => withRetry(() => api.post('/auth/resend-verification', data)),
+  // 이메일 인증 완료 후 사용자 프로필 생성
+  completeSignup: (data) => withRetry(() => api.post('/auth/complete-signup', data)),
   // 회원탈퇴 (향후 구현 예정)
   deleteAccount: (data) => withRetry(() => api.delete('/auth/delete-account', { data })),
 };

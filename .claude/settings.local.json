@@ -30,7 +30,11 @@
       "Bash(cat:*)",
       "WebFetch(domain:supabase.com)",
       "Bash(dir:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(sed:*)",
+      "Bash(for:*)",
+      "Bash(do sed -i 's/^const.*require.*models.*$/\\/\\/ &/' \"$file\")",
+      "Bash(done)"
     ],
     "deny": []
   }

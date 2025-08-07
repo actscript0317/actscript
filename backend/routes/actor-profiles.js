@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ActorProfile = require('../models/ActorProfile');
+// const ActorProfile = require('../models/ActorProfile');
 const auth = require('../middleware/auth');
 const { profileUpload, deleteImage, getPublicIdFromUrl } = require('../config/cloudinary');
 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const CommunityPost = require('../models/CommunityPost');
+// const CommunityPost = require('../models/CommunityPost');
 const auth = require('../middleware/auth');
 const { communityUpload, deleteImage } = require('../config/cloudinary');
 

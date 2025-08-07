@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Bookmark = require('../models/Bookmark');
+// const Bookmark = require('../models/Bookmark');
 const auth = require('../middleware/auth');
 
 // 북마크 토글 (추가/제거)

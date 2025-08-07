@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+// const User = require('../models/User'); // MongoDB 모델 제거됨
+const { supabase } = require('../config/supabase');
 const config = require('../config/env');
 
 // 관리자 권한 확인 미들웨어
@@ -24,8 +25,12 @@ const requireAdmin = async (req, res, next) => {
       // 토큰 검증
       const decoded = jwt.verify(token, config.JWT_SECRET);
 
-      // 사용자 정보 조회
-      const user = await User.findById(decoded.id);
+      // 사용자 정보 조회 (Supabase)
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', decoded.id)
+        .single();
 
       if (!user) {
         return res.status(401).json({

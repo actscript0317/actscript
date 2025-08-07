@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Like = require('../models/Like');
+// const Like = require('../models/Like');
 const auth = require('../middleware/auth');
 
 // 좋아요 토글 (추가/제거)

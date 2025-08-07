@@ -1,11 +1,24 @@
 const express = require('express');
-const Emotion = require('../models/Emotion');
+// const Emotion = require('../models/Emotion'); // MongoDB 모델 제거됨
 const router = express.Router();
 
-// 모든 감정 조회
+// 모든 감정 조회 (하드코딩된 기본 감정 목록)
 router.get('/', async (req, res) => {
   try {
-    const emotions = await Emotion.find().sort({ name: 1 }).select('-__v');
+    // MongoDB 대신 기본 감정 목록 반환
+    const emotions = [
+      { _id: '1', name: '기쁨' },
+      { _id: '2', name: '슬픔' },
+      { _id: '3', name: '분노' },
+      { _id: '4', name: '불안' },
+      { _id: '5', name: '그리움' },
+      { _id: '6', name: '후회' },
+      { _id: '7', name: '사랑' },
+      { _id: '8', name: '증오' },
+      { _id: '9', name: '절망' },
+      { _id: '10', name: '희망' }
+    ];
+    
     res.json({
       success: true,
       emotions: emotions

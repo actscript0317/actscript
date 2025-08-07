@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { supabase } = require('../config/supabase');
 const config = require('../config/env');
 
 // JWT 토큰 검증 미들웨어
@@ -28,8 +28,12 @@ exports.protect = async (req, res, next) => {
       // 토큰 검증
       const decoded = jwt.verify(token, config.JWT_SECRET);
       
-      // 사용자 정보 조회
-      const user = await User.findById(decoded.id);
+      // 사용자 정보 조회 (Supabase)
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', decoded.id)
+        .single();
       
       if (!user) {
         return res.status(401).json({
@@ -38,7 +42,7 @@ exports.protect = async (req, res, next) => {
         });
       }
 
-      if (!user.isActive) {
+      if (!user.is_active) {
         return res.status(401).json({
           success: false,
           message: '비활성화된 계정입니다.'
@@ -100,9 +104,13 @@ exports.optionalAuth = async (req, res, next) => {
     if (token) {
       try {
         const decoded = jwt.verify(token, config.JWT_SECRET);
-        const user = await User.findById(decoded.id);
+        const { data: user, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.id)
+          .single();
         
-        if (user && user.isActive) {
+        if (user && user.is_active) {
           req.user = user;
         }
       } catch (error) {

@@ -10,13 +10,11 @@ const hpp = require('hpp');
 const path = require('path');
 const fs = require('fs');
 const config = require('./config/env');
-const connectDB = require('./config/database');
 const { testConnection } = require('./config/supabase');
 
 const app = express();
 
-// 데이터베이스 연결 (MongoDB + Supabase)
-connectDB();
+// Supabase 연결만 사용
 
 // Supabase 연결 테스트
 testConnection().then(success => {
@@ -121,8 +119,8 @@ app.get('/api/placeholder/:width/:height', (req, res) => {
   res.send(svg);
 });
 
-// API 라우트 (Supabase로 변경)
-app.use('/api/auth', require('./routes/supabase-auth'));
+// API 라우트 (Mailgun 기반 인증)
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/scripts', require('./routes/scripts'));
 app.use('/api/emotions', require('./routes/emotions'));
 app.use('/api/ai-script', require('./routes/ai-script'));

@@ -3,9 +3,8 @@ const { body, validationResult } = require('express-validator');
 const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
 const { sendVerificationEmail } = require('../config/mailgun');
-const TempUser = require('../models/TempUser');
-const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const router = express.Router();
 
 // Supabase 설정 테스트 엔드포인트
@@ -83,8 +82,8 @@ const loginValidation = [
   body('password').notEmpty().withMessage('비밀번호를 입력하세요.')
 ];
 
-// 1단계: 회원가입 시작 (임시 사용자 생성 + 이메일 코드 발송)
-router.post('/register', registerValidation, async (req, res) => {
+// 기존 회원가입 엔드포인트 (사용하지 않음 - request-register 사용)
+router.post('/register-legacy', registerValidation, async (req, res) => {
   try {
     console.log('📝 회원가입 요청 데이터:', req.body);
     
@@ -735,8 +734,8 @@ router.post('/forgot-password', [
   }
 });
 
-// 2단계: 이메일 인증 코드 확인 및 회원가입 완료
-router.post('/verify-registration', async (req, res) => {
+// 기존 인증 엔드포인트 (사용하지 않음 - verify-register 사용)
+router.post('/verify-registration-legacy', async (req, res) => {
   try {
     const { email, code } = req.body;
     
@@ -879,8 +878,8 @@ router.post('/verify-registration', async (req, res) => {
   }
 });
 
-// 인증 코드 재발송
-router.post('/resend-registration-code', async (req, res) => {
+// 기존 재발송 엔드포인트 (사용하지 않음 - resend-register-code 사용)
+router.post('/resend-registration-code-legacy', async (req, res) => {
   try {
     const { email } = req.body;
     
@@ -1038,7 +1037,7 @@ router.post('/verify-email', async (req, res) => {
 // 새로운 Mailgun 기반 회원가입 API 엔드포인트들
 // ==============================================
 
-// 1단계: 회원가입 정보 전송 및 인증 코드 요청
+// 1단계: 회원가입 정보 전송 및 인증 코드 요청 (Supabase 기반)
 router.post('/request-register', [
   body('email')
     .isEmail()
@@ -1075,13 +1074,15 @@ router.post('/request-register', [
     const { email, username, password, name } = req.body;
 
     // 1. 이메일 중복 확인 (기존 사용자)
-    const { data: existingEmailUser } = await supabase
-      .from('users')
-      .select('email')
-      .eq('email', email)
-      .single();
+    const emailCheckResult = await safeQuery(async () => {
+      return await supabase
+        .from('users')
+        .select('email')
+        .eq('email', email)
+        .single();
+    }, '이메일 중복 확인');
 
-    if (existingEmailUser) {
+    if (emailCheckResult.success) {
       console.log('❌ 이미 가입된 이메일:', email);
       return res.status(400).json({
         success: false,
@@ -1091,13 +1092,15 @@ router.post('/request-register', [
     }
 
     // 2. 사용자명 중복 확인 (기존 사용자)
-    const { data: existingUsernameUser } = await supabase
-      .from('users')
-      .select('username')
-      .eq('username', username)
-      .single();
+    const usernameCheckResult = await safeQuery(async () => {
+      return await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username)
+        .single();
+    }, '사용자명 중복 확인');
 
-    if (existingUsernameUser) {
+    if (usernameCheckResult.success) {
       console.log('❌ 이미 사용 중인 사용자명:', username);
       return res.status(400).json({
         success: false,
@@ -1107,33 +1110,64 @@ router.post('/request-register', [
     }
 
     // 3. 기존 임시 사용자 삭제 (같은 이메일)
-    await TempUser.deleteMany({ email });
+    await supabase
+      .from('temp_users')
+      .delete()
+      .eq('email', email);
 
     // 4. 비밀번호 해싱
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // 5. 임시 사용자 생성 및 인증 코드 생성
-    const tempUser = new TempUser({
-      email,
-      username,
-      password: hashedPassword,
-      name
-    });
+    // 5. 인증 코드 생성 및 해싱
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10분 후
 
-    const verificationCode = tempUser.generateEmailVerificationCode();
-    await tempUser.save();
+    // 6. Supabase에 임시 사용자 생성
+    const tempUserResult = await safeQuery(async () => {
+      return await supabase
+        .from('temp_users')
+        .insert({
+          email,
+          username,
+          name,
+          password_hash: hashedPassword,
+          verification_code: hashedVerificationCode,
+          expires_at: expiresAt.toISOString()
+        })
+        .select()
+        .single();
+    }, '임시 사용자 생성');
 
-    console.log('✅ 임시 사용자 생성 완료:', tempUser._id);
+    // 원본 비밀번호를 메모리에 임시 저장 (보안상 주의 - 실제 운영에서는 Redis 등 사용 권장)
+    if (!global.tempPasswords) {
+      global.tempPasswords = new Map();
+    }
+    global.tempPasswords.set(tempUserResult.data.id, password);
 
-    // 6. Mailgun으로 인증 코드 이메일 발송
+    if (!tempUserResult.success) {
+      console.error('❌ 임시 사용자 생성 실패:', tempUserResult.error);
+      return res.status(500).json({
+        success: false,
+        message: '임시 사용자 생성에 실패했습니다.'
+      });
+    }
+
+    console.log('✅ 임시 사용자 생성 완료:', tempUserResult.data.id);
+
+    // 7. Mailgun으로 인증 코드 이메일 발송
     try {
       await sendVerificationEmail(email, name, verificationCode);
       console.log('✅ 인증 코드 이메일 발송 성공');
     } catch (emailError) {
       console.error('❌ 이메일 발송 실패:', emailError);
+      
       // 임시 사용자 삭제
-      await TempUser.findByIdAndDelete(tempUser._id);
+      await supabase
+        .from('temp_users')
+        .delete()
+        .eq('id', tempUserResult.data.id);
       
       return res.status(500).json({
         success: false,
@@ -1144,7 +1178,7 @@ router.post('/request-register', [
     res.json({
       success: true,
       message: '인증 코드가 이메일로 발송되었습니다.',
-      tempUserId: tempUser._id
+      tempUserId: tempUserResult.data.id
     });
 
   } catch (error) {
@@ -1156,7 +1190,7 @@ router.post('/request-register', [
   }
 });
 
-// 2단계: 인증 코드 검증 및 회원가입 완료
+// 2단계: 인증 코드 검증 및 회원가입 완료 (Supabase 기반)
 router.post('/verify-register', [
   body('tempUserId')
     .notEmpty()
@@ -1184,8 +1218,15 @@ router.post('/verify-register', [
     const { tempUserId, code } = req.body;
 
     // 1. 임시 사용자 조회
-    const tempUser = await TempUser.findById(tempUserId);
-    if (!tempUser) {
+    const tempUserResult = await safeQuery(async () => {
+      return await supabase
+        .from('temp_users')
+        .select('*')
+        .eq('id', tempUserId)
+        .single();
+    }, '임시 사용자 조회');
+
+    if (!tempUserResult.success) {
       console.log('❌ 임시 사용자를 찾을 수 없음:', tempUserId);
       return res.status(400).json({
         success: false,
@@ -1193,19 +1234,30 @@ router.post('/verify-register', [
       });
     }
 
-    // 2. 인증 코드 검증
-    const isValidCode = tempUser.verifyEmailCode(code);
+    const tempUser = tempUserResult.data;
+
+    // 2. 만료 시간 확인
+    if (new Date() > new Date(tempUser.expires_at)) {
+      console.log('❌ 인증 코드 만료:', tempUserId);
+      
+      // 만료된 임시 사용자 삭제
+      await supabase
+        .from('temp_users')
+        .delete()
+        .eq('id', tempUserId);
+      
+      return res.status(410).json({
+        success: false,
+        message: '인증 코드가 만료되었습니다. 새로운 코드를 요청해주세요.'
+      });
+    }
+
+    // 3. 인증 코드 검증
+    const hashedInputCode = crypto.createHash('sha256').update(code).digest('hex');
+    const isValidCode = hashedInputCode === tempUser.verification_code;
+    
     if (!isValidCode) {
       console.log('❌ 인증 코드 검증 실패:', { tempUserId, code });
-      
-      // 만료된 경우
-      if (Date.now() > tempUser.emailVerificationCodeExpire) {
-        return res.status(410).json({
-          success: false,
-          message: '인증 코드가 만료되었습니다. 새로운 코드를 요청해주세요.'
-        });
-      }
-      
       return res.status(400).json({
         success: false,
         message: '인증 코드가 올바르지 않습니다.'
@@ -1214,69 +1266,99 @@ router.post('/verify-register', [
 
     console.log('✅ 인증 코드 검증 성공');
 
-    // 3. Supabase에 실제 사용자 생성
-    try {
-      const { data: newUser, error } = await supabase
+    // 4. 메모리에서 원본 비밀번호 가져오기
+    const originalPassword = global.tempPasswords?.get(tempUserId);
+    if (!originalPassword) {
+      console.error('❌ 원본 비밀번호를 찾을 수 없음:', tempUserId);
+      return res.status(400).json({
+        success: false,
+        message: '인증 요청을 찾을 수 없습니다. 다시 회원가입을 진행해주세요.'
+      });
+    }
+
+    // 5. Supabase Auth에 사용자 생성 (원본 비밀번호 사용)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: tempUser.email,
+      password: originalPassword, // 원본 비밀번호 사용 (Supabase가 자체 해시 처리)
+      user_metadata: {
+        username: tempUser.username,
+        name: tempUser.name,
+        role: 'user'
+      },
+      email_confirm: true // 이메일 인증 완료 상태로 생성
+    });
+
+    if (authError) {
+      console.error('❌ Supabase Auth 사용자 생성 실패:', authError);
+      
+      if (authError.message.includes('already registered')) {
+        return res.status(409).json({
+          success: false,
+          message: '이미 등록된 이메일입니다.'
+        });
+      }
+      
+      return res.status(400).json({
+        success: false,
+        message: '회원가입 완료 중 오류가 발생했습니다.',
+        error: authError.message
+      });
+    }
+
+    console.log('✅ Supabase Auth 사용자 생성 완료:', authData.user.id);
+
+    // 6. users 테이블에 사용자 정보 저장
+    const userInsertResult = await safeQuery(async () => {
+      return await supabase
         .from('users')
         .insert({
+          id: authData.user.id,
           email: tempUser.email,
           username: tempUser.username,
-          password_hash: tempUser.password,
           name: tempUser.name,
           role: 'user',
-          email_verified: true,
-          created_at: new Date().toISOString()
+          is_active: true,
+          is_email_verified: true
         })
         .select()
         .single();
+    }, 'users 테이블 사용자 생성');
 
-      if (error) {
-        console.error('❌ Supabase 사용자 생성 실패:', error);
-        
-        // 중복 오류 처리
-        if (error.code === '23505') {
-          if (error.details.includes('email')) {
-            return res.status(400).json({
-              success: false,
-              error: 'DUPLICATE_EMAIL',
-              message: '이미 가입된 이메일입니다.'
-            });
-          } else if (error.details.includes('username')) {
-            return res.status(400).json({
-              success: false,
-              error: 'DUPLICATE_USERNAME',
-              message: '이미 사용 중인 사용자명입니다.'
-            });
-          }
-        }
-        
-        throw error;
-      }
-
-      console.log('✅ Supabase 사용자 생성 완료:', newUser.id);
-
-      // 4. 임시 사용자 삭제
-      await TempUser.findByIdAndDelete(tempUserId);
-      console.log('✅ 임시 사용자 삭제 완료');
-
-      res.json({
-        success: true,
-        message: '회원가입이 완료되었습니다!',
-        user: {
-          id: newUser.id,
-          email: newUser.email,
-          username: newUser.username,
-          name: newUser.name
-        }
-      });
-
-    } catch (supabaseError) {
-      console.error('❌ 사용자 생성 중 오류:', supabaseError);
-      res.status(500).json({
+    if (!userInsertResult.success) {
+      console.error('❌ users 테이블 사용자 생성 실패:', userInsertResult.error);
+      
+      // Auth 사용자 생성은 성공했지만 프로필 생성 실패 시 Auth 사용자 삭제
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      
+      return res.status(500).json({
         success: false,
-        message: '회원가입 완료 중 오류가 발생했습니다.'
+        message: '사용자 프로필 생성에 실패했습니다.'
       });
     }
+
+    console.log('✅ users 테이블 사용자 생성 완료:', userInsertResult.data.id);
+
+    // 7. 임시 사용자 및 메모리에서 비밀번호 삭제
+    await supabase
+      .from('temp_users')
+      .delete()
+      .eq('id', tempUserId);
+    
+    // 메모리에서 비밀번호 삭제
+    global.tempPasswords?.delete(tempUserId);
+    
+    console.log('✅ 임시 사용자 삭제 완료');
+
+    res.json({
+      success: true,
+      message: '회원가입이 완료되었습니다!',
+      user: {
+        id: userInsertResult.data.id,
+        email: userInsertResult.data.email,
+        username: userInsertResult.data.username,
+        name: userInsertResult.data.name
+      }
+    });
 
   } catch (error) {
     console.error('❌ 인증 코드 검증 실패:', error);
@@ -1287,7 +1369,7 @@ router.post('/verify-register', [
   }
 });
 
-// 3단계: 인증 코드 재전송
+// 3단계: 인증 코드 재전송 (Supabase 기반)
 router.post('/resend-register-code', [
   body('tempUserId')
     .notEmpty()
@@ -1310,8 +1392,15 @@ router.post('/resend-register-code', [
     const { tempUserId } = req.body;
 
     // 1. 임시 사용자 조회
-    const tempUser = await TempUser.findById(tempUserId);
-    if (!tempUser) {
+    const tempUserResult = await safeQuery(async () => {
+      return await supabase
+        .from('temp_users')
+        .select('*')
+        .eq('id', tempUserId)
+        .single();
+    }, '임시 사용자 조회');
+
+    if (!tempUserResult.success) {
       console.log('❌ 임시 사용자를 찾을 수 없음:', tempUserId);
       return res.status(400).json({
         success: false,
@@ -1319,15 +1408,39 @@ router.post('/resend-register-code', [
       });
     }
 
+    const tempUser = tempUserResult.data;
+
     // 2. 새로운 인증 코드 생성
-    const verificationCode = tempUser.generateEmailVerificationCode();
-    await tempUser.save();
+    const newVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedNewVerificationCode = crypto.createHash('sha256').update(newVerificationCode).digest('hex');
+    const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10분 후
+
+    // 3. 임시 사용자 정보 업데이트
+    const updateResult = await safeQuery(async () => {
+      return await supabase
+        .from('temp_users')
+        .update({
+          verification_code: hashedNewVerificationCode,
+          expires_at: newExpiresAt.toISOString()
+        })
+        .eq('id', tempUserId)
+        .select()
+        .single();
+    }, '인증 코드 업데이트');
+
+    if (!updateResult.success) {
+      console.error('❌ 인증 코드 업데이트 실패:', updateResult.error);
+      return res.status(500).json({
+        success: false,
+        message: '인증 코드 재생성에 실패했습니다.'
+      });
+    }
 
     console.log('✅ 새 인증 코드 생성 완료');
 
-    // 3. Mailgun으로 새 인증 코드 이메일 발송
+    // 4. Mailgun으로 새 인증 코드 이메일 발송
     try {
-      await sendVerificationEmail(tempUser.email, tempUser.name, verificationCode);
+      await sendVerificationEmail(tempUser.email, tempUser.name, newVerificationCode);
       console.log('✅ 인증 코드 재전송 성공');
 
       res.json({

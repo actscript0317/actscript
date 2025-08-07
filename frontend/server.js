@@ -38,17 +38,16 @@ app.use(express.static(path.join(__dirname, 'build'), {
 
 // SPA 라우팅: 정적 파일이 아닌 모든 요청을 index.html로 처리
 app.get('*', (req, res) => {
-  // 정적 파일 요청인지 확인 (확장자가 있는 파일)
-  const fileExtension = path.extname(req.path);
-  
-  // 정적 파일 요청인 경우 404 반환 (이미 static 미들웨어에서 처리됨)
-  if (fileExtension && fileExtension !== '.html') {
-    return res.status(404).send('File not found');
-  }
-  
   // Fragment가 있는 경우 로깅 (Supabase 인증 콜백 등)
   if (req.originalUrl.includes('#')) {
     console.log('🔗 Fragment URL 감지:', req.originalUrl);
+  }
+  
+  // 정적 파일 경로 패턴인지 확인
+  if (req.path.startsWith('/static/')) {
+    // 정적 파일 요청이지만 파일이 없는 경우
+    console.log('❌ 정적 파일 요청이지만 파일을 찾을 수 없음:', req.path);
+    return res.status(404).send('File not found');
   }
   
   // SPA 라우팅을 위해 index.html 반환

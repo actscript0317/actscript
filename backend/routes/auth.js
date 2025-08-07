@@ -42,9 +42,12 @@ router.post('/register', registerValidation, async (req, res) => {
 
     const { email, password, username, name } = req.body;
 
-    // 사용자명 중복 확인
+    // 사용자명 중복 확인 (Admin 클라이언트 사용)
     const existingUserResult = await safeQuery(async () => {
-      return await supabase
+      if (!supabaseAdmin) {
+        throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+      }
+      return await supabaseAdmin
         .from('users')
         .select('username')
         .eq('username', username)
@@ -183,9 +186,12 @@ router.post('/login', loginValidation, async (req, res) => {
       email: authData.user.email
     });
 
-    // 사용자 프로필 정보 조회 (ID 기준)
+    // 사용자 프로필 정보 조회 (ID 기준) - Admin 클라이언트 사용
     let userResult = await safeQuery(async () => {
-      return await supabase
+      if (!supabaseAdmin) {
+        throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+      }
+      return await supabaseAdmin
         .from('users')
         .select('*')
         .eq('id', authData.user.id)
@@ -202,7 +208,10 @@ router.post('/login', loginValidation, async (req, res) => {
       });
 
       userResult = await safeQuery(async () => {
-        return await supabase
+        if (!supabaseAdmin) {
+          throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+        }
+        return await supabaseAdmin
           .from('users')
           .select('*')
           .eq('email', authData.user.email)
@@ -224,9 +233,12 @@ router.post('/login', loginValidation, async (req, res) => {
       const username = userData.username || `user_${authData.user.id.slice(0, 8)}`;
       const name = userData.name || 'User';
 
-      // 자동으로 사용자 프로필 생성
+      // 자동으로 사용자 프로필 생성 (Admin 클라이언트 사용)
       const createUserResult = await safeQuery(async () => {
-        return await supabase
+        if (!supabaseAdmin) {
+          throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+        }
+        return await supabaseAdmin
           .from('users')
           .insert({
             id: authData.user.id,
@@ -269,11 +281,13 @@ router.post('/login', loginValidation, async (req, res) => {
       }
     }
 
-    // 마지막 로그인 시간 업데이트
-    await supabase
-      .from('users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', authData.user.id);
+    // 마지막 로그인 시간 업데이트 (Admin 클라이언트 사용)
+    if (supabaseAdmin) {
+      await supabaseAdmin
+        .from('users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', authData.user.id);
+    }
 
     console.log('✅ 로그인 성공:', email);
 
@@ -687,11 +701,13 @@ router.post('/login', loginValidation, async (req, res) => {
       email: userResult.data.email
     });
 
-    // 마지막 로그인 시간 업데이트
-    await supabase
-      .from('users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', authData.user.id);
+    // 마지막 로그인 시간 업데이트 (Admin 클라이언트 사용)
+    if (supabaseAdmin) {
+      await supabaseAdmin
+        .from('users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', authData.user.id);
+    }
 
     res.json({
       success: true,

@@ -1445,29 +1445,56 @@ router.post('/verify-register', [
       email: authData.user.email
     });
 
-    // 6. users 테이블에 사용자 정보 저장
+    // 6. users 테이블에 사용자 정보 저장 (서비스 역할 키 사용)
     console.log('📝 users 테이블에 사용자 정보 저장 시작:', {
       id: authData.user.id,
       email: tempUser.email,
       username: tempUser.username,
-      name: tempUser.name
+      name: tempUser.name,
+      serviceRoleKeyExists: !!process.env.SUPABASE_SERVICE_ROLE_KEY
     });
     
-    const userInsertResult = await safeQuery(async () => {
-      return await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: tempUser.email,
-          username: tempUser.username,
-          name: tempUser.name,
-          role: 'user',
-          is_active: true,
-          is_email_verified: true
-        })
-        .select()
-        .single();
-    }, 'users 테이블 사용자 생성');
+    // 서비스 역할 키로 직접 삽입 시도
+    const { data: userData, error: userInsertError } = await supabaseAdmin
+      .from('users')
+      .insert({
+        id: authData.user.id,
+        email: tempUser.email,
+        username: tempUser.username,
+        name: tempUser.name,
+        role: 'user',
+        is_active: true,
+        is_email_verified: true
+      })
+      .select()
+      .single();
+
+    if (userInsertError) {
+      console.error('❌ users 테이블 사용자 생성 실패 (상세):', {
+        error: userInsertError,
+        message: userInsertError.message,
+        details: userInsertError.details,
+        hint: userInsertError.hint,
+        code: userInsertError.code,
+        userId: authData.user.id,
+        email: tempUser.email,
+        username: tempUser.username
+      });
+      
+      // Auth 사용자 생성은 성공했지만 프로필 생성 실패 시 Auth 사용자 삭제
+      console.log('🔄 Auth 사용자 롤백 중...');
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      
+      return res.status(500).json({
+        success: false,
+        message: '사용자 프로필 생성에 실패했습니다.',
+        error: userInsertError.message,
+        details: userInsertError.details || userInsertError.hint,
+        code: userInsertError.code
+      });
+    }
+
+    const userInsertResult = { success: true, data: userData };
 
     if (!userInsertResult.success) {
       console.error('❌ users 테이블 사용자 생성 실패:', {
@@ -1677,6 +1704,80 @@ router.get('/test-supabase-auth', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Supabase Auth 테스트 중 오류 발생',
+      error: error.message
+    });
+  }
+});
+
+// users 테이블 접근 권한 테스트 엔드포인트
+router.get('/test-users-table', async (req, res) => {
+  try {
+    console.log('🔧 users 테이블 접근 권한 테스트 시작');
+    
+    // 1. 조회 테스트 (일반 키)
+    const { data: usersNormal, error: normalError } = await supabase
+      .from('users')
+      .select('id, email, username')
+      .limit(1);
+    
+    // 2. 조회 테스트 (서비스 역할 키)
+    const { data: usersAdmin, error: adminError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, username')
+      .limit(1);
+    
+    // 3. 삽입 테스트 (더미 데이터 - 즉시 삭제)
+    const testId = '00000000-0000-0000-0000-000000000000';
+    const { data: insertData, error: insertError } = await supabaseAdmin
+      .from('users')
+      .insert({
+        id: testId,
+        email: 'test@test.com',
+        username: 'testuser',
+        name: 'Test User',
+        role: 'user',
+        is_active: true,
+        is_email_verified: true
+      })
+      .select();
+    
+    // 테스트 데이터 삭제
+    if (insertData && !insertError) {
+      await supabaseAdmin
+        .from('users')
+        .delete()
+        .eq('id', testId);
+    }
+    
+    res.json({
+      success: true,
+      message: 'users 테이블 접근 권한 테스트 결과',
+      data: {
+        normalKeyAccess: {
+          success: !normalError,
+          error: normalError?.message,
+          count: usersNormal?.length || 0
+        },
+        serviceRoleAccess: {
+          success: !adminError,
+          error: adminError?.message,
+          count: usersAdmin?.length || 0
+        },
+        insertTest: {
+          success: !insertError,
+          error: insertError?.message,
+          details: insertError?.details,
+          hint: insertError?.hint,
+          code: insertError?.code
+        },
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ users 테이블 테스트 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: 'users 테이블 테스트 중 오류 발생',
       error: error.message
     });
   }

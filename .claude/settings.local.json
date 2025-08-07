@@ -29,7 +29,8 @@
       "Bash(PORT=10001 node server.js)",
       "Bash(cat:*)",
       "WebFetch(domain:supabase.com)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": []
   }

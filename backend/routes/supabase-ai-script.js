@@ -344,7 +344,19 @@ router.get('/usage', authenticateToken, async (req, res) => {
   try {
     console.log('📊 사용량 정보 조회 요청:', req.user.id);
     
+    // Supabase Admin 클라이언트 확인
+    if (!supabaseAdmin) {
+      console.error('❌ Supabase Admin 클라이언트가 설정되지 않음');
+      return res.status(503).json({
+        success: false,
+        message: 'Supabase Admin 클라이언트가 설정되지 않았습니다.'
+      });
+    }
+    
+    console.log('✅ Supabase Admin 클라이언트 확인 완료');
+    
     // 사용자 정보 조회 (Admin 클라이언트 사용)
+    console.log('🔍 사용자 정보 조회 시작...');
     const userResult = await safeQuery(async () => {
       return await supabaseAdmin
         .from('users')
@@ -352,6 +364,8 @@ router.get('/usage', authenticateToken, async (req, res) => {
         .eq('id', req.user.id)
         .single();
     }, '사용량 조회용 사용자 정보');
+    
+    console.log('📊 사용자 조회 결과:', { success: userResult.success, hasData: !!userResult.data });
 
     if (!userResult.success) {
       console.error('❌ 사용량 조회 실패:', userResult.error);
@@ -400,7 +414,7 @@ router.get('/usage', authenticateToken, async (req, res) => {
     const nextResetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const daysUntilReset = Math.ceil((nextResetDate - now) / (1000 * 60 * 60 * 24));
 
-    res.json({
+    const responseData = {
       success: true,
       usage: {
         currentMonth: resetUsage.currentMonth,
@@ -411,13 +425,17 @@ router.get('/usage', authenticateToken, async (req, res) => {
         nextResetDate: nextResetDate.toISOString(),
         daysUntilReset: daysUntilReset
       }
-    });
+    };
 
     console.log('✅ 사용량 정보 조회 완료:', {
       currentMonth: resetUsage.currentMonth,
       limit: limit,
-      canGenerate: canGenerate
+      canGenerate: canGenerate,
+      planType: subscription.plan
     });
+
+    console.log('📤 응답 데이터 전송:', responseData);
+    res.json(responseData);
 
   } catch (error) {
     console.error('❌ 사용량 정보 조회 오류:', error);
@@ -429,14 +447,16 @@ router.get('/usage', authenticateToken, async (req, res) => {
   }
 });
 
-// 사용자의 AI 스크립트 목록 조회
-router.get('/my-scripts', authenticateToken, async (req, res) => {
+// 사용자의 AI 스크립트 목록 조회 (호환성을 위한 별칭)
+router.get('/scripts', authenticateToken, async (req, res) => {
   try {
+    console.log('📋 AI 스크립트 목록 조회 요청:', req.user.id);
+    
     const { page = 1, limit = 12 } = req.query;
     const offset = (page - 1) * limit;
 
     const result = await safeQuery(async () => {
-      return await supabase
+      return await supabaseAdmin
         .from('ai_scripts')
         .select('*')
         .eq('user_id', req.user.id)
@@ -445,12 +465,15 @@ router.get('/my-scripts', authenticateToken, async (req, res) => {
     }, 'AI 스크립트 목록 조회');
 
     if (!result.success) {
+      console.error('❌ AI 스크립트 목록 조회 실패:', result.error);
       return res.status(result.error.code).json({
         success: false,
         message: result.error.message
       });
     }
 
+    console.log(`✅ AI 스크립트 목록 조회 완료: ${result.data.length}개`);
+    
     res.json({
       success: true,
       scripts: result.data,
@@ -462,13 +485,16 @@ router.get('/my-scripts', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('AI 스크립트 목록 조회 오류:', error);
+    console.error('❌ AI 스크립트 목록 조회 오류:', error);
     res.status(500).json({
       success: false,
       message: 'AI 스크립트 목록 조회 중 오류가 발생했습니다.'
     });
   }
 });
+
+// 사용자의 AI 스크립트 목록 조회 (새로운 엔드포인트는 /scripts 사용을 권장)
+// /my-scripts는 향후 지원 중단 예정
 
 // AI 스크립트 상세 조회
 router.get('/:id', authenticateToken, async (req, res) => {

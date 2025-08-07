@@ -159,8 +159,23 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     const { characterCount, genre, length, gender, age } = req.body;
 
+    console.log('📋 받은 대본 생성 옵션:', {
+      characterCount,
+      genre,
+      length,
+      gender,
+      age
+    });
+
     // 입력값 검증
     if (!characterCount || !genre || !length || !gender || !age) {
+      console.error('❌ 필수 필드 누락:', {
+        characterCount: !!characterCount,
+        genre: !!genre,
+        length: !!length,
+        gender: !!gender,
+        age: !!age
+      });
       return res.status(400).json({
         error: '모든 필드를 입력해주세요.',
         required: ['characterCount', 'genre', 'length', 'gender', 'age']
@@ -172,29 +187,74 @@ router.post('/generate', authenticateToken, async (req, res) => {
       plan: userInfo.user.subscription.plan
     });
 
-    // AI 프롬프트 생성
-    const prompt = `다음 조건에 맞는 연기 대본을 작성해주세요:
+    // 인물 수에 따른 대본 타입 결정
+    let scriptType = '';
+    let characterGuide = '';
+    
+    if (characterCount === '1') {
+      scriptType = '독백';
+      characterGuide = `
+- 반드시 1명의 인물만 등장
+- 독백 형식으로 작성 (혼잣말 또는 관객/상대방에게 말하는 형식)
+- 다른 인물의 대사는 절대 포함하지 않음
+- "인물명: 대사" 형식으로 작성`;
+    } else if (characterCount === '2-3') {
+      scriptType = '2~3인 대화';
+      characterGuide = `
+- 정확히 2명 또는 3명의 인물만 등장
+- 각 인물이 골고루 대사를 나누어 가짐
+- 인물 간의 상호작용과 갈등이 명확해야 함
+- 각 인물의 개성이 대사를 통해 드러나야 함`;
+    } else if (characterCount === '4+') {
+      scriptType = '4인 이상 앙상블';
+      characterGuide = `
+- 4명 이상의 인물이 등장
+- 각 인물이 최소 한 번은 대사를 가져야 함
+- 그룹 다이나믹과 개별 캐릭터 특성이 모두 드러나야 함
+- 복잡한 상황과 다층적 갈등 구조 포함`;
+    }
 
-조건:
-- 인물 수: ${characterCount}명
+    // AI 프롬프트 생성
+    const prompt = `연기 입시 및 오디션용 고품질 ${scriptType} 대본을 작성해주세요.
+
+**필수 조건:**
+- 인물 수: ${characterCount}명 (이 조건을 반드시 준수할 것!)
 - 장르: ${genre}
 - 길이: ${length}
 - 성별: ${gender}
 - 연령대: ${age}
 
-요구사항:
-1. **제목:** [적절한 제목]으로 시작
-2. **상황:** 상황 설명 포함
-3. **등장인물:** 각 인물의 특성 간단히 설명
-4. **대본:** 실제 대화와 지문 포함
-5. 자연스럽고 연기하기 좋은 대본으로 작성
-6. 감정 표현이 풍부하고 상황이 명확해야 함
-7. 한국어로 작성
+**인물 구성 가이드:**${characterGuide}
 
-대본 형식:
-- 인물명: (감정/행동) "대사"
-- 지문은 괄호 안에 표시
-- 감정 키워드를 포함하여 연기 지도에 도움이 되도록 작성`;
+**대본 구조 요구사항:**
+1. **제목:** 감정이나 상황을 압축한 제목
+2. **상황 설명:** 언제, 어디서, 왜 일어나는 상황인지 3-4줄로 설명
+3. **등장인물:** 각 인물의 이름, 나이, 성격, 현재 상황을 간략히 설명
+4. **대본:** 실제 연기용 대사와 지문
+
+**대본 작성 가이드:**
+- 감정의 흐름과 변화가 뚜렷해야 함
+- 자연스러운 한국어 대화체 사용
+- 연기자가 몰입할 수 있는 현실적인 상황
+- 지문은 최소화하고 대사를 통해 상황과 감정 전달
+- 각 인물의 목적과 갈등이 명확해야 함
+
+**형식:**
+제목: [제목]
+
+상황 설명:
+[상황 설명]
+
+등장인물:
+- [인물명]: [나이, 성격, 상황]
+
+대본:
+[인물명]: [대사]
+(지문)
+[인물명]: [대사]
+...
+
+위 형식을 정확히 따라 ${characterCount}명이 등장하는 ${genre} 장르의 ${scriptType} 대본을 작성해주세요.`;
 
     console.log('🤖 OpenAI API 호출 시작');
     
@@ -443,6 +503,53 @@ router.get('/usage', authenticateToken, async (req, res) => {
       success: false,
       message: '사용량 정보 조회 중 오류가 발생했습니다.',
       error: error.message
+    });
+  }
+});
+
+// 저장된 AI 스크립트 목록 조회 (대본함용)
+router.get('/saved', authenticateToken, async (req, res) => {
+  try {
+    console.log('📚 저장된 AI 스크립트 목록 조회 요청:', req.user.id);
+    
+    const { page = 1, limit = 12 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .select('*')
+        .eq('user_id', req.user.id)
+        .eq('is_saved', true)  // 저장된 스크립트만 조회
+        .order('created_at', { ascending: false })
+        .range(offset, offset + parseInt(limit) - 1);
+    }, '저장된 AI 스크립트 목록 조회');
+
+    if (!result.success) {
+      console.error('❌ 저장된 AI 스크립트 목록 조회 실패:', result.error);
+      return res.status(result.error.code).json({
+        success: false,
+        message: result.error.message
+      });
+    }
+
+    console.log(`✅ 저장된 AI 스크립트 목록 조회 완료: ${result.data.length}개`);
+    
+    res.json({
+      success: true,
+      scripts: result.data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        hasMore: result.data.length === parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ 저장된 AI 스크립트 목록 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '저장된 스크립트 조회 중 오류가 발생했습니다.'
     });
   }
 });

@@ -255,7 +255,7 @@ const AIScript = () => {
   // 리라이팅 모달 닫기
   // 대본 파싱 및 렌더링 함수
   const parseAndRenderScript = (script) => {
-    if (!script) return null;
+    if (!script || typeof script !== 'string') return null;
 
     const lines = script.split('\n');
     const sections = [];
@@ -430,8 +430,8 @@ const AIScript = () => {
         throw new Error(data.error || '대본 생성에 실패했습니다.');
       }
 
-      setGeneratedScript(data.script);
-      setGeneratedScriptId(data.scriptId); // 백엔드에서 반환된 스크립트 ID 저장
+      setGeneratedScript(data.script.content || data.script);
+      setGeneratedScriptId(data.script.id); // 백엔드에서 반환된 스크립트 ID 저장
       
       // 사용량 정보 업데이트
       await fetchUsageInfo();

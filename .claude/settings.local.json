@@ -28,7 +28,8 @@
       "Bash(timeout:*)",
       "Bash(PORT=10001 node server.js)",
       "Bash(cat:*)",
-      "WebFetch(domain:supabase.com)"
+      "WebFetch(domain:supabase.com)",
+      "Bash(dir:*)"
     ],
     "deny": []
   }

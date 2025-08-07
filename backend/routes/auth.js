@@ -1654,6 +1654,62 @@ router.get('/test-memory', async (req, res) => {
   }
 });
 
+// Supabase Auth와 users 테이블 동기화 상태 확인
+router.get('/test-auth-sync', async (req, res) => {
+  try {
+    console.log('🔧 Supabase Auth와 users 테이블 동기화 테스트');
+    
+    // 1. Supabase Auth 사용자 목록
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    // 2. users 테이블 사용자 목록  
+    const { data: tableUsers, error: tableError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, username, created_at');
+    
+    if (authError || tableError) {
+      return res.status(500).json({
+        success: false,
+        authError: authError?.message,
+        tableError: tableError?.message
+      });
+    }
+    
+    // 3. 동기화 상태 분석
+    const authEmails = new Set(authUsers.users.map(u => u.email));
+    const tableEmails = new Set(tableUsers.map(u => u.email));
+    
+    const onlyInAuth = authUsers.users.filter(u => !tableEmails.has(u.email));
+    const onlyInTable = tableUsers.filter(u => !authEmails.has(u.email));
+    const synchronized = tableUsers.filter(u => authEmails.has(u.email));
+    
+    res.json({
+      success: true,
+      message: 'Supabase Auth와 users 테이블 동기화 상태',
+      summary: {
+        authUsersCount: authUsers.users.length,
+        tableUsersCount: tableUsers.length,
+        synchronizedCount: synchronized.length,
+        onlyInAuthCount: onlyInAuth.length,
+        onlyInTableCount: onlyInTable.length
+      },
+      details: {
+        onlyInAuth: onlyInAuth.map(u => ({ id: u.id, email: u.email })),
+        onlyInTable: onlyInTable.map(u => ({ id: u.id, email: u.email })),
+        synchronized: synchronized.map(u => ({ id: u.id, email: u.email }))
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Auth 동기화 테스트 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Auth 동기화 테스트 중 오류 발생',
+      error: error.message
+    });
+  }
+});
+
 // Supabase Auth 연결 테스트 엔드포인트
 router.get('/test-supabase-auth', async (req, res) => {
   try {
@@ -1784,6 +1840,106 @@ router.get('/test-users-table', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'users 테이블 테스트 중 오류 발생',
+      error: error.message
+    });
+  }
+});
+
+// users 테이블의 사용자를 Supabase Auth에 추가하는 엔드포인트 (관리자용)
+router.post('/sync-missing-users', async (req, res) => {
+  try {
+    console.log('🔧 누락된 사용자를 Supabase Auth에 동기화 중...');
+    
+    // 1. 두 곳의 사용자 목록 가져오기
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: tableUsers, error: tableError } = await supabaseAdmin
+      .from('users')
+      .select('*');
+    
+    if (authError || tableError) {
+      return res.status(500).json({
+        success: false,
+        message: '사용자 목록 조회 실패',
+        authError: authError?.message,
+        tableError: tableError?.message
+      });
+    }
+    
+    // 2. Auth에 없지만 테이블에는 있는 사용자 찾기
+    const authEmails = new Set(authUsers.users.map(u => u.email));
+    const missingUsers = tableUsers.filter(u => !authEmails.has(u.email));
+    
+    if (missingUsers.length === 0) {
+      return res.json({
+        success: true,
+        message: '동기화할 사용자가 없습니다.',
+        missingCount: 0
+      });
+    }
+    
+    // 3. 누락된 사용자들을 Auth에 추가
+    const results = [];
+    for (const user of missingUsers) {
+      try {
+        // 임시 비밀번호로 사용자 생성 (사용자가 비밀번호 재설정 필요)
+        const tempPassword = Math.random().toString(36).slice(-12) + 'Aa1!';
+        
+        const { data: newAuthUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: user.email,
+          password: tempPassword,
+          user_metadata: {
+            username: user.username,
+            name: user.name,
+            role: user.role || 'user'
+          },
+          email_confirm: true // 이메일 인증 완료 상태로 생성
+        });
+        
+        if (createError) {
+          console.error(`❌ ${user.email} Auth 생성 실패:`, createError);
+          results.push({
+            email: user.email,
+            success: false,
+            error: createError.message
+          });
+        } else {
+          console.log(`✅ ${user.email} Auth 생성 성공`);
+          results.push({
+            email: user.email,
+            success: true,
+            authId: newAuthUser.user.id,
+            needsPasswordReset: true
+          });
+        }
+      } catch (error) {
+        console.error(`❌ ${user.email} 처리 중 오류:`, error);
+        results.push({
+          email: user.email,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+    
+    res.json({
+      success: true,
+      message: `사용자 동기화 완료: 성공 ${successCount}개, 실패 ${failCount}개`,
+      summary: {
+        totalMissing: missingUsers.length,
+        successful: successCount,
+        failed: failCount
+      },
+      results: results,
+      note: '성공한 사용자들은 임시 비밀번호로 생성되었으므로 비밀번호 재설정이 필요합니다.'
+    });
+  } catch (error) {
+    console.error('❌ 사용자 동기화 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '사용자 동기화 중 오류 발생',
       error: error.message
     });
   }

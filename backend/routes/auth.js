@@ -381,35 +381,7 @@ router.get('/test-supabase', async (req, res) => {
   }
 });
 
-// 검증 규칙
-const registerValidation = [
-  body('email').isEmail().normalizeEmail().withMessage('올바른 이메일을 입력하세요.'),
-  body('password')
-    .isLength({ min: 8 }).withMessage('비밀번호는 최소 8자 이상이어야 합니다.')
-    .custom((value) => {
-      const hasLowercase = /[a-z]/.test(value);
-      const hasUppercase = /[A-Z]/.test(value);
-      const hasNumber = /\d/.test(value);
-      const hasSpecial = /[!@#$%^&*(),.?\":{}|<>]/.test(value);
-      
-      const criteriaCount = [hasLowercase, hasUppercase, hasNumber, hasSpecial].filter(Boolean).length;
-      
-      if (criteriaCount < 3) {
-        throw new Error('비밀번호는 영문 대소문자, 숫자, 특수문자 중 3종류 이상을 포함해야 합니다.');
-      }
-      return true;
-    }),
-  body('username')
-    .trim()
-    .isLength({ min: 3, max: 20 }).withMessage('사용자명은 3-20자 사이여야 합니다.')
-    .matches(/^[a-zA-Z0-9_가-힣]+$/).withMessage('사용자명은 영문, 숫자, 한글, 언더스코어만 사용 가능합니다.'),
-  body('name').trim().isLength({ min: 1, max: 50 }).withMessage('이름은 1-50자 사이여야 합니다.')
-];
-
-const loginValidation = [
-  body('email').isEmail().normalizeEmail().withMessage('올바른 이메일을 입력하세요.'),
-  body('password').notEmpty().withMessage('비밀번호를 입력하세요.')
-];
+// 중복된 validation 정의 제거됨 (위에서 이미 정의됨)
 
 // 기존 회원가입 엔드포인트 (사용하지 않음 - request-register 사용)
 router.post('/register-legacy', registerValidation, async (req, res) => {

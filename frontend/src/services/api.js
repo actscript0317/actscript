@@ -282,12 +282,14 @@ export const emotionAPI = {
   },
 };
 
-// 인증 API (Supabase 기반)
+// 인증 API (Mailgun 기반)
 export const authAPI = {
-  // Supabase 매직링크 회원가입
-  register: (data) => withRetry(() => api.post('/auth/register', data)),
-  // 이메일 인증 콜백
-  verifyEmail: (data) => withRetry(() => api.post('/auth/verify-email', data)),
+  // 1단계: 회원가입 정보 전송 및 인증 코드 요청
+  requestRegister: (data) => withRetry(() => api.post('/auth/request-register', data)),
+  // 2단계: 인증 코드 검증 및 회원가입 완료
+  verifyRegister: (data) => withRetry(() => api.post('/auth/verify-register', data)),
+  // 인증 코드 재전송
+  resendRegisterCode: (data) => withRetry(() => api.post('/auth/resend-register-code', data)),
   // 로그인
   login: (data) => withRetry(() => api.post('/auth/login', data)),
   // 로그아웃

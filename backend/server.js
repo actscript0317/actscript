@@ -382,10 +382,70 @@ app.use((req, res, next) => {
 });
 
 // API 라우트 설정 (Supabase 기반)
+console.log('🔧 [server.js] API 라우트 등록 시작...');
+console.log('📝 [server.js] /api/auth 라우트 등록 중...');
 app.use('/api/auth', authRoutes);
+console.log('✅ [server.js] /api/auth 라우트 등록 완료');
+
+console.log('📝 [server.js] 기타 라우트들 등록 중...');
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/emotions', emotionRoutes);
 app.use('/api/ai-script', aiScriptRoutes);
+console.log('✅ [server.js] 모든 API 라우트 등록 완료');
+
+// 기본 루트 라우트 (라우팅 테스트용)
+app.get('/', (req, res) => {
+  res.json({
+    message: 'ActScript Backend Server is running!',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth/*',
+      scripts: '/api/scripts/*',
+      emotions: '/api/emotions/*',
+      aiScript: '/api/ai-script/*'
+    }
+  });
+});
+
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'ActScript API is working!',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      auth: '/api/auth/*',
+      scripts: '/api/scripts/*',
+      emotions: '/api/emotions/*',
+      aiScript: '/api/ai-script/*'
+    }
+  });
+});
+
+// 등록된 모든 라우트 출력 함수
+function printRoutes(app) {
+  console.log('\n📋 [server.js] 등록된 모든 라우트:');
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      // 직접 등록된 라우트
+      console.log(`   ${Object.keys(middleware.route.methods).join(', ').toUpperCase()} ${middleware.route.path}`);
+    } else if (middleware.name === 'router') {
+      // 라우터로 등록된 라우트
+      const routerPath = middleware.regexp.source.replace(/\\\//g, '/').replace(/\$.*/, '').replace(/^\^/, '');
+      console.log(`   ROUTER ${routerPath || '/'}`);
+      
+      if (middleware.handle && middleware.handle.stack) {
+        middleware.handle.stack.forEach((handler) => {
+          if (handler.route) {
+            const methods = Object.keys(handler.route.methods).join(', ').toUpperCase();
+            console.log(`     ${methods} ${routerPath}${handler.route.path}`);
+          }
+        });
+      }
+    }
+  });
+  console.log('📋 [server.js] 라우트 목록 출력 완료\n');
+}
 // 임시로 MongoDB 기반 라우트들 비활성화 (Supabase 마이그레이션 완료 시까지)
 // app.use('/api/actor-profiles', actorProfileRoutes);
 // app.use('/api/actor-recruitments', actorRecruitmentRoutes);
@@ -615,6 +675,9 @@ const startServer = async () => {
       console.log(`🌐 CORS 허용 도메인: ${config.CORS_ORIGIN}`);
       console.log('📁 정적 파일 제공: /uploads -> ' + uploadsPath);
       console.log(`💾 Supabase 데이터베이스: ${process.env.SUPABASE_URL ? '설정됨' : '미설정'}`);
+      
+      // 등록된 라우트 출력
+      printRoutes(app);
       console.log('==================================================\n');
     });
 

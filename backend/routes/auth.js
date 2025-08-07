@@ -1205,30 +1205,54 @@ router.post('/request-register', [
 
     console.log('✅ 임시 사용자 생성 완료:', tempUserResult.data.id);
 
-    // 7. Mailgun으로 인증 코드 이메일 발송
+    // 7. Mailgun 환경 변수 확인 및 인증 코드 이메일 발송
+    console.log('📧 Mailgun 환경 변수 확인:', {
+      MAILGUN_API_KEY: !!process.env.MAILGUN_API_KEY,
+      MAILGUN_DOMAIN: !!process.env.MAILGUN_DOMAIN,
+      EMAIL_FROM: process.env.EMAIL_FROM || '기본값 사용'
+    });
+
     try {
       await sendVerificationEmail(email, name, verificationCode);
       console.log('✅ 인증 코드 이메일 발송 성공');
     } catch (emailError) {
-      console.error('❌ 이메일 발송 실패:', emailError);
-      
-      // 임시 사용자 삭제
-      await supabase
-        .from('temp_users')
-        .delete()
-        .eq('id', tempUserResult.data.id);
-      
-      return res.status(500).json({
-        success: false,
-        message: '인증 이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      console.error('❌ 이메일 발송 실패:', {
+        error: emailError.message,
+        stack: emailError.stack,
+        email: email,
+        verificationCode: verificationCode
       });
+      
+      // 이메일 발송 실패해도 임시 사용자는 유지 (개발 중이므로)
+      console.log('⚠️ 이메일 발송 실패했지만 임시 사용자는 유지됨 (개발용)');
+      
+      // 운영 환경에서는 임시 사용자 삭제
+      if (process.env.NODE_ENV === 'production') {
+        await supabase
+          .from('temp_users')
+          .delete()
+          .eq('id', tempUserResult.data.id);
+        
+        return res.status(500).json({
+          success: false,
+          message: '인증 이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+        });
+      }
     }
 
-    res.json({
+    // 개발 환경에서는 인증 코드를 응답에 포함 (보안상 운영 환경에서는 제거)
+    const responseData = {
       success: true,
       message: '인증 코드가 이메일로 발송되었습니다.',
       tempUserId: tempUserResult.data.id
-    });
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      responseData.devVerificationCode = verificationCode; // 개발용
+      console.log('🔧 개발 환경 인증 코드:', verificationCode);
+    }
+
+    res.json(responseData);
 
   } catch (error) {
     console.error('❌ 회원가입 요청 처리 실패:', error);

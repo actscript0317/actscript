@@ -15,6 +15,7 @@ try {
     console.error('필요한 환경 변수:');
     console.error('- MAILGUN_API_KEY:', apiKey ? '✅ 설정됨' : '❌ 누락');
     console.error('- MAILGUN_DOMAIN:', domain ? '✅ 설정됨' : '❌ 누락');
+    console.error('📝 Render 환경 변수 설정이 필요합니다.');
   } else {
     mg = mailgun.client({ 
       username: 'api', 

@@ -76,9 +76,31 @@ const checkAndUpdateUsage = async (userId) => {
     usage.lastResetDate = now.toISOString();
   }
 
-  // 모든 사용자에게 무제한 AI 스크립트 생성 허용
-  const canGenerate = true;
-  const limit = '무제한';
+  // 사용자별 월간 제한 확인 (기본 10회)
+  const userLimit = user.usage?.monthly_limit || 10;
+  let canGenerate = false;
+  let limit = userLimit;
+
+  if (userLimit === 999999) {
+    // 무제한 사용자 (관리자가 설정)
+    canGenerate = true;
+    limit = '무제한';
+  } else {
+    // 일반 사용자 - 월간 제한 확인
+    canGenerate = usage.currentMonth < userLimit;
+  }
+
+  if (!canGenerate) {
+    const error = new Error('사용량을 초과했습니다.');
+    error.statusCode = 429;
+    error.details = {
+      currentUsage: usage.currentMonth,
+      limit: limit,
+      planType: subscription.plan,
+      nextResetDate: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
+    };
+    throw error;
+  }
 
   // 사용량 증가
   usage.currentMonth += 1;

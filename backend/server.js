@@ -488,7 +488,8 @@ function printRoutes(app) {
 // app.use('/api/model-recruitments', modelRecruitmentRoutes);
 // app.use('/api/likes', likeRoutes);
 // app.use('/api/bookmarks', bookmarkRoutes);
-// app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/admin', require('./routes/admin-panel'));
 // app.use('/api/payment', paymentRoutes);
 
 // 전역 에러 핸들링 미들웨어 (모든 라우트 이후에 위치)

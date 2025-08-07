@@ -1,18 +1,250 @@
 const express = require('express');
 const requireAdmin = require('../middleware/adminAuth');
-// const User = require('../models/User');
-// const Visitor = require('../models/Visitor');
-// const Script = require('../models/Script');
-// const AIScript = require('../models/AIScript');
-// const ActorProfile = require('../models/ActorProfile');
-// const ActorRecruitment = require('../models/ActorRecruitment');
-// const ModelRecruitment = require('../models/ModelRecruitment');
-// const CommunityPost = require('../models/CommunityPost');
+const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 
 const router = express.Router();
 
 // 모든 관리자 라우트에 관리자 권한 확인 미들웨어 적용
 router.use(requireAdmin);
+
+// 사용자 목록 조회 (페이지네이션 포함)
+router.get('/users', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = supabaseAdmin
+      .from('users')
+      .select('id, username, email, name, subscription, usage, is_active, created_at, last_login');
+
+    // 검색 기능
+    if (search) {
+      query = query.or(`username.ilike.%${search}%,email.ilike.%${search}%,name.ilike.%${search}%`);
+    }
+
+    const result = await safeQuery(async () => {
+      return await query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + parseInt(limit) - 1);
+    }, '사용자 목록 조회');
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: '사용자 목록 조회 중 오류가 발생했습니다.',
+        error: result.error
+      });
+    }
+
+    // 전체 사용자 수 조회
+    const countResult = await safeQuery(async () => {
+      let countQuery = supabaseAdmin
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+      
+      if (search) {
+        countQuery = countQuery.or(`username.ilike.%${search}%,email.ilike.%${search}%,name.ilike.%${search}%`);
+      }
+      
+      return await countQuery;
+    }, '사용자 수 조회');
+
+    const totalUsers = countResult.success ? countResult.data?.length || 0 : 0;
+
+    res.json({
+      success: true,
+      data: {
+        users: result.data,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: totalUsers,
+          totalPages: Math.ceil(totalUsers / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('사용자 목록 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '사용자 목록 조회 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
+
+// 특정 사용자 정보 조회
+router.get('/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+    }, '사용자 정보 조회');
+
+    if (!result.success) {
+      return res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.',
+        error: result.error
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.data
+    });
+
+  } catch (error) {
+    console.error('사용자 정보 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '사용자 정보 조회 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
+
+// 사용자 사용량 제한 수정
+router.put('/users/:userId/usage-limit', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { monthly_limit } = req.body;
+
+    // 입력 검증
+    if (!monthly_limit || (monthly_limit !== 999999 && (monthly_limit < 1 || monthly_limit > 1000))) {
+      return res.status(400).json({
+        success: false,
+        message: '월간 사용량 제한은 1-1000회 또는 999999(무제한)만 가능합니다.'
+      });
+    }
+
+    // 현재 사용자 정보 조회
+    const currentUserResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('users')
+        .select('usage')
+        .eq('id', userId)
+        .single();
+    }, '현재 사용자 정보 조회');
+
+    if (!currentUserResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      });
+    }
+
+    // 기존 usage 데이터와 병합
+    const currentUsage = currentUserResult.data.usage || {};
+    const updatedUsage = {
+      ...currentUsage,
+      monthly_limit: parseInt(monthly_limit)
+    };
+
+    // 사용량 제한 업데이트
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('users')
+        .update({ 
+          usage: updatedUsage,
+          subscription: monthly_limit === 999999 ? 'premium' : 'free'
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    }, '사용자 사용량 제한 업데이트');
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: '사용량 제한 업데이트에 실패했습니다.',
+        error: result.error
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `사용자의 월간 사용량이 ${monthly_limit === 999999 ? '무제한' : monthly_limit + '회'}로 변경되었습니다.`,
+      data: result.data
+    });
+
+  } catch (error) {
+    console.error('사용량 제한 업데이트 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '사용량 제한 업데이트 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
+
+// 사용자 사용량 초기화
+router.put('/users/:userId/reset-usage', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // 현재 사용자 정보 조회
+    const currentUserResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('users')
+        .select('usage')
+        .eq('id', userId)
+        .single();
+    }, '현재 사용자 정보 조회');
+
+    if (!currentUserResult.success) {
+      return res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      });
+    }
+
+    // 사용량 초기화 (월간 제한은 유지)
+    const currentUsage = currentUserResult.data.usage || {};
+    const resetUsage = {
+      ...currentUsage,
+      currentMonth: 0,
+      lastResetDate: new Date().toISOString()
+    };
+
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('users')
+        .update({ usage: resetUsage })
+        .eq('id', userId)
+        .select()
+        .single();
+    }, '사용자 사용량 초기화');
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: '사용량 초기화에 실패했습니다.',
+        error: result.error
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '사용자의 이번 달 사용량이 초기화되었습니다.',
+      data: result.data
+    });
+
+  } catch (error) {
+    console.error('사용량 초기화 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '사용량 초기화 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
 
 // 대시보드 통계 조회
 router.get('/dashboard/stats', async (req, res) => {

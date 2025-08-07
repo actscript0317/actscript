@@ -28,14 +28,14 @@ const AIScript = () => {
   const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
   
-  // 사용량 관리 상태 (모든 사용자에게 프리미엄 기능 제공)
+  // 사용량 관리 상태 (기본 10회 제한)
   const [usageData, setUsageData] = useState({
     used: 0,
-    limit: 999999,
-    isPremium: true,
+    limit: 10,
+    isPremium: false,
     isActive: true,
     canGenerate: true,
-    planType: 'premium',
+    planType: 'free',
     nextResetDate: null,
     daysUntilReset: 0
   });
@@ -79,23 +79,23 @@ const AIScript = () => {
       
       setUsageData({
         used: usage.currentMonth,
-        limit: 999999,
-        isPremium: true,
+        limit: usage.limit,
+        isPremium: usage.limit === null || usage.limit === '무제한' || usage.limit > 100,
         isActive: true,
-        canGenerate: true,
-        planType: 'premium',
+        canGenerate: usage.canGenerate,
+        planType: usage.planType,
         nextResetDate: usage.nextResetDate,
         daysUntilReset: usage.daysUntilReset
       });
     } catch (error) {
       console.error('사용량 정보 로딩 실패:', error);
-      // 기본값으로 설정 (모든 사용자에게 프리미엄 기능 제공)
+      // 기본값으로 설정 (기본 10회 제한)
       setUsageData(prev => ({
         ...prev,
         used: user?.usage?.currentMonth || 0,
-        limit: 999999,
-        isPremium: true,
-        planType: 'premium'
+        limit: user?.usage?.monthly_limit || 10,
+        isPremium: (user?.usage?.monthly_limit || 10) > 100,
+        planType: user?.subscription?.plan || 'free'
       }));
     } finally {
       setLoadingUsage(false);
@@ -530,28 +530,63 @@ const AIScript = () => {
       <div className="container mx-auto px-2 sm:px-4">
         <div className="max-w-4xl mx-auto">
           
-          {/* 사용량 표시 바 - 모든 사용자에게 프리미엄 기능 제공 */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-green-500">
+          {/* 사용량 표시 바 */}
+          <div className={`bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 ${
+            usageData.isPremium ? 'border-green-500' : 'border-blue-500'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-green-600" />
+                  <Sparkles className={`w-5 h-5 ${
+                    usageData.isPremium ? 'text-green-600' : 'text-blue-600'
+                  }`} />
                   <span className="font-medium text-gray-900">
-                    프리미엄 플랜 (무료 제공)
+                    {usageData.isPremium ? '무제한 플랜' : '베타 테스트 플랜'}
                   </span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  {usageData.used}회 사용 (무제한)
+                  {usageData.limit === null || usageData.limit === '무제한' ? 
+                    `${usageData.used}회 사용 (무제한)` :
+                    `${usageData.used}/${usageData.limit}회 사용`
+                  }
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-green-600 font-medium">
-                  ✨ 무제한 이용 가능
+                {!usageData.isPremium && usageData.limit && usageData.limit !== '무제한' && (
+                  <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, (usageData.used / usageData.limit) * 100)}%` }}
+                    ></div>
+                  </div>
+                )}
+                <span className={`text-sm font-medium ${
+                  usageData.isPremium ? 'text-green-600' : 'text-blue-600'
+                }`}>
+                  {usageData.isPremium ? '✨ 무제한' : `월 ${usageData.limit}회`}
                 </span>
               </div>
             </div>
           </div>
 
+          {/* 사용량 초과 경고 */}
+          {!usageData.canGenerate && (
+            <div className="bg-gradient-to-r from-orange-100 to-red-100 border border-orange-300 rounded-lg p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-orange-800 mb-2">
+                    🚫 이번 달 사용량을 모두 사용했습니다!
+                  </h3>
+                  <p className="text-orange-700 mb-4">
+                    베타 테스트 한도(월 {usageData.limit}회)를 초과했습니다. 다음 달에 사용량이 리셋됩니다.
+                  </p>
+                  <p className="text-sm text-orange-600">
+                    더 많은 사용이 필요하시면 관리자에게 문의해주세요.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* 페이지 헤더 */}
           <motion.div 

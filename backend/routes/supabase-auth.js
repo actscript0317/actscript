@@ -234,10 +234,10 @@ router.post('/login', loginValidation, async (req, res) => {
             is_active: true,
             is_email_verified: !!authData.user.email_confirmed_at,
             created_at: authData.user.created_at || new Date().toISOString(),
-            subscription: 'premium',
+            subscription: 'free',
             usage: {
               scripts_generated: 0,
-              monthly_limit: 999999
+              monthly_limit: 10
             }
           })
           .select()

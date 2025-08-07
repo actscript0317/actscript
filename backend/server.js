@@ -488,8 +488,17 @@ function printRoutes(app) {
 // app.use('/api/model-recruitments', modelRecruitmentRoutes);
 // app.use('/api/likes', likeRoutes);
 // app.use('/api/bookmarks', bookmarkRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/admin', require('./routes/admin-panel'));
+// app.use('/api/admin', adminRoutes); // 임시 비활성화 (MongoDB 의존성 제거)
+
+// 관리자 패널 라우트 (조건부 로딩)
+try {
+  const adminPanelRoutes = require('./routes/admin-panel');
+  app.use('/api/admin', adminPanelRoutes);
+  console.log('✅ [server.js] 관리자 패널 라우트 등록 완료');
+} catch (error) {
+  console.warn('⚠️ [server.js] 관리자 패널 라우트 로딩 실패:', error.message);
+}
+
 // app.use('/api/payment', paymentRoutes);
 
 // 전역 에러 핸들링 미들웨어 (모든 라우트 이후에 위치)

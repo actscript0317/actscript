@@ -2,6 +2,9 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { supabase, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
+const { sendVerificationEmail } = require('../config/mailgun');
+const TempUser = require('../models/TempUser');
+const bcrypt = require('bcryptjs');
 const router = express.Router();
 
 // 유효성 검증 규칙
@@ -565,6 +568,324 @@ router.post('/complete-signup', [
     res.status(500).json({
       success: false,
       message: '회원가입 완료 처리 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// ==============================================
+// 새로운 Mailgun 기반 회원가입 API 엔드포인트들
+// ==============================================
+
+// 1단계: 회원가입 정보 전송 및 인증 코드 요청
+router.post('/request-register', [
+  body('email')
+    .isEmail()
+    .withMessage('올바른 이메일을 입력해주세요.')
+    .normalizeEmail(),
+  body('username')
+    .isLength({ min: 2, max: 20 })
+    .withMessage('사용자명은 2-20자 사이여야 합니다.')
+    .matches(/^[a-zA-Z0-9_가-힣]+$/)
+    .withMessage('사용자명은 영문, 숫자, 한글, 언더스코어만 사용 가능합니다.'),
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('비밀번호는 최소 8자 이상이어야 합니다.'),
+  body('name')
+    .notEmpty()
+    .withMessage('이름을 입력해주세요.')
+    .isLength({ max: 50 })
+    .withMessage('이름은 50자를 초과할 수 없습니다.')
+], async (req, res) => {
+  try {
+    console.log('📝 회원가입 요청 처리 시작:', req.body);
+
+    // 유효성 검사
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('❌ 유효성 검사 실패:', errors.array());
+      return res.status(400).json({
+        success: false,
+        message: '입력 데이터가 올바르지 않습니다.',
+        errors: errors.array()
+      });
+    }
+
+    const { email, username, password, name } = req.body;
+
+    // 1. 이메일 중복 확인 (기존 사용자)
+    const { data: existingEmailUser } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', email)
+      .single();
+
+    if (existingEmailUser) {
+      console.log('❌ 이미 가입된 이메일:', email);
+      return res.status(400).json({
+        success: false,
+        error: 'DUPLICATE_EMAIL',
+        message: '이미 가입된 이메일입니다.'
+      });
+    }
+
+    // 2. 사용자명 중복 확인 (기존 사용자)
+    const { data: existingUsernameUser } = await supabase
+      .from('users')
+      .select('username')
+      .eq('username', username)
+      .single();
+
+    if (existingUsernameUser) {
+      console.log('❌ 이미 사용 중인 사용자명:', username);
+      return res.status(400).json({
+        success: false,
+        error: 'DUPLICATE_USERNAME',
+        message: '이미 사용 중인 사용자명입니다.'
+      });
+    }
+
+    // 3. 기존 임시 사용자 삭제 (같은 이메일)
+    await TempUser.deleteMany({ email });
+
+    // 4. 비밀번호 해싱
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // 5. 임시 사용자 생성 및 인증 코드 생성
+    const tempUser = new TempUser({
+      email,
+      username,
+      password: hashedPassword,
+      name
+    });
+
+    const verificationCode = tempUser.generateEmailVerificationCode();
+    await tempUser.save();
+
+    console.log('✅ 임시 사용자 생성 완료:', tempUser._id);
+
+    // 6. Mailgun으로 인증 코드 이메일 발송
+    try {
+      await sendVerificationEmail(email, name, verificationCode);
+      console.log('✅ 인증 코드 이메일 발송 성공');
+    } catch (emailError) {
+      console.error('❌ 이메일 발송 실패:', emailError);
+      // 임시 사용자 삭제
+      await TempUser.findByIdAndDelete(tempUser._id);
+      
+      return res.status(500).json({
+        success: false,
+        message: '인증 이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '인증 코드가 이메일로 발송되었습니다.',
+      tempUserId: tempUser._id
+    });
+
+  } catch (error) {
+    console.error('❌ 회원가입 요청 처리 실패:', error);
+    res.status(500).json({
+      success: false,
+      message: '회원가입 요청 처리 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 2단계: 인증 코드 검증 및 회원가입 완료
+router.post('/verify-register', [
+  body('tempUserId')
+    .notEmpty()
+    .withMessage('임시 사용자 ID가 필요합니다.'),
+  body('code')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('인증 코드는 6자리여야 합니다.')
+    .isNumeric()
+    .withMessage('인증 코드는 숫자만 입력 가능합니다.')
+], async (req, res) => {
+  try {
+    console.log('🔐 인증 코드 검증 시작:', req.body);
+
+    // 유효성 검사
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('❌ 유효성 검사 실패:', errors.array());
+      return res.status(400).json({
+        success: false,
+        message: '입력 데이터가 올바르지 않습니다.',
+        errors: errors.array()
+      });
+    }
+
+    const { tempUserId, code } = req.body;
+
+    // 1. 임시 사용자 조회
+    const tempUser = await TempUser.findById(tempUserId);
+    if (!tempUser) {
+      console.log('❌ 임시 사용자를 찾을 수 없음:', tempUserId);
+      return res.status(400).json({
+        success: false,
+        message: '인증 요청을 찾을 수 없습니다. 다시 회원가입을 진행해주세요.'
+      });
+    }
+
+    // 2. 인증 코드 검증
+    const isValidCode = tempUser.verifyEmailCode(code);
+    if (!isValidCode) {
+      console.log('❌ 인증 코드 검증 실패:', { tempUserId, code });
+      
+      // 만료된 경우
+      if (Date.now() > tempUser.emailVerificationCodeExpire) {
+        return res.status(410).json({
+          success: false,
+          message: '인증 코드가 만료되었습니다. 새로운 코드를 요청해주세요.'
+        });
+      }
+      
+      return res.status(400).json({
+        success: false,
+        message: '인증 코드가 올바르지 않습니다.'
+      });
+    }
+
+    console.log('✅ 인증 코드 검증 성공');
+
+    // 3. Supabase에 실제 사용자 생성
+    try {
+      const { data: newUser, error } = await supabase
+        .from('users')
+        .insert({
+          email: tempUser.email,
+          username: tempUser.username,
+          password_hash: tempUser.password,
+          name: tempUser.name,
+          role: 'user',
+          email_verified: true,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Supabase 사용자 생성 실패:', error);
+        
+        // 중복 오류 처리
+        if (error.code === '23505') {
+          if (error.details.includes('email')) {
+            return res.status(400).json({
+              success: false,
+              error: 'DUPLICATE_EMAIL',
+              message: '이미 가입된 이메일입니다.'
+            });
+          } else if (error.details.includes('username')) {
+            return res.status(400).json({
+              success: false,
+              error: 'DUPLICATE_USERNAME',
+              message: '이미 사용 중인 사용자명입니다.'
+            });
+          }
+        }
+        
+        throw error;
+      }
+
+      console.log('✅ Supabase 사용자 생성 완료:', newUser.id);
+
+      // 4. 임시 사용자 삭제
+      await TempUser.findByIdAndDelete(tempUserId);
+      console.log('✅ 임시 사용자 삭제 완료');
+
+      res.json({
+        success: true,
+        message: '회원가입이 완료되었습니다!',
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          username: newUser.username,
+          name: newUser.name
+        }
+      });
+
+    } catch (supabaseError) {
+      console.error('❌ 사용자 생성 중 오류:', supabaseError);
+      res.status(500).json({
+        success: false,
+        message: '회원가입 완료 중 오류가 발생했습니다.'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ 인증 코드 검증 실패:', error);
+    res.status(500).json({
+      success: false,
+      message: '인증 코드 검증 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 3단계: 인증 코드 재전송
+router.post('/resend-register-code', [
+  body('tempUserId')
+    .notEmpty()
+    .withMessage('임시 사용자 ID가 필요합니다.')
+], async (req, res) => {
+  try {
+    console.log('🔄 인증 코드 재전송 요청:', req.body);
+
+    // 유효성 검사
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('❌ 유효성 검사 실패:', errors.array());
+      return res.status(400).json({
+        success: false,
+        message: '입력 데이터가 올바르지 않습니다.',
+        errors: errors.array()
+      });
+    }
+
+    const { tempUserId } = req.body;
+
+    // 1. 임시 사용자 조회
+    const tempUser = await TempUser.findById(tempUserId);
+    if (!tempUser) {
+      console.log('❌ 임시 사용자를 찾을 수 없음:', tempUserId);
+      return res.status(400).json({
+        success: false,
+        message: '인증 요청을 찾을 수 없습니다. 다시 회원가입을 진행해주세요.'
+      });
+    }
+
+    // 2. 새로운 인증 코드 생성
+    const verificationCode = tempUser.generateEmailVerificationCode();
+    await tempUser.save();
+
+    console.log('✅ 새 인증 코드 생성 완료');
+
+    // 3. Mailgun으로 새 인증 코드 이메일 발송
+    try {
+      await sendVerificationEmail(tempUser.email, tempUser.name, verificationCode);
+      console.log('✅ 인증 코드 재전송 성공');
+
+      res.json({
+        success: true,
+        message: '새로운 인증 코드가 이메일로 발송되었습니다.'
+      });
+
+    } catch (emailError) {
+      console.error('❌ 이메일 재전송 실패:', emailError);
+      res.status(500).json({
+        success: false,
+        message: '인증 코드 재전송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ 인증 코드 재전송 실패:', error);
+    res.status(500).json({
+      success: false,
+      message: '인증 코드 재전송 중 오류가 발생했습니다.'
     });
   }
 });

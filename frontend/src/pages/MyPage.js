@@ -49,12 +49,12 @@ const MyPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
   
-  // 사용량 정보 상태 (모든 사용자에게 프리미엄 기능 제공)
+  // 사용량 정보 상태 (테스트 플랜)
   const [usageData, setUsageData] = useState({
     used: 0,
-    limit: null,
+    limit: 10,
     totalGenerated: 0,
-    planType: 'premium',
+    planType: 'test',
     nextResetDate: null,
     daysUntilReset: 0
   });
@@ -101,21 +101,21 @@ const MyPage = () => {
       
       setUsageData({
         used: usage.currentMonth,
-        limit: null,
+        limit: usage.limit || 10,
         totalGenerated: usage.totalGenerated,
-        planType: 'premium',
+        planType: 'test',
         nextResetDate: usage.nextResetDate,
         daysUntilReset: usage.daysUntilReset
       });
     } catch (error) {
       console.error('사용량 정보 로딩 실패:', error);
-      // 기본값으로 설정 (모든 사용자에게 프리미엄 기능 제공)
+      // 기본값으로 설정 (테스트 플랜)
       setUsageData(prev => ({
         ...prev,
         used: user?.usage?.currentMonth || 0,
-        limit: null,
+        limit: user?.usage?.monthly_limit || 10,
         totalGenerated: user?.usage?.totalGenerated || 0,
-        planType: 'premium'
+        planType: 'test'
       }));
     } finally {
       setLoadingUsage(false);
@@ -914,37 +914,37 @@ const MyPage = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">현재 이용 중인 플랜</h3>
                   <div className="grid grid-cols-1 gap-6">
                     
-                    {/* Premium Plan (Free) */}
-                    <div className="border-2 rounded-lg p-6 border-green-500 bg-green-50">
+                    {/* Test Plan */}
+                    <div className="border-2 rounded-lg p-6 border-blue-500 bg-blue-50">
                       <div className="text-center">
-                        <h4 className="text-lg font-bold text-gray-900">프리미엄 플랜 (무료 제공)</h4>
+                        <h4 className="text-lg font-bold text-gray-900">테스트 플랜</h4>
                         <p className="text-2xl font-bold text-gray-900 mt-2">₩0</p>
                         <p className="text-sm text-gray-500">/월</p>
                       </div>
                       <ul className="mt-4 space-y-2 text-sm">
                         <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          AI 대본 생성 (무제한)
+                          <span className="text-blue-500 mr-2">✓</span>
+                          AI 대본 생성 (월 10회)
                         </li>
                         <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
+                          <span className="text-blue-500 mr-2">✓</span>
                           모든 장르 지원
                         </li>
                         <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
+                          <span className="text-blue-500 mr-2">✓</span>
                           모든 길이 스크립트
                         </li>
                         <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
+                          <span className="text-blue-500 mr-2">✓</span>
                           스크립트 리라이팅 기능
                         </li>
                         <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          모든 프리미엄 기능
+                          <span className="text-blue-500 mr-2">✓</span>
+                          모든 인원수 지원
                         </li>
                       </ul>
                       <button 
-                        className="w-full mt-4 py-2 px-4 rounded-lg font-medium border border-green-300 text-green-600"
+                        className="w-full mt-4 py-2 px-4 rounded-lg font-medium border border-blue-300 text-blue-600"
                         disabled
                       >
                         현재 이용 중

@@ -28,14 +28,14 @@ const AIScript = () => {
   const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
   
-  // 사용량 관리 상태 (기본 10회 제한)
+  // 사용량 관리 상태 (테스트 플랜: 월 10회 제한, 모든 기능 이용 가능)
   const [usageData, setUsageData] = useState({
     used: 0,
     limit: 10,
-    isPremium: false,
+    isPremium: true, // 모든 사용자에게 프리미엄 기능 제공
     isActive: true,
     canGenerate: true,
-    planType: 'free',
+    planType: 'test',
     nextResetDate: null,
     daysUntilReset: 0
   });
@@ -80,22 +80,22 @@ const AIScript = () => {
       setUsageData({
         used: usage.currentMonth,
         limit: usage.limit,
-        isPremium: usage.limit === null || usage.limit === '무제한' || usage.limit > 100,
+        isPremium: true, // 모든 사용자에게 프리미엄 기능 제공
         isActive: true,
         canGenerate: usage.canGenerate,
-        planType: usage.planType,
+        planType: 'test',
         nextResetDate: usage.nextResetDate,
         daysUntilReset: usage.daysUntilReset
       });
     } catch (error) {
       console.error('사용량 정보 로딩 실패:', error);
-      // 기본값으로 설정 (기본 10회 제한)
+      // 기본값으로 설정 (테스트 플랜)
       setUsageData(prev => ({
         ...prev,
         used: user?.usage?.currentMonth || 0,
         limit: user?.usage?.monthly_limit || 10,
-        isPremium: (user?.usage?.monthly_limit || 10) > 100,
-        planType: user?.subscription?.plan || 'free'
+        isPremium: true, // 모든 사용자에게 프리미엄 기능 제공
+        planType: 'test'
       }));
     } finally {
       setLoadingUsage(false);
@@ -109,11 +109,11 @@ const AIScript = () => {
     }
   }, [user]);
 
-  // 옵션 데이터 (프리미엄 여부에 따라 제한)
+  // 옵션 데이터 (모든 사용자에게 전체 기능 제공)
   const characterOptions = [
     { value: '1', label: '1인 독백', icon: '👤', available: true },
-    { value: '2-3', label: '2~3인 대화', icon: '👥', available: usageData.isPremium, premium: true },
-    { value: '4+', label: '4인 이상 앙상블', icon: '👨‍👩‍👧‍👦', available: usageData.isPremium, premium: true }
+    { value: '2-3', label: '2~3인 대화', icon: '👥', available: true, premium: false },
+    { value: '4+', label: '4인 이상 앙상블', icon: '👨‍👩‍👧‍👦', available: true, premium: false }
   ];
 
   const freeGenres = ['로맨스', '코미디', '드라마'];
@@ -122,8 +122,8 @@ const AIScript = () => {
 
   const lengths = [
     { value: 'short', label: '짧게', time: '1~2분', icon: '⚡', available: true },
-    { value: 'medium', label: '중간', time: '3~5분', icon: '⏱️', available: usageData.isPremium, premium: true },
-    { value: 'long', label: '길게', time: '5~10분', icon: '📝', available: usageData.isPremium, premium: true }
+    { value: 'medium', label: '중간', time: '3~5분', icon: '⏱️', available: true, premium: false },
+    { value: 'long', label: '길게', time: '5~10분', icon: '📝', available: true, premium: false }
   ];
 
 
@@ -492,30 +492,17 @@ const AIScript = () => {
             className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto"
           >
             {options.map((option) => {
-              const isPremiumGenre = premiumGenres.includes(option);
-              const isDisabled = isPremiumGenre && !usageData.isPremium;
-              
               return (
                 <button
                   key={option}
                   type="button"
                   onClick={() => {
-                    if (!isDisabled) {
-                      onChange(option);
-                      setIsOpen(false);
-                    }
+                    onChange(option);
+                    setIsOpen(false);
                   }}
-                  disabled={isDisabled}
-                  className={`w-full px-4 py-3 text-left transition-colors first:rounded-t-xl last:rounded-b-xl flex items-center justify-between ${
-                    isDisabled 
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                      : 'hover:bg-gray-50'
-                  }`}
+                  className="w-full px-4 py-3 text-left transition-colors first:rounded-t-xl last:rounded-b-xl flex items-center justify-between hover:bg-gray-50"
                 >
                   <span>{option}</span>
-                  {isPremiumGenre && !usageData.isPremium && (
-                    <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">PRO</span>
-                  )}
                 </button>
               );
             })}
@@ -622,30 +609,20 @@ const AIScript = () => {
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {characterOptions.map((option) => (
-                    <label key={option.value} className={`relative ${!option.available ? 'cursor-not-allowed' : ''}`}>
+                    <label key={option.value} className="relative">
                       <input
                         type="radio"
                         name="characterCount"
                         value={option.value}
                         onChange={(e) => handleInputChange('characterCount', e.target.value)}
                         className="sr-only peer"
-                        disabled={!option.available}
                       />
-                      <div className={`p-4 border-2 rounded-xl transition-all ${
-                        option.available 
-                          ? 'bg-gray-50 border-gray-200 cursor-pointer hover:bg-gray-100 peer-checked:bg-purple-50 peer-checked:border-purple-500 peer-checked:shadow-md' 
-                          : 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
-                      }`}>
+                      <div className="p-4 border-2 rounded-xl transition-all bg-gray-50 border-gray-200 cursor-pointer hover:bg-gray-100 peer-checked:bg-purple-50 peer-checked:border-purple-500 peer-checked:shadow-md">
                         <div className="text-center">
                           <div className="text-2xl mb-2">{option.icon}</div>
-                          <div className={`font-medium ${option.available ? 'text-gray-900' : 'text-gray-500'}`}>
+                          <div className="font-medium text-gray-900">
                             {option.label}
                           </div>
-                          {!option.available && (
-                            <div className="mt-1 px-2 py-1 bg-gray-200 text-gray-600 text-xs rounded-full inline-block">
-                              개발 중
-                            </div>
-                          )}
                         </div>
                       </div>
                     </label>
@@ -684,25 +661,13 @@ const AIScript = () => {
                         value={length.value}
                         onChange={(e) => handleInputChange('length', e.target.value)}
                         className="sr-only peer"
-                        disabled={!length.available}
+
                       />
-                      <div className={`p-4 border-2 rounded-xl cursor-pointer transition-all relative ${
-                        !length.available 
-                          ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed' 
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:border-purple-500 peer-checked:shadow-md'
-                      }`}>
-                        {length.premium && !usageData.isPremium && (
-                          <div className="absolute -top-2 -right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium">
-                            PRO
-                          </div>
-                        )}
+                      <div className="p-4 border-2 rounded-xl cursor-pointer transition-all relative bg-gray-50 border-gray-200 hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:border-purple-500 peer-checked:shadow-md">
                         <div className="text-center">
                           <div className="text-2xl mb-2">{length.icon}</div>
                           <div className="font-medium text-gray-900">{length.label}</div>
                           <div className="text-sm text-gray-500">{length.time}</div>
-                          {length.premium && !usageData.isPremium && (
-                            <div className="text-xs text-yellow-600 mt-1">프리미엄 전용</div>
-                          )}
                         </div>
                       </div>
                     </label>

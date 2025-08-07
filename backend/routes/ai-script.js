@@ -365,24 +365,31 @@ ${characterDirectives}
     const extractedTitle = extractTitleFromScript(generatedScript);
     const title = extractedTitle || `${genre} ${genderText} 독백`;
 
-    // Supabase에 저장
+    // Supabase에 저장 (현재 스키마에 맞게)
     console.log('💾 Supabase에 대본 저장 시작');
     const aiScriptData = {
       user_id: req.user.id,
       title: title,
       content: generatedScript,
       character_count: parseInt(characterCount) || 1,
-      genre: genre,
-      length: length,
-      gender: gender,
-      age: age,
-      metadata: JSON.stringify({
+      situation: '연기 연습용 독백', // 기본값 설정
+      emotions: [genre], // 장르를 emotions 배열에 포함
+      gender: gender === 'male' ? '남자' : gender === 'female' ? '여자' : '전체',
+      mood: genre,
+      duration: length === 'short' ? '1~3분' : length === 'medium' ? '3~5분' : '5분 이상',
+      age_group: age === 'teens' ? '10대' : age === '20s' ? '20대' : age === '30s-40s' ? '30~40대' : age === '50s' ? '50대' : '전체',
+      purpose: '오디션',
+      script_type: '독백',
+      generation_params: {
+        originalGenre: genre,
+        originalLength: length,
+        originalAge: age,
+        originalGender: gender,
         model: "gpt-4o",
         generateTime: new Date(),
         promptTokens: completion.usage?.prompt_tokens,
         completionTokens: completion.usage?.completion_tokens
-      }),
-      is_saved: false,
+      },
       is_public: false,
       created_at: new Date().toISOString()
     };
@@ -672,21 +679,18 @@ router.get('/scripts/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// AI 스크립트를 대본함에 저장
+// AI 스크립트를 대본함에 저장 (현재 스키마에서는 이미 저장됨)
 router.put('/scripts/:id/save', authenticateToken, async (req, res) => {
   try {
+    // 현재 스키마에서는 별도의 is_saved 컬럼이 없으므로, 스크립트 존재 여부만 확인
     const result = await safeQuery(async () => {
       return await supabaseAdmin
         .from('ai_scripts')
-        .update({ 
-          is_saved: true,
-          updated_at: new Date().toISOString()
-        })
+        .select('*')
         .eq('id', req.params.id)
         .eq('user_id', req.user.id)
-        .select()
         .single();
-    }, 'AI 스크립트 저장');
+    }, 'AI 스크립트 조회');
 
     if (!result.success) {
       return res.status(404).json({
@@ -696,7 +700,7 @@ router.put('/scripts/:id/save', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: '스크립트가 대본함에 저장되었습니다.',
+      message: '스크립트가 이미 대본함에 저장되어 있습니다.',
       script: result.data
     });
   } catch (error) {
@@ -828,33 +832,39 @@ router.get('/usage', authenticateToken, async (req, res) => {
   }
 });
 
-// 저장된 AI 스크립트 목록 조회 (대본함용)
+// 저장된 AI 스크립트 목록 조회 (대본함용) - 현재 스키마에 맞게 수정
 router.get('/saved', authenticateToken, async (req, res) => {
   try {
+    const { page = 1, limit = 12 } = req.query;
+    const offset = (page - 1) * limit;
+    
     const result = await safeQuery(async () => {
       return await supabaseAdmin
         .from('ai_scripts')
         .select('*')
         .eq('user_id', req.user.id)
-        .eq('is_saved', true)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(offset, offset + parseInt(limit) - 1);
     }, '저장된 AI 스크립트 목록 조회');
 
     if (!result.success) {
-      return res.status(result.error.code).json({
+      return res.status(500).json({
         success: false,
-        message: result.error.message
+        message: '데이터베이스 오류가 발생했습니다.',
+        error: result.error.message
       });
     }
 
     res.json({
       success: true,
-      scripts: result.data
+      scripts: result.data || []
     });
   } catch (error) {
     console.error('저장된 AI 스크립트 조회 오류:', error);
     res.status(500).json({
-      error: '저장된 스크립트 조회 중 오류가 발생했습니다.'
+      success: false,
+      error: '저장된 스크립트 조회 중 오류가 발생했습니다.',
+      message: error.message
     });
   }
 });

@@ -19,7 +19,8 @@ const authenticateToken = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: '유효하지 않은 토큰입니다.'
+        message: '유효하지 않은 토큰입니다.',
+        code: 'INVALID_TOKEN'
       });
     }
 
@@ -33,9 +34,23 @@ const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('토큰 인증 실패:', error);
+    
+    // JWT 토큰 만료 또는 유효하지 않은 경우 구체적인 메시지 제공
+    let message = '토큰 인증에 실패했습니다.';
+    let code = 'AUTH_FAILED';
+    
+    if (error.message && error.message.includes('expired')) {
+      message = '토큰이 만료되었습니다. 다시 로그인해 주세요.';
+      code = 'TOKEN_EXPIRED';
+    } else if (error.message && error.message.includes('invalid')) {
+      message = '유효하지 않은 토큰입니다. 다시 로그인해 주세요.';
+      code = 'INVALID_TOKEN';
+    }
+    
     return res.status(401).json({
       success: false,
-      message: '토큰 인증에 실패했습니다.'
+      message: message,
+      code: code
     });
   }
 };

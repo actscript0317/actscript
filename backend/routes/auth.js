@@ -1102,6 +1102,50 @@ router.post('/request-register', [
       hasPassword: !!req.body.password
     });
 
+    const { email, username, name, password } = req.body;
+
+    // 기존 사용자 중복 검사 (이메일, 사용자명)
+    console.log('🔍 기존 사용자 중복 검사 (회원가입 단계):', {
+      email,
+      username
+    });
+    
+    const { data: existingUsers, error: checkError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, username')
+      .or(`email.eq.${email},username.eq.${username}`);
+    
+    if (checkError) {
+      console.error('❌ 기존 사용자 확인 실패:', checkError);
+      return res.status(500).json({
+        success: false,
+        message: '사용자 정보 확인 중 오류가 발생했습니다.',
+        error: checkError.message
+      });
+    }
+    
+    if (existingUsers && existingUsers.length > 0) {
+      const duplicateUser = existingUsers[0];
+      console.error('❌ 중복 사용자 발견 (회원가입 단계):', {
+        existing: duplicateUser,
+        attempting: { email, username }
+      });
+      
+      const isDuplicateEmail = duplicateUser.email === email;
+      const isDuplicateUsername = duplicateUser.username === username;
+      
+      return res.status(409).json({
+        success: false,
+        message: isDuplicateEmail 
+          ? '이미 사용 중인 이메일입니다.' 
+          : '이미 사용 중인 사용자명입니다.',
+        code: 'DUPLICATE_USER',
+        duplicateField: isDuplicateEmail ? 'email' : 'username'
+      });
+    }
+    
+    console.log('✅ 중복 사용자 없음, 회원가입 계속 진행');
+
     // Supabase 환경 변수 확인
     console.log('🔧 Supabase 환경 변수 확인:', {
       SUPABASE_URL: !!process.env.SUPABASE_URL,
@@ -1120,43 +1164,7 @@ router.post('/request-register', [
       });
     }
 
-    const { email, username, password, name } = req.body;
-
-    // 1. 이메일 중복 확인 (기존 사용자)
-    const emailCheckResult = await safeQuery(async () => {
-      return await supabase
-        .from('users')
-        .select('email')
-        .eq('email', email)
-        .single();
-    }, '이메일 중복 확인');
-
-    if (emailCheckResult.success) {
-      console.log('❌ 이미 가입된 이메일:', email);
-      return res.status(400).json({
-        success: false,
-        error: 'DUPLICATE_EMAIL',
-        message: '이미 가입된 이메일입니다.'
-      });
-    }
-
-    // 2. 사용자명 중복 확인 (기존 사용자)
-    const usernameCheckResult = await safeQuery(async () => {
-      return await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username)
-        .single();
-    }, '사용자명 중복 확인');
-
-    if (usernameCheckResult.success) {
-      console.log('❌ 이미 사용 중인 사용자명:', username);
-      return res.status(400).json({
-        success: false,
-        error: 'DUPLICATE_USERNAME',
-        message: '이미 사용 중인 사용자명입니다.'
-      });
-    }
+    // 이메일 및 사용자명 중복 확인은 이미 위에서 수행됨
 
     // 3. 기존 임시 사용자 삭제 (같은 이메일)
     await supabase
@@ -1448,7 +1456,52 @@ router.post('/verify-register', [
       email: authData.user.email
     });
 
-    // 6. users 테이블에 사용자 정보 저장 (서비스 역할 키 사용)
+    // 6. users 테이블에 기존 사용자 확인 (중복 방지)
+    console.log('🔍 기존 사용자 중복 검사 시작:', {
+      email: tempUser.email,
+      username: tempUser.username
+    });
+    
+    const { data: existingUsers, error: checkError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, username')
+      .or(`email.eq.${tempUser.email},username.eq.${tempUser.username}`);
+    
+    if (checkError) {
+      console.error('❌ 기존 사용자 확인 실패:', checkError);
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return res.status(500).json({
+        success: false,
+        message: '사용자 정보 확인 중 오류가 발생했습니다.',
+        error: checkError.message
+      });
+    }
+    
+    if (existingUsers && existingUsers.length > 0) {
+      const duplicateUser = existingUsers[0];
+      console.error('❌ 중복 사용자 발견:', {
+        existing: duplicateUser,
+        attempting: { email: tempUser.email, username: tempUser.username }
+      });
+      
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      
+      const isDuplicateEmail = duplicateUser.email === tempUser.email;
+      const isDuplicateUsername = duplicateUser.username === tempUser.username;
+      
+      return res.status(409).json({
+        success: false,
+        message: isDuplicateEmail 
+          ? '이미 사용 중인 이메일입니다.' 
+          : '이미 사용 중인 사용자명입니다.',
+        code: 'DUPLICATE_USER',
+        duplicateField: isDuplicateEmail ? 'email' : 'username'
+      });
+    }
+    
+    console.log('✅ 중복 사용자 없음, 사용자 생성 진행');
+    
+    // 7. users 테이블에 사용자 정보 저장 (서비스 역할 키 사용)
     console.log('📝 users 테이블에 사용자 정보 저장 시작:', {
       id: authData.user.id,
       email: tempUser.email,
@@ -1499,7 +1552,7 @@ router.post('/verify-register', [
 
     console.log('✅ users 테이블 사용자 생성 완료:', userData.id);
 
-    // 7. 임시 사용자 및 메모리에서 비밀번호 삭제
+    // 8. 임시 사용자 및 메모리에서 비밀번호 삭제
     await supabase
       .from('temp_users')
       .delete()

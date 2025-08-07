@@ -1,7 +1,7 @@
 const express = require('express');
 const OpenAI = require('openai');
 const config = require('../config/env');
-const { supabase, safeQuery } = require('../config/supabase');
+const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
 
 const router = express.Router();
@@ -50,14 +50,16 @@ const extractTitleFromScript = (scriptContent) => {
 
 // 사용자 사용량 확인 및 업데이트
 const checkAndUpdateUsage = async (userId) => {
-  // 사용자 정보 조회
+  console.log('🔍 사용자 조회 시작:', userId);
+  
+  // 사용자 정보 조회 (Admin 클라이언트 사용하여 RLS 우회)
   const userResult = await safeQuery(async () => {
-    return await supabase
+    return await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', userId)
       .single();
-  }, '사용자 정보 조회');
+  }, 'Supabase 사용자 정보 조회');
 
   if (!userResult.success) {
     throw new Error('사용자를 찾을 수 없습니다.');
@@ -106,13 +108,19 @@ const checkAndUpdateUsage = async (userId) => {
   usage.currentMonth += 1;
   usage.totalGenerated += 1;
 
-  // 사용량 업데이트
-  await safeQuery(async () => {
-    return await supabase
+  // 사용량 업데이트 (Admin 클라이언트 사용)
+  const updateResult = await safeQuery(async () => {
+    return await supabaseAdmin
       .from('users')
-      .update({ usage: JSON.stringify(usage) })
+      .update({ usage: usage })
       .eq('id', userId);
   }, '사용량 업데이트');
+  
+  if (!updateResult.success) {
+    console.error('❌ 사용량 업데이트 실패:', updateResult.error);
+  } else {
+    console.log('✅ 사용량 업데이트 완료:', usage);
+  }
 
   return { user, usage };
 };
@@ -269,7 +277,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
     };
 
     const saveResult = await safeQuery(async () => {
-      return await supabase
+      return await supabaseAdmin
         .from('ai_scripts')
         .insert(aiScriptData)
         .select()

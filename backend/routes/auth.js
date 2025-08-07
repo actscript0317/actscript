@@ -1275,7 +1275,11 @@ router.post('/verify-register', [
     .withMessage('인증 코드는 숫자만 입력 가능합니다.')
 ], async (req, res) => {
   try {
-    console.log('🔐 인증 코드 검증 시작:', req.body);
+    console.log('🔐 인증 코드 검증 시작:', {
+      tempUserId: req.body.tempUserId,
+      code: req.body.code ? '******' : undefined,
+      hasCode: !!req.body.code
+    });
 
     // 유효성 검사
     const errors = validationResult(req);
@@ -1291,6 +1295,7 @@ router.post('/verify-register', [
     const { tempUserId, code } = req.body;
 
     // 1. 임시 사용자 조회
+    console.log('🔍 임시 사용자 조회 시작:', tempUserId);
     const tempUserResult = await safeQuery(async () => {
       return await supabase
         .from('temp_users')
@@ -1300,12 +1305,21 @@ router.post('/verify-register', [
     }, '임시 사용자 조회');
 
     if (!tempUserResult.success) {
-      console.log('❌ 임시 사용자를 찾을 수 없음:', tempUserId);
+      console.log('❌ 임시 사용자를 찾을 수 없음:', {
+        tempUserId,
+        error: tempUserResult.error
+      });
       return res.status(400).json({
         success: false,
         message: '인증 요청을 찾을 수 없습니다. 다시 회원가입을 진행해주세요.'
       });
     }
+
+    console.log('✅ 임시 사용자 조회 성공:', {
+      id: tempUserResult.data.id,
+      email: tempUserResult.data.email,
+      username: tempUserResult.data.username
+    });
 
     const tempUser = tempUserResult.data;
 
@@ -1326,10 +1340,20 @@ router.post('/verify-register', [
     }
 
     // 3. 인증 코드 검증 (평문 비교)
+    console.log('🔐 인증 코드 검증 중:', {
+      입력코드: code,
+      저장된코드: tempUser.verification_code,
+      일치여부: code === tempUser.verification_code
+    });
+    
     const isValidCode = code === tempUser.verification_code;
     
     if (!isValidCode) {
-      console.log('❌ 인증 코드 검증 실패:', { tempUserId, code });
+      console.log('❌ 인증 코드 검증 실패:', { 
+        tempUserId, 
+        입력코드: code,
+        저장된코드: tempUser.verification_code
+      });
       return res.status(400).json({
         success: false,
         message: '인증 코드가 올바르지 않습니다.'
@@ -1339,16 +1363,34 @@ router.post('/verify-register', [
     console.log('✅ 인증 코드 검증 성공');
 
     // 4. 메모리에서 원본 비밀번호 가져오기
+    console.log('🔍 메모리에서 원본 비밀번호 조회:', {
+      tempUserId,
+      메모리맵존재: !!global.tempPasswords,
+      메모리맵크기: global.tempPasswords?.size || 0,
+      비밀번호존재: !!global.tempPasswords?.get(tempUserId)
+    });
+    
     const originalPassword = global.tempPasswords?.get(tempUserId);
     if (!originalPassword) {
-      console.error('❌ 원본 비밀번호를 찾을 수 없음:', tempUserId);
+      console.error('❌ 원본 비밀번호를 찾을 수 없음:', {
+        tempUserId,
+        메모리맵: global.tempPasswords ? Array.from(global.tempPasswords.keys()) : null
+      });
       return res.status(400).json({
         success: false,
         message: '인증 요청을 찾을 수 없습니다. 다시 회원가입을 진행해주세요.'
       });
     }
 
+    console.log('✅ 원본 비밀번호 조회 성공');
+
     // 5. Supabase Auth에 사용자 생성 (원본 비밀번호 사용)
+    console.log('👤 Supabase Auth 사용자 생성 시작:', {
+      email: tempUser.email,
+      username: tempUser.username,
+      name: tempUser.name
+    });
+    
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: tempUser.email,
       password: originalPassword, // 원본 비밀번호 사용 (Supabase가 자체 해시 처리)
@@ -1361,7 +1403,12 @@ router.post('/verify-register', [
     });
 
     if (authError) {
-      console.error('❌ Supabase Auth 사용자 생성 실패:', authError);
+      console.error('❌ Supabase Auth 사용자 생성 실패:', {
+        message: authError.message,
+        status: authError.status,
+        code: authError.code,
+        details: authError.details || authError
+      });
       
       if (authError.message.includes('already registered')) {
         return res.status(409).json({
@@ -1377,9 +1424,19 @@ router.post('/verify-register', [
       });
     }
 
-    console.log('✅ Supabase Auth 사용자 생성 완료:', authData.user.id);
+    console.log('✅ Supabase Auth 사용자 생성 완료:', {
+      userId: authData.user.id,
+      email: authData.user.email
+    });
 
     // 6. users 테이블에 사용자 정보 저장
+    console.log('📝 users 테이블에 사용자 정보 저장 시작:', {
+      id: authData.user.id,
+      email: tempUser.email,
+      username: tempUser.username,
+      name: tempUser.name
+    });
+    
     const userInsertResult = await safeQuery(async () => {
       return await supabase
         .from('users')
@@ -1397,14 +1454,21 @@ router.post('/verify-register', [
     }, 'users 테이블 사용자 생성');
 
     if (!userInsertResult.success) {
-      console.error('❌ users 테이블 사용자 생성 실패:', userInsertResult.error);
+      console.error('❌ users 테이블 사용자 생성 실패:', {
+        error: userInsertResult.error,
+        userId: authData.user.id,
+        email: tempUser.email,
+        username: tempUser.username
+      });
       
       // Auth 사용자 생성은 성공했지만 프로필 생성 실패 시 Auth 사용자 삭제
+      console.log('🔄 Auth 사용자 롤백 중...');
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       
       return res.status(500).json({
         success: false,
-        message: '사용자 프로필 생성에 실패했습니다.'
+        message: '사용자 프로필 생성에 실패했습니다.',
+        error: userInsertResult.error?.message
       });
     }
 
@@ -1433,10 +1497,16 @@ router.post('/verify-register', [
     });
 
   } catch (error) {
-    console.error('❌ 인증 코드 검증 실패:', error);
+    console.error('❌ 인증 코드 검증 중 예외 발생:', {
+      message: error.message,
+      stack: error.stack,
+      tempUserId: req.body?.tempUserId,
+      code: req.body?.code ? '******' : undefined
+    });
     res.status(500).json({
       success: false,
-      message: '인증 코드 검증 중 오류가 발생했습니다.'
+      message: '인증 코드 검증 중 오류가 발생했습니다.',
+      error: process.env.NODE_ENV !== 'production' ? error.message : undefined
     });
   }
 });

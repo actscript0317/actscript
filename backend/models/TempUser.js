@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// 임시 사용자를 위한 별도 스키마
+// 임시 사용자를 위한 별도 스키마 (회원가입 과정에서 사용)
 const tempUserSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -8,6 +8,18 @@ const tempUserSchema = new mongoose.Schema({
     unique: true,
     sparse: true,
     lowercase: true
+  },
+  username: {
+    type: String,
+    required: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  name: {
+    type: String,
+    required: true
   },
   emailVerificationCode: {
     type: String,

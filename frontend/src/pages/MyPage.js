@@ -49,12 +49,12 @@ const MyPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
   
-  // 사용량 정보 상태
+  // 사용량 정보 상태 (모든 사용자에게 프리미엄 기능 제공)
   const [usageData, setUsageData] = useState({
     used: 0,
-    limit: 5,
+    limit: null,
     totalGenerated: 0,
-    planType: 'free',
+    planType: 'premium',
     nextResetDate: null,
     daysUntilReset: 0
   });
@@ -101,22 +101,21 @@ const MyPage = () => {
       
       setUsageData({
         used: usage.currentMonth,
-        limit: usage.limit,
+        limit: null,
         totalGenerated: usage.totalGenerated,
-        planType: usage.planType,
+        planType: 'premium',
         nextResetDate: usage.nextResetDate,
         daysUntilReset: usage.daysUntilReset
       });
     } catch (error) {
       console.error('사용량 정보 로딩 실패:', error);
-      // 기본값으로 설정 (user 정보 기준)
+      // 기본값으로 설정 (모든 사용자에게 프리미엄 기능 제공)
       setUsageData(prev => ({
         ...prev,
         used: user?.usage?.currentMonth || 0,
-        limit: user?.subscription?.plan === 'pro' ? 50 : 
-               user?.subscription?.plan === 'premier' ? null : 5,
+        limit: null,
         totalGenerated: user?.usage?.totalGenerated || 0,
-        planType: user?.subscription?.plan || 'free'
+        planType: 'premium'
       }));
     } finally {
       setLoadingUsage(false);
@@ -408,8 +407,7 @@ const MyPage = () => {
               <div className="flex items-center space-x-2">
                 <Crown className="w-6 h-6 text-yellow-500" />
                 <span className="text-sm font-medium text-gray-700">
-                  {user?.subscription?.plan === 'pro' ? '프로 플랜' : 
-                   user?.subscription?.plan === 'premier' ? '프리미어 플랜' : '무료 플랜'}
+                  프리미엄 플랜 (무료 제공)
                 </span>
                 {user?.subscription?.status === 'active' && (
                   <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
@@ -812,31 +810,19 @@ const MyPage = () => {
                       <div className="flex items-center space-x-2">
                         <Crown className="w-6 h-6 text-yellow-500" />
                         <h3 className="text-lg font-bold text-gray-900">
-                          {user?.subscription?.plan === 'pro' ? '프로 플랜' : 
-                           user?.subscription?.plan === 'premier' ? '프리미어 플랜' : '무료 플랜'}
+                          프리미엄 플랜 (무료 제공)
                         </h3>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          user?.subscription?.status === 'active' ? 'bg-green-100 text-green-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {user?.subscription?.status === 'active' ? '활성' : '현재 플랜'}
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                          활성
                         </span>
                       </div>
                       <p className="text-gray-600 mt-2">
-                        {user?.subscription?.plan === 'pro' ? '월 50회 AI 스크립트 생성 + 고급 기능' :
-                         user?.subscription?.plan === 'premier' ? '무제한 AI 스크립트 생성 + 프리미엄 기능' :
-                         '기본 기능을 무료로 이용할 수 있습니다.'}
+                        무제한 AI 스크립트 생성 + 모든 프리미엄 기능을 무료로 이용할 수 있습니다.
                       </p>
-                      {user?.subscription?.endDate && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          만료일: {new Date(user.subscription.endDate).toLocaleDateString('ko-KR')}
-                        </p>
-                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900">
-                        {user?.subscription?.plan === 'pro' ? '₩100' :
-                         user?.subscription?.plan === 'premier' ? '₩19,900' : '₩0'}
+                        ₩0
                       </p>
                       <p className="text-sm text-gray-500">/월</p>
                     </div>
@@ -925,66 +911,20 @@ const MyPage = () => {
                 )}
 
                 <div className="mt-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">플랜 업그레이드</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">현재 이용 중인 플랜</h3>
+                  <div className="grid grid-cols-1 gap-6">
                     
-                    {/* Free Plan */}
-                    <div className={`border-2 rounded-lg p-6 ${
-                      (!user?.subscription?.plan || user?.subscription?.plan === 'free') ?
-                      'border-purple-500 bg-purple-50' : 'border-gray-200 bg-gray-50'
-                    }`}>
+                    {/* Premium Plan (Free) */}
+                    <div className="border-2 rounded-lg p-6 border-green-500 bg-green-50">
                       <div className="text-center">
-                        <h4 className="text-lg font-bold text-gray-900">무료 플랜</h4>
+                        <h4 className="text-lg font-bold text-gray-900">프리미엄 플랜 (무료 제공)</h4>
                         <p className="text-2xl font-bold text-gray-900 mt-2">₩0</p>
                         <p className="text-sm text-gray-500">/월</p>
                       </div>
                       <ul className="mt-4 space-y-2 text-sm">
                         <li className="flex items-center">
                           <span className="text-green-500 mr-2">✓</span>
-                          AI 대본 생성 (월 5회)
-                        </li>
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          기본 장르 지원
-                        </li>
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          짧은 길이 스크립트
-                        </li>
-                      </ul>
-                      <button 
-                        className={`w-full mt-4 py-2 px-4 rounded-lg font-medium ${
-                          (!user?.subscription?.plan || user?.subscription?.plan === 'free') ?
-                          'border border-purple-300 text-purple-600' :
-                          'border border-gray-300 text-gray-600'
-                        }`}
-                        disabled={!user?.subscription?.plan || user?.subscription?.plan === 'free'}
-                      >
-                        {(!user?.subscription?.plan || user?.subscription?.plan === 'free') ? '현재 플랜' : '다운그레이드'}
-                      </button>
-                    </div>
-
-                    {/* Pro Plan */}
-                    <div className={`border-2 rounded-lg p-6 relative ${
-                      user?.subscription?.plan === 'pro' ?
-                      'border-blue-500 bg-blue-50' : 'border-gray-200'
-                    }`}>
-                      {user?.subscription?.plan !== 'pro' && (
-                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                          <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium">
-                            추천
-                          </span>
-                        </div>
-                      )}
-                      <div className="text-center">
-                        <h4 className="text-lg font-bold text-gray-900">프로 플랜</h4>
-                        <p className="text-2xl font-bold text-gray-900 mt-2">₩100</p>
-                        <p className="text-sm text-gray-500">/월</p>
-                      </div>
-                      <ul className="mt-4 space-y-2 text-sm">
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          AI 대본 생성 (월 50회)
+                          AI 대본 생성 (무제한)
                         </li>
                         <li className="flex items-center">
                           <span className="text-green-500 mr-2">✓</span>
@@ -996,60 +936,21 @@ const MyPage = () => {
                         </li>
                         <li className="flex items-center">
                           <span className="text-green-500 mr-2">✓</span>
-                          스크립트 리라이팅
+                          스크립트 리라이팅 기능
+                        </li>
+                        <li className="flex items-center">
+                          <span className="text-green-500 mr-2">✓</span>
+                          모든 프리미엄 기능
                         </li>
                       </ul>
-                      <Link
-                        to="/pricing"
-                        className={`w-full mt-4 py-2 px-4 rounded-lg font-medium block text-center ${
-                          user?.subscription?.plan === 'pro' ?
-                          'border border-blue-300 text-blue-600' :
-                          'bg-blue-500 text-white hover:bg-blue-600'
-                        }`}
+                      <button 
+                        className="w-full mt-4 py-2 px-4 rounded-lg font-medium border border-green-300 text-green-600"
+                        disabled
                       >
-                        {user?.subscription?.plan === 'pro' ? '현재 플랜' : '업그레이드'}
-                      </Link>
+                        현재 이용 중
+                      </button>
                     </div>
 
-                    {/* Premier Plan */}
-                    <div className={`border-2 rounded-lg p-6 ${
-                      user?.subscription?.plan === 'premier' ?
-                      'border-purple-500 bg-purple-50' : 'border-gray-200'
-                    }`}>
-                      <div className="text-center">
-                        <h4 className="text-lg font-bold text-gray-900">프리미어 플랜</h4>
-                        <p className="text-2xl font-bold text-gray-900 mt-2">₩19,900</p>
-                        <p className="text-sm text-gray-500">/월</p>
-                      </div>
-                      <ul className="mt-4 space-y-2 text-sm">
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          AI 대본 생성 (무제한)
-                        </li>
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          GPT-4 기반 최고급 AI
-                        </li>
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          캐릭터 분석 & 연기 가이드
-                        </li>
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-2">✓</span>
-                          전문가 피드백 (월 1회)
-                        </li>
-                      </ul>
-                      <Link
-                        to="/pricing"
-                        className={`w-full mt-4 py-2 px-4 rounded-lg font-medium block text-center ${
-                          user?.subscription?.plan === 'premier' ?
-                          'border border-purple-300 text-purple-600' :
-                          'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
-                        }`}
-                      >
-                        {user?.subscription?.plan === 'premier' ? '현재 플랜' : '업그레이드'}
-                      </Link>
-                    </div>
                   </div>
                 </div>
               </div>

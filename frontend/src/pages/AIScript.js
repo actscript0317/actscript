@@ -28,14 +28,14 @@ const AIScript = () => {
   const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
   
-  // 사용량 관리 상태
+  // 사용량 관리 상태 (모든 사용자에게 프리미엄 기능 제공)
   const [usageData, setUsageData] = useState({
     used: 0,
-    limit: 5,
-    isPremium: false,
+    limit: 999999,
+    isPremium: true,
     isActive: true,
     canGenerate: true,
-    planType: 'free',
+    planType: 'premium',
     nextResetDate: null,
     daysUntilReset: 0
   });
@@ -79,24 +79,23 @@ const AIScript = () => {
       
       setUsageData({
         used: usage.currentMonth,
-        limit: usage.limit || 5,
-        isPremium: usage.planType === 'pro' || usage.planType === 'premier',
+        limit: 999999,
+        isPremium: true,
         isActive: true,
-        canGenerate: usage.canGenerate,
-        planType: usage.planType,
+        canGenerate: true,
+        planType: 'premium',
         nextResetDate: usage.nextResetDate,
         daysUntilReset: usage.daysUntilReset
       });
     } catch (error) {
       console.error('사용량 정보 로딩 실패:', error);
-      // 기본값으로 설정
+      // 기본값으로 설정 (모든 사용자에게 프리미엄 기능 제공)
       setUsageData(prev => ({
         ...prev,
         used: user?.usage?.currentMonth || 0,
-        limit: user?.subscription?.plan === 'pro' ? 50 : 
-               user?.subscription?.plan === 'premier' ? 999999 : 5,
-        isPremium: user?.subscription?.plan === 'pro' || user?.subscription?.plan === 'premier',
-        planType: user?.subscription?.plan || 'free'
+        limit: 999999,
+        isPremium: true,
+        planType: 'premium'
       }));
     } finally {
       setLoadingUsage(false);
@@ -527,99 +526,32 @@ const AIScript = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-12">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-4 sm:py-8 md:py-12">
+      <div className="container mx-auto px-2 sm:px-4">
         <div className="max-w-4xl mx-auto">
           
-          {/* 사용량 표시 바 */}
-          <div className={`bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 ${
-            user?.subscription?.plan === 'premier' ? 'border-purple-500' :
-            user?.subscription?.plan === 'pro' ? 'border-blue-500' :
-            'border-gray-500'
-          }`}>
+          {/* 사용량 표시 바 - 모든 사용자에게 프리미엄 기능 제공 */}
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-2">
-                  <Sparkles className={`w-5 h-5 ${
-                    user?.subscription?.plan === 'premier' ? 'text-purple-600' :
-                    user?.subscription?.plan === 'pro' ? 'text-blue-600' :
-                    'text-gray-600'
-                  }`} />
+                  <Sparkles className="w-5 h-5 text-green-600" />
                   <span className="font-medium text-gray-900">
-                    {user?.subscription?.plan === 'premier' ? '프리미어 플랜' :
-                     user?.subscription?.plan === 'pro' ? '프로 플랜' :
-                     '무료 플랜'}
+                    프리미엄 플랜 (무료 제공)
                   </span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  {usageData.limit === null ? 
-                    `${usageData.used}회 사용 (무제한)` :
-                    `${usageData.used}/${usageData.limit}회 사용`
-                  }
+                  {usageData.used}회 사용 (무제한)
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                {!usageData.isPremium && (
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, (usageData.used / usageData.limit) * 100)}%` }}
-                    ></div>
-                  </div>
-                )}
-                {!usageData.isPremium && (
-                  <button
-                    onClick={() => navigate('/pricing')}
-                    className="text-sm bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 transition-colors"
-                  >
-                    업그레이드
-                  </button>
-                )}
-                {usageData.isPremium && (
-                  <span className="text-sm text-green-600 font-medium">
-                    {user?.subscription?.plan === 'premier' ? '✨ 무제한' : '✨ 프리미엄'}
-                  </span>
-                )}
+                <span className="text-sm text-green-600 font-medium">
+                  ✨ 무제한 이용 가능
+                </span>
               </div>
             </div>
           </div>
 
-          {/* 사용량 초과 경고 */}
-          {!usageData.canGenerate && (
-            <div className="bg-gradient-to-r from-orange-100 to-red-100 border border-orange-300 rounded-lg p-6 mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-orange-800 mb-2">
-                    🚫 이번 달 사용량을 모두 사용했습니다!
-                  </h3>
-                  <p className="text-orange-700 mb-4">
-                    {usageData.planType === 'free' ? (
-                      <>무료 플랜 한도(월 5회)를 초과했습니다. 프로 플랜으로 업그레이드하면 월 50회까지 이용 가능합니다.</>
-                    ) : (
-                      <>현재 플랜의 월간 한도를 초과했습니다. {usageData.daysUntilReset}일 후 사용량이 리셋됩니다.</>
-                    )}
-                  </p>
-                  {usageData.planType === 'free' && (
-                    <ul className="text-sm text-orange-600 space-y-1">
-                      <li>✨ 월 50회 AI 스크립트 생성</li>
-                      <li>🎭 모든 장르 및 길이 지원</li>
-                      <li>🔧 스크립트 리라이팅 기능</li>
-                    </ul>
-                  )}
-                </div>
-                {usageData.planType === 'free' && (
-                  <div className="ml-6">
-                    <button
-                      onClick={() => navigate('/pricing')}
-                      className="bg-orange-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-700 transition-colors shadow-lg"
-                    >
-                      프리미엄 시작하기
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
           
           {/* 페이지 헤더 */}
           <motion.div 
@@ -866,7 +798,7 @@ const AIScript = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="bg-white rounded-2xl shadow-md border border-gray-100 p-8"
+                className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8"
               >
                 <div className="text-center mb-8">
                   <motion.div
@@ -883,56 +815,57 @@ const AIScript = () => {
                   <p className="text-gray-600">생성된 대본을 확인하고 연습에 활용해보세요.</p>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 mb-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
                     <h3 className="text-lg font-semibold text-gray-800">생성된 대본</h3>
-                    <div className="flex flex-wrap gap-2 text-sm">
-                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
+                    <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <span className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
                         {formData.characterCount}명
                       </span>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
+                      <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
                         {formData.genre}
                       </span>
-                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                      <span className="px-2 py-1 sm:px-3 bg-green-100 text-green-700 rounded-full">
                         {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
                       </span>
-                      <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
+                      <span className="px-2 py-1 sm:px-3 bg-orange-100 text-orange-700 rounded-full">
                         {ages.find(age => age.value === formData.age)?.label || formData.age}
                       </span>
                     </div>
                   </div>
                   
                   <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center text-blue-700">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      <span className="text-sm font-medium">✨ 리라이팅 기능: 수정하고 싶은 대사나 문장을 드래그로 선택하면 AI가 더 나은 표현으로 바꿔줍니다 (최소 5자 이상)</span>
+                    <div className="flex items-start sm:items-center text-blue-700">
+                      <RefreshCw className="w-4 h-4 mr-2 mt-0.5 sm:mt-0 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium">✨ 리라이팅 기능: 수정하고 싶은 대사나 문장을 드래그로 선택하면 AI가 더 나은 표현으로 바꿔줍니다 (최소 5자 이상)</span>
                     </div>
                   </div>
                   
                   <div 
-                    className="bg-white rounded-lg p-6 border border-gray-200 max-h-96 overflow-y-auto cursor-text select-text"
+                    className="bg-white rounded-lg p-3 sm:p-4 md:p-6 border border-gray-200 max-h-[60vh] sm:max-h-96 overflow-y-auto cursor-text select-text text-sm sm:text-base leading-relaxed"
                     onMouseUp={handleTextSelection}
                   >
                     {parseAndRenderScript(generatedScript)}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
                   <button
                     onClick={() => setShowDetailModal(true)}
-                    className="flex items-center justify-center px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                   >
-                    <Maximize2 className="w-5 h-5 mr-2" />
-                    👁️ 자세히 보기
+                    <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">👁️ 자세히 보기</span>
+                    <span className="sm:hidden">자세히</span>
                   </button>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(generatedScript);
                       toast.success('대본이 클립보드에 복사되었습니다!');
                     }}
-                    className="flex items-center justify-center px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                   >
-                    <Copy className="w-5 h-5 mr-2" />
+                    <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                     복사
                   </button>
                   <button
@@ -958,17 +891,18 @@ const AIScript = () => {
                         toast.error('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
                       }
                     }}
-                    className="flex items-center justify-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                   >
-                    <Save className="w-5 h-5 mr-2" />
+                    <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                     저장
                   </button>
                   <button
                     onClick={() => navigate('/script-vault')}
-                    className="flex items-center justify-center px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                   >
-                    <Archive className="w-5 h-5 mr-2" />
-                    대본함
+                    <Archive className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">대본함</span>
+                    <span className="sm:hidden">함</span>
                   </button>
                   <button
                     onClick={() => {
@@ -976,9 +910,9 @@ const AIScript = () => {
                       setError('');
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="flex items-center justify-center px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base col-span-2 sm:col-span-1"
                   >
-                    <RefreshCw className="w-5 h-5 mr-2" />
+                    <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                     다시 생성
                   </button>
                 </div>
@@ -1160,40 +1094,40 @@ const AIScript = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
+                className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-2 sm:p-4"
                 onClick={() => setShowDetailModal(false)}
               >
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-5xl w-full max-h-[95vh] overflow-hidden"
+                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-5xl w-full max-h-[98vh] sm:max-h-[95vh] overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* 헤더 */}
-                  <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
-                    <div className="flex items-center justify-between">
+                  <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
                       <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
-                          <Eye className="w-6 h-6 text-white" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-3 sm:mr-4">
+                          <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
                         <div>
-                          <h2 className="text-2xl font-bold text-gray-900">대본 자세히 보기</h2>
-                          <p className="text-gray-600">생성된 대본을 크고 명확하게 확인하세요</p>
+                          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">대본 자세히 보기</h2>
+                          <p className="text-sm sm:text-base text-gray-600 hidden sm:block">생성된 대본을 크고 명확하게 확인하세요</p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex flex-wrap gap-2 text-sm">
-                          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
+                      <div className="flex items-center justify-between sm:justify-end space-x-3">
+                        <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
+                          <span className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
                             {formData.characterCount}명
                           </span>
-                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
+                          <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
                             {formData.genre}
                           </span>
-                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                          <span className="px-2 py-1 sm:px-3 bg-green-100 text-green-700 rounded-full">
                             {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
                           </span>
-                          <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
+                          <span className="px-2 py-1 sm:px-3 bg-orange-100 text-orange-700 rounded-full">
                             {ages.find(age => age.value === formData.age)?.label || formData.age}
                           </span>
                         </div>
@@ -1201,32 +1135,32 @@ const AIScript = () => {
                           onClick={() => setShowDetailModal(false)}
                           className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
                         >
-                          <X className="w-5 h-5 text-gray-600" />
+                          <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                         </button>
                       </div>
                     </div>
                   </div>
 
                   {/* 대본 내용 */}
-                  <div className="flex-1 overflow-y-auto bg-gray-50 p-8">
+                  <div className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-6 md:p-8">
                     <div className="max-w-4xl mx-auto">
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8 text-sm sm:text-base leading-relaxed">
                         {parseAndRenderScript(generatedScript)}
                       </div>
                     </div>
                   </div>
 
                   {/* 하단 액션 버튼 */}
-                  <div className="p-6 border-t border-gray-200 bg-gray-50">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                  <div className="p-3 sm:p-4 md:p-6 border-t border-gray-200 bg-gray-50">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4 max-w-4xl mx-auto">
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(generatedScript);
                           toast.success('대본이 클립보드에 복사되었습니다!');
                         }}
-                        className="flex items-center justify-center px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
-                        <Copy className="w-4 h-4 mr-2" />
+                        <Copy className="w-4 h-4 mr-1 sm:mr-2" />
                         복사
                       </button>
                       <button
@@ -1252,9 +1186,9 @@ const AIScript = () => {
                             toast.error('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
                           }
                         }}
-                        className="flex items-center justify-center px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
-                        <Save className="w-4 h-4 mr-2" />
+                        <Save className="w-4 h-4 mr-1 sm:mr-2" />
                         저장
                       </button>
                       <button
@@ -1262,30 +1196,32 @@ const AIScript = () => {
                           setShowDetailModal(false);
                           setShowRewriteModal(true);
                         }}
-                        className="flex items-center justify-center px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        리라이팅
+                        <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">리라이팅</span>
+                        <span className="sm:hidden">수정</span>
                       </button>
                       <button
                         onClick={() => navigate('/script-vault')}
-                        className="flex items-center justify-center px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base col-span-2 sm:col-span-1"
                       >
-                        <Archive className="w-4 h-4 mr-2" />
+                        <Archive className="w-4 h-4 mr-1 sm:mr-2" />
                         대본함
                       </button>
                     </div>
                     
                     {/* 추가 버튼들 */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 max-w-2xl mx-auto mt-3 sm:mt-4">
                       <button
                         onClick={() => window.print()}
-                        className="flex items-center justify-center px-4 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
-                        인쇄하기
+                        <span className="hidden sm:inline">인쇄하기</span>
+                        <span className="sm:hidden">인쇄</span>
                       </button>
                       <button
                         onClick={() => {
@@ -1293,10 +1229,11 @@ const AIScript = () => {
                           setGeneratedScriptId(null);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        className="flex items-center justify-center px-4 py-3 bg-slate-500 hover:bg-slate-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-slate-500 hover:bg-slate-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        새 생성
+                        <RotateCcw className="w-4 h-4 mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">새 생성</span>
+                        <span className="sm:hidden">새로</span>
                       </button>
                     </div>
                   </div>

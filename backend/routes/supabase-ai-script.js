@@ -76,38 +76,9 @@ const checkAndUpdateUsage = async (userId) => {
     usage.lastResetDate = now.toISOString();
   }
 
-  // 플랜별 제한 확인
-  let canGenerate = false;
-  let limit = 0;
-
-  switch (subscription.plan) {
-    case 'free':
-      limit = 5;
-      canGenerate = usage.currentMonth < limit;
-      break;
-    case 'pro':
-      limit = 50;
-      canGenerate = usage.currentMonth < limit;
-      break;
-    case 'premier':
-      canGenerate = true;
-      limit = '무제한';
-      break;
-    default:
-      canGenerate = false;
-  }
-
-  if (!canGenerate) {
-    const error = new Error('사용량을 초과했습니다.');
-    error.statusCode = 429;
-    error.details = {
-      currentUsage: usage.currentMonth,
-      limit: limit,
-      planType: subscription.plan,
-      nextResetDate: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
-    };
-    throw error;
-  }
+  // 모든 사용자에게 무제한 AI 스크립트 생성 허용
+  const canGenerate = true;
+  const limit = '무제한';
 
   // 사용량 증가
   usage.currentMonth += 1;

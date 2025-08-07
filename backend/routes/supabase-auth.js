@@ -3,7 +3,7 @@ const { body, validationResult } = require('express-validator');
 const { supabase, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
 const { sendVerificationEmail } = require('../config/mailgun');
-const TempUser = require('../models/TempUser');
+// const TempUser = require('../models/TempUser'); // MongoDB 모델 제거
 const bcrypt = require('bcryptjs');
 const router = express.Router();
 

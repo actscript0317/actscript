@@ -52,8 +52,12 @@ const trackVisitor = (req, res, next) => {
   }
 
   // 비동기로 방문자 추가 (요청 처리를 블로킹하지 않음)
-  Visitor.addVisitor(ip, page).catch(error => {
-    console.error('방문자 추적 오류:', error);
+  setImmediate(async () => {
+    try {
+      await Visitor.addVisitor(ip, page);
+    } catch (error) {
+      console.error('방문자 추적 오류:', error);
+    }
   });
 
   next();

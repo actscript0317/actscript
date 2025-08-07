@@ -13,16 +13,17 @@ const visitorTracker = require('./middleware/visitorTracker');
 // Supabase 라우트 임포트
 const scriptRoutes = require('./routes/supabase-scripts');
 const emotionRoutes = require('./routes/supabase-emotions');
-const authRoutes = require('./routes/supabase-auth');
+const authRoutes = require('./routes/auth'); // auth.js로 변경됨
 const aiScriptRoutes = require('./routes/supabase-ai-script');
-const actorProfileRoutes = require('./routes/actor-profiles');
-const actorRecruitmentRoutes = require('./routes/actor-recruitments');
-const communityPostRoutes = require('./routes/community-posts');
-const modelRecruitmentRoutes = require('./routes/model-recruitments');
-const likeRoutes = require('./routes/likes');
-const bookmarkRoutes = require('./routes/bookmarks');
-const adminRoutes = require('./routes/admin');
-const paymentRoutes = require('./routes/payment');
+// 임시로 MongoDB 기반 라우트들 비활성화 (Supabase 마이그레이션 완료 시까지)
+// const actorProfileRoutes = require('./routes/actor-profiles');
+// const actorRecruitmentRoutes = require('./routes/actor-recruitments');
+// const communityPostRoutes = require('./routes/community-posts');
+// const modelRecruitmentRoutes = require('./routes/model-recruitments');
+// const likeRoutes = require('./routes/likes');
+// const bookmarkRoutes = require('./routes/bookmarks');
+// const adminRoutes = require('./routes/admin');
+// const paymentRoutes = require('./routes/payment');
 
 const app = express();
 const PORT = config.PORT;
@@ -380,19 +381,20 @@ app.use((req, res, next) => {
   next();
 });
 
-// API 라우트 설정
+// API 라우트 설정 (Supabase 기반)
 app.use('/api/auth', authRoutes);
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/emotions', emotionRoutes);
 app.use('/api/ai-script', aiScriptRoutes);
-app.use('/api/actor-profiles', actorProfileRoutes);
-app.use('/api/actor-recruitments', actorRecruitmentRoutes);
-app.use('/api/community-posts', communityPostRoutes);
-app.use('/api/model-recruitments', modelRecruitmentRoutes);
-app.use('/api/likes', likeRoutes);
-app.use('/api/bookmarks', bookmarkRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/payment', paymentRoutes);
+// 임시로 MongoDB 기반 라우트들 비활성화 (Supabase 마이그레이션 완료 시까지)
+// app.use('/api/actor-profiles', actorProfileRoutes);
+// app.use('/api/actor-recruitments', actorRecruitmentRoutes);
+// app.use('/api/community-posts', communityPostRoutes);
+// app.use('/api/model-recruitments', modelRecruitmentRoutes);
+// app.use('/api/likes', likeRoutes);
+// app.use('/api/bookmarks', bookmarkRoutes);
+// app.use('/api/admin', adminRoutes);
+// app.use('/api/payment', paymentRoutes);
 
 // 전역 에러 핸들링 미들웨어 (모든 라우트 이후에 위치)
 app.use((error, req, res, next) => {

@@ -1,128 +1,140 @@
-const mongoose = require('mongoose');
+const { supabase, safeQuery } = require('../config/supabase');
 
-const visitorSchema = new mongoose.Schema({
-  // 날짜 (YYYY-MM-DD 형식)
-  date: {
-    type: String,
-    required: true,
-    unique: true,
-    index: true
-  },
-  // 일일 방문자 수
-  count: {
-    type: Number,
-    default: 0
-  },
-  // 고유 방문자 IP 주소들 (중복 제거용)
-  uniqueIPs: [{
-    type: String
-  }],
-  // 페이지별 방문 통계
-  pageViews: {
-    home: { type: Number, default: 0 },
-    scripts: { type: Number, default: 0 },
-    aiScript: { type: Number, default: 0 },
-    actorProfile: { type: Number, default: 0 },
-    actorRecruitment: { type: Number, default: 0 },
-    modelRecruitment: { type: Number, default: 0 },
-    actorInfo: { type: Number, default: 0 },
-    mypage: { type: Number, default: 0 },
-    other: { type: Number, default: 0 }
-  }
-}, {
-  timestamps: true,
-  collection: 'visitors'
-});
-
-// 인덱스 설정
-visitorSchema.index({ date: -1 });
-visitorSchema.index({ createdAt: -1 });
-
-// 방문자 추가 메서드
-visitorSchema.statics.addVisitor = async function(ip, page = 'home') {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
-  
-  try {
-    let visitor = await this.findOne({ date: today });
+// Visitor 모델을 Supabase 기반으로 변경
+class Visitor {
+  // 방문자 추가 메서드
+  static async addVisitor(ip, page = 'home') {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
     
-    if (!visitor) {
-      // 새로운 날짜의 첫 방문자
-      visitor = new this({
-        date: today,
-        count: 1,
-        uniqueIPs: [ip],
-        pageViews: {
-          [page]: 1
-        }
-      });
-    } else {
-      // 기존 날짜에 방문자 추가
-      if (!visitor.uniqueIPs.includes(ip)) {
-        visitor.uniqueIPs.push(ip);
-        visitor.count += 1;
+    try {
+      // 오늘 날짜의 방문자 기록 조회
+      const existingResult = await safeQuery(async () => {
+        return await supabase
+          .from('visitors')
+          .select('*')
+          .eq('ip_address', ip)
+          .gte('created_at', `${today}T00:00:00.000Z`)
+          .lt('created_at', `${new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T00:00:00.000Z`)
+          .single();
+      }, '기존 방문자 조회');
+
+      if (!existingResult.success) {
+        // 새로운 방문자 기록
+        const insertResult = await safeQuery(async () => {
+          return await supabase
+            .from('visitors')
+            .insert({
+              ip_address: ip,
+              path: `/${page}`,
+              user_agent: null, // 필요시 req.headers['user-agent']로 설정
+              device_type: 'unknown',
+              browser: 'unknown',
+              os: 'unknown'
+            })
+            .select()
+            .single();
+        }, '새 방문자 기록');
+
+        return insertResult.data;
       }
+
+      // 이미 기록된 방문자의 경우 추가 처리 없음
+      return existingResult.data;
       
-      // 페이지 방문 수 증가
-      if (visitor.pageViews[page] !== undefined) {
-        visitor.pageViews[page] += 1;
-      } else {
-        visitor.pageViews.other += 1;
-      }
+    } catch (error) {
+      console.error('방문자 추가 오류:', error);
+      // 에러가 발생해도 메인 애플리케이션 흐름을 방해하지 않음
+      return null;
     }
-    
-    await visitor.save();
-    return visitor;
-  } catch (error) {
-    console.error('방문자 추가 오류:', error);
-    throw error;
   }
-};
 
-// 기간별 방문자 통계 조회
-visitorSchema.statics.getStats = async function(startDate, endDate) {
-  try {
-    const stats = await this.aggregate([
-      {
-        $match: {
-          date: {
-            $gte: startDate,
-            $lte: endDate
-          }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalVisitors: { $sum: '$count' },
-          totalPageViews: {
-            $sum: {
-              $add: [
-                '$pageViews.home',
-                '$pageViews.scripts',
-                '$pageViews.aiScript',
-                '$pageViews.actorProfile',
-                '$pageViews.actorRecruitment',
-                '$pageViews.modelRecruitment',
-                '$pageViews.actorInfo',
-                '$pageViews.mypage',
-                '$pageViews.other'
-              ]
-            }
-          },
-          avgVisitorsPerDay: { $avg: '$count' }
-        }
+  // 기간별 방문자 통계 조회
+  static async getStats(startDate, endDate) {
+    try {
+      const statsResult = await safeQuery(async () => {
+        return await supabase
+          .from('visitors')
+          .select('*')
+          .gte('created_at', `${startDate}T00:00:00.000Z`)
+          .lt('created_at', `${endDate}T23:59:59.999Z`);
+      }, '방문자 통계 조회');
+
+      if (!statsResult.success) {
+        return {
+          totalVisitors: 0,
+          totalPageViews: 0,
+          avgVisitorsPerDay: 0
+        };
       }
-    ]);
-    
-    return stats[0] || {
-      totalVisitors: 0,
-      totalPageViews: 0,
-      avgVisitorsPerDay: 0
-    };
-  } catch (error) {
-    console.error('방문자 통계 조회 오류:', error);
-    throw error;
-  }
-};
 
-module.exports = mongoose.model('Visitor', visitorSchema);
+      const visitors = statsResult.data;
+      const uniqueIPs = new Set(visitors.map(v => v.ip_address));
+      const totalPageViews = visitors.length;
+      const totalDays = Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
+
+      return {
+        totalVisitors: uniqueIPs.size,
+        totalPageViews: totalPageViews,
+        avgVisitorsPerDay: Math.round(uniqueIPs.size / totalDays * 100) / 100
+      };
+      
+    } catch (error) {
+      console.error('방문자 통계 조회 오류:', error);
+      return {
+        totalVisitors: 0,
+        totalPageViews: 0,
+        avgVisitorsPerDay: 0
+      };
+    }
+  }
+
+  // 일별 방문자 수 조회
+  static async getDailyStats(days = 7) {
+    try {
+      const endDate = new Date();
+      const startDate = new Date(endDate.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+
+      const statsResult = await safeQuery(async () => {
+        return await supabase
+          .from('visitors')
+          .select('created_at, ip_address')
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString());
+      }, '일별 방문자 통계');
+
+      if (!statsResult.success) {
+        return [];
+      }
+
+      const visitors = statsResult.data;
+      const dailyStats = {};
+
+      // 일별로 그룹화
+      visitors.forEach(visitor => {
+        const date = visitor.created_at.split('T')[0];
+        if (!dailyStats[date]) {
+          dailyStats[date] = new Set();
+        }
+        dailyStats[date].add(visitor.ip_address);
+      });
+
+      // 결과 배열로 변환
+      const result = [];
+      for (let i = 0; i < days; i++) {
+        const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)
+          .toISOString().split('T')[0];
+        result.push({
+          date,
+          count: dailyStats[date] ? dailyStats[date].size : 0
+        });
+      }
+
+      return result;
+    } catch (error) {
+      console.error('일별 방문자 통계 조회 오류:', error);
+      return [];
+    }
+  }
+}
+
+module.exports = Visitor;

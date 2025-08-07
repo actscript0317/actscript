@@ -11,10 +11,25 @@ const fs = require('fs');
 const visitorTracker = require('./middleware/visitorTracker');
 
 // Supabase 라우트 임포트
+console.log('📂 [server.js] 라우트 파일들 임포트 시작...');
+
+console.log('📂 [server.js] supabase-scripts 임포트 중...');
 const scriptRoutes = require('./routes/supabase-scripts');
+console.log('✅ [server.js] supabase-scripts 임포트 완료');
+
+console.log('📂 [server.js] supabase-emotions 임포트 중...');
 const emotionRoutes = require('./routes/supabase-emotions');
+console.log('✅ [server.js] supabase-emotions 임포트 완료');
+
+console.log('📂 [server.js] auth.js 임포트 중...');
 const authRoutes = require('./routes/auth'); // auth.js로 변경됨
+console.log('✅ [server.js] auth.js 임포트 완료');
+
+console.log('📂 [server.js] supabase-ai-script 임포트 중...');
 const aiScriptRoutes = require('./routes/supabase-ai-script');
+console.log('✅ [server.js] supabase-ai-script 임포트 완료');
+
+console.log('🎉 [server.js] 모든 라우트 파일 임포트 완료!');
 // 임시로 MongoDB 기반 라우트들 비활성화 (Supabase 마이그레이션 완료 시까지)
 // const actorProfileRoutes = require('./routes/actor-profiles');
 // const actorRecruitmentRoutes = require('./routes/actor-recruitments');
@@ -419,6 +434,26 @@ app.get('/api', (req, res) => {
       emotions: '/api/emotions/*',
       aiScript: '/api/ai-script/*'
     }
+  });
+});
+
+// 강제 테스트 라우트 (라우팅 문제 진단용)
+app.get('/api/auth/debug', (req, res) => {
+  res.json({
+    success: true,
+    message: '직접 등록된 auth 라우트 테스트 성공!',
+    timestamp: new Date().toISOString(),
+    note: '이 라우트가 작동한다면 auth.js 파일 로딩에 문제가 있습니다.'
+  });
+});
+
+app.post('/api/auth/debug-login', (req, res) => {
+  res.json({
+    success: true,
+    message: '직접 등록된 로그인 라우트 테스트 성공!',
+    body: req.body,
+    timestamp: new Date().toISOString(),
+    note: '이 라우트가 작동한다면 auth.js의 로그인 라우트에 문제가 있습니다.'
   });
 });
 

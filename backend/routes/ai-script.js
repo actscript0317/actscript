@@ -1,10 +1,8 @@
 const express = require('express');
 const OpenAI = require('openai');
 const config = require('../config/env');
-// MongoDB 모델들 제거됨 - Supabase 마이그레이션 필요
-// const AIScript = require('../models/AIScript');
-// const User = require('../models/User');
-const { protect } = require('../middleware/auth');
+const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
+const { authenticateToken } = require('../middleware/supabaseAuth');
 
 const router = express.Router();
 
@@ -13,8 +11,8 @@ let openai = null;
 
 if (config.OPENAI_API_KEY) {
   openai = new OpenAI({
-    apiKey: config.OPENAI_API_KEY
-  });
+  apiKey: config.OPENAI_API_KEY
+});
 } else {
   console.warn('⚠️ OPENAI_API_KEY가 설정되지 않았습니다. AI 기능이 비활성화됩니다.');
 }
@@ -50,8 +48,85 @@ const extractTitleFromScript = (scriptContent) => {
   return null;
 };
 
-// 대본 생성 API
-router.post('/generate', protect, async (req, res) => {
+// 사용자 사용량 확인 및 업데이트
+const checkAndUpdateUsage = async (userId) => {
+  console.log('🔍 사용자 조회 시작:', userId);
+  
+  // 사용자 정보 조회 (Admin 클라이언트 사용하여 RLS 우회)
+  const userResult = await safeQuery(async () => {
+    return await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+  }, 'Supabase 사용자 정보 조회');
+
+  if (!userResult.success) {
+    throw new Error('사용자를 찾을 수 없습니다.');
+  }
+
+  const user = userResult.data;
+  const usage = user.usage || { currentMonth: 0, lastResetDate: null, totalGenerated: 0 };
+  const subscription = user.subscription || { plan: 'test' };
+
+  // 월이 바뀌었으면 사용량 리셋
+  const now = new Date();
+  const lastReset = usage.lastResetDate ? new Date(usage.lastResetDate) : new Date();
+  
+  if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+    usage.currentMonth = 0;
+    usage.lastResetDate = now.toISOString();
+  }
+
+  // 사용자별 월간 제한 확인 (기본 10회)
+  const userLimit = user.usage?.monthly_limit || 10;
+  let canGenerate = false;
+  let limit = userLimit;
+
+  if (userLimit === 999999) {
+    // 무제한 사용자 (관리자가 설정)
+    canGenerate = true;
+    limit = '무제한';
+  } else {
+    // 일반 사용자 - 월간 제한 확인
+    canGenerate = usage.currentMonth < userLimit;
+  }
+
+  if (!canGenerate) {
+    const error = new Error('사용량을 초과했습니다.');
+    error.statusCode = 429;
+    error.details = {
+      currentUsage: usage.currentMonth,
+      limit: limit,
+      planType: subscription.plan,
+      nextResetDate: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
+    };
+    throw error;
+  }
+
+  // 사용량 증가
+  usage.currentMonth += 1;
+  usage.totalGenerated += 1;
+
+  // 사용량 업데이트 (Admin 클라이언트 사용)
+  const updateResult = await safeQuery(async () => {
+    return await supabaseAdmin
+      .from('users')
+      .update({ usage: usage })
+      .eq('id', userId);
+  }, '사용량 업데이트');
+  
+  if (!updateResult.success) {
+    console.error('❌ 사용량 업데이트 실패:', updateResult.error);
+  } else {
+    console.log('✅ 사용량 업데이트 완료:', usage);
+  }
+
+  return { user, usage };
+};
+
+  // 대본 생성 API
+router.post('/generate', authenticateToken, async (req, res) => {
   try {
     console.log('🎭 AI 대본 생성 요청 시작');
     console.log('📝 요청 데이터:', req.body);
@@ -67,26 +142,19 @@ router.post('/generate', protect, async (req, res) => {
     
     console.log('✅ OpenAI 클라이언트 초기화 완료');
     
-    // 사용자 정보 업데이트 및 사용량 확인
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(401).json({
-        error: '사용자를 찾을 수 없습니다.'
-      });
-    }
-    
-    // 사용량 제한 확인
-    if (!user.canGenerateScript()) {
-      const limit = user.subscription.plan === 'pro' ? 50 : 
-                   user.subscription.plan === 'premier' ? '무제한' : 5;
-      return res.status(429).json({
-        error: '사용량을 초과했습니다.',
-        message: `이번 달 사용량 한도(${limit}회)를 초과했습니다. 프리미엄 플랜을 고려해보세요.`,
-        currentUsage: user.usage.currentMonth,
-        limit: limit,
-        planType: user.subscription.plan,
-        nextResetDate: new Date(user.usage.lastResetDate.getFullYear(), user.usage.lastResetDate.getMonth() + 1, 1).toISOString()
-      });
+    // 사용량 확인 및 업데이트
+    let userInfo;
+    try {
+      userInfo = await checkAndUpdateUsage(req.user.id);
+    } catch (error) {
+      if (error.statusCode === 429) {
+        return res.status(429).json({
+          error: error.message,
+          message: `이번 달 사용량 한도(${error.details.limit}회)를 초과했습니다. 프리미엄 플랜을 고려해보세요.`,
+          ...error.details
+        });
+      }
+      throw error;
     }
 
     const { characterCount, genre, length, gender, age } = req.body;
@@ -141,6 +209,7 @@ router.post('/generate', protect, async (req, res) => {
       '시대극': 'Use historically appropriate language and cultural context.',
     }[genre] || 'Keep the tone consistent with the selected genre.';
 
+
     // 등장인물별 지시사항
     const characterDirectivesMap = {
       '1': `독백 전용 작성 가이드:
@@ -190,6 +259,7 @@ router.post('/generate', protect, async (req, res) => {
     };
     
     const ageDirective = ageDirectives[age] || ageDirectives['20s'];
+
 
     // OpenAI에 보낼 프롬프트 생성
     const prompt = `당신은 한국에서 활동하는 전문 독백 작가입니다.
@@ -295,41 +365,56 @@ ${characterDirectives}
     const extractedTitle = extractTitleFromScript(generatedScript);
     const title = extractedTitle || `${genre} ${genderText} 독백`;
 
-    // MongoDB에 저장
-    console.log('💾 MongoDB에 대본 저장 시작');
-    const newScript = new AIScript({
-      userId: req.user._id,
+    // Supabase에 저장
+    console.log('💾 Supabase에 대본 저장 시작');
+    const aiScriptData = {
+      user_id: req.user.id,
       title: title,
       content: generatedScript,
-      characterCount,
-      genre,
-      length,
-      gender,
-      age,
-      metadata: {
+      character_count: parseInt(characterCount) || 1,
+      genre: genre,
+      length: length,
+      gender: gender,
+      age: age,
+      metadata: JSON.stringify({
         model: "gpt-4o",
         generateTime: new Date(),
         promptTokens: completion.usage?.prompt_tokens,
         completionTokens: completion.usage?.completion_tokens
-      }
-    });
+      }),
+      is_saved: false,
+      is_public: false,
+      created_at: new Date().toISOString()
+    };
 
-    const savedScript = await newScript.save();
-    console.log('✅ MongoDB 저장 완료, ID:', savedScript._id);
-    
-    // 사용량 증가 및 사용자 업데이트
-    user.incrementUsage();
-    await user.save();
-    console.log('✅ 사용량 업데이트 완료:', {
-      currentMonth: user.usage.currentMonth,
-      total: user.usage.totalGenerated
-    });
+    const saveResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .insert(aiScriptData)
+        .select()
+        .single();
+    }, 'AI 스크립트 저장');
+
+    if (!saveResult.success) {
+      console.error('❌ AI 스크립트 저장 실패:', saveResult.error);
+      // 저장 실패해도 생성된 스크립트는 반환
+    }
+
+    console.log('✅ Supabase 저장 완료, ID:', saveResult.success ? saveResult.data.id : 'N/A');
 
     res.json({
       success: true,
-      script: generatedScript,
-      scriptId: savedScript._id,
-      title: title,
+      script: {
+        id: saveResult.success ? saveResult.data.id : null,
+        title: title,
+        content: generatedScript,
+        characterCount: parseInt(characterCount),
+        genre: genre,
+        length: length,
+        gender: gender,
+        age: age,
+        createdAt: new Date().toISOString()
+      },
       metadata: {
         characterCount,
         genre,
@@ -383,7 +468,7 @@ ${characterDirectives}
 });
 
 // 대본 리라이팅 API
-router.post('/rewrite', protect, async (req, res) => {
+router.post('/rewrite', async (req, res) => {
   try {
     // OpenAI API 키 확인
     if (!openai) {
@@ -526,18 +611,27 @@ ${selectedIntensity.instruction}
     });
   }
 });
-
 // 사용자의 AI 생성 스크립트 목록 조회
-router.get('/scripts', protect, async (req, res) => {
+router.get('/scripts', authenticateToken, async (req, res) => {
   try {
-    const scripts = await AIScript.find({ userId: req.user._id })
-      .sort({ createdAt: -1 })
-      .select('title content characterCount genre emotions length situation createdAt isSaved savedAt')
-      .lean();
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .select('*')
+        .eq('user_id', req.user.id)
+        .order('created_at', { ascending: false });
+    }, 'AI 스크립트 목록 조회');
+
+    if (!result.success) {
+      return res.status(result.error.code).json({
+        success: false,
+        message: result.error.message
+      });
+    }
 
     res.json({
       success: true,
-      scripts: scripts
+      scripts: result.data
     });
   } catch (error) {
     console.error('AI 스크립트 조회 오류:', error);
@@ -549,14 +643,18 @@ router.get('/scripts', protect, async (req, res) => {
 });
 
 // 특정 AI 스크립트 조회
-router.get('/scripts/:id', protect, async (req, res) => {
+router.get('/scripts/:id', authenticateToken, async (req, res) => {
   try {
-    const script = await AIScript.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
-    }).lean();
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .single();
+    }, 'AI 스크립트 상세 조회');
 
-    if (!script) {
+    if (!result.success) {
       return res.status(404).json({
         error: '스크립트를 찾을 수 없습니다.'
       });
@@ -564,7 +662,7 @@ router.get('/scripts/:id', protect, async (req, res) => {
 
     res.json({
       success: true,
-      script: script
+      script: result.data
     });
   } catch (error) {
     console.error('AI 스크립트 조회 오류:', error);
@@ -575,18 +673,22 @@ router.get('/scripts/:id', protect, async (req, res) => {
 });
 
 // AI 스크립트를 대본함에 저장
-router.put('/scripts/:id/save', protect, async (req, res) => {
+router.put('/scripts/:id/save', authenticateToken, async (req, res) => {
   try {
-    const script = await AIScript.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
-      { 
-        isSaved: true, 
-        savedAt: new Date() 
-      },
-      { new: true }
-    );
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .update({ 
+          is_saved: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .select()
+        .single();
+    }, 'AI 스크립트 저장');
 
-    if (!script) {
+    if (!result.success) {
       return res.status(404).json({
         error: '스크립트를 찾을 수 없습니다.'
       });
@@ -595,7 +697,7 @@ router.put('/scripts/:id/save', protect, async (req, res) => {
     res.json({
       success: true,
       message: '스크립트가 대본함에 저장되었습니다.',
-      script: script
+      script: result.data
     });
   } catch (error) {
     console.error('AI 스크립트 저장 오류:', error);
@@ -606,14 +708,19 @@ router.put('/scripts/:id/save', protect, async (req, res) => {
 });
 
 // AI 스크립트 삭제
-router.delete('/scripts/:id', protect, async (req, res) => {
+router.delete('/scripts/:id', authenticateToken, async (req, res) => {
   try {
-    const script = await AIScript.findOneAndDelete({ 
-      _id: req.params.id, 
-      userId: req.user._id 
-    });
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .delete()
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .select()
+        .single();
+    }, 'AI 스크립트 삭제');
 
-    if (!script) {
+    if (!result.success) {
       return res.status(404).json({
         error: '스크립트를 찾을 수 없습니다.'
       });
@@ -631,20 +738,118 @@ router.delete('/scripts/:id', protect, async (req, res) => {
   }
 });
 
-// 저장된 AI 스크립트 목록 조회 (대본함용)
-router.get('/saved', protect, async (req, res) => {
+// 사용량 정보 조회 API
+router.get('/usage', authenticateToken, async (req, res) => {
   try {
-    const savedScripts = await AIScript.find({ 
-      userId: req.user._id, 
-      isSaved: true 
-    })
-      .sort({ savedAt: -1 })
-      .select('title content characterCount genre emotions length situation savedAt')
-      .lean();
+    console.log('📊 사용량 정보 조회 요청:', req.user.id);
+    
+    // 사용자 정보 조회 (Admin 클라이언트 사용)
+    const userResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('id', req.user.id)
+        .single();
+    }, '사용량 조회용 사용자 정보');
+
+    if (!userResult.success) {
+      console.error('❌ 사용량 조회 실패:', userResult.error);
+      return res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      });
+    }
+
+    const user = userResult.data;
+    const usage = user.usage || { currentMonth: 0, lastResetDate: null, totalGenerated: 0 };
+    const subscription = user.subscription || { plan: 'test' };
+
+    // 월이 바뀌었으면 사용량 리셋
+    const now = new Date();
+    const lastReset = usage.lastResetDate ? new Date(usage.lastResetDate) : new Date();
+    
+    let resetUsage = { ...usage };
+    if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+      resetUsage.currentMonth = 0;
+      resetUsage.lastResetDate = now.toISOString();
+      
+      // 사용량 리셋을 DB에 저장
+      await safeQuery(async () => {
+        return await supabaseAdmin
+          .from('users')
+          .update({ usage: resetUsage })
+          .eq('id', req.user.id);
+      }, '사용량 리셋 저장');
+    }
+
+    // 사용자별 월간 제한 확인
+    const userLimit = user.usage?.monthly_limit || 10;
+    let canGenerate = true;
+    let limit = userLimit;
+
+    if (userLimit === 999999) {
+      // 무제한 사용자
+      limit = '무제한';
+    } else {
+      // 일반 사용자 - 월간 제한 확인
+      canGenerate = resetUsage.currentMonth < userLimit;
+    }
+
+    // 다음 리셋 날짜 계산
+    const nextResetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const daysUntilReset = Math.ceil((nextResetDate - now) / (1000 * 60 * 60 * 24));
 
     res.json({
       success: true,
-      scripts: savedScripts
+      usage: {
+        currentMonth: resetUsage.currentMonth,
+        totalGenerated: resetUsage.totalGenerated,
+        limit: limit,
+        canGenerate: canGenerate,
+        planType: subscription.plan,
+        nextResetDate: nextResetDate.toISOString(),
+        daysUntilReset: daysUntilReset
+      }
+    });
+
+    console.log('✅ 사용량 정보 조회 완료:', {
+      currentMonth: resetUsage.currentMonth,
+      limit: limit,
+      canGenerate: canGenerate
+    });
+
+  } catch (error) {
+    console.error('❌ 사용량 정보 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '사용량 정보 조회 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
+
+// 저장된 AI 스크립트 목록 조회 (대본함용)
+router.get('/saved', authenticateToken, async (req, res) => {
+  try {
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .select('*')
+        .eq('user_id', req.user.id)
+        .eq('is_saved', true)
+        .order('created_at', { ascending: false });
+    }, '저장된 AI 스크립트 목록 조회');
+
+    if (!result.success) {
+      return res.status(result.error.code).json({
+        success: false,
+        message: result.error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      scripts: result.data
     });
   } catch (error) {
     console.error('저장된 AI 스크립트 조회 오류:', error);
@@ -654,54 +859,4 @@ router.get('/saved', protect, async (req, res) => {
   }
 });
 
-// 사용량 정보 조회 API
-router.get('/usage', protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(401).json({
-        error: '사용자를 찾을 수 없습니다.'
-      });
-    }
-
-    // 월이 바뀌었는지 확인하고 필요시 리셋
-    const now = new Date();
-    if (user.usage.lastResetDate && 
-        user.usage.lastResetDate.getMonth() !== now.getMonth()) {
-      user.usage.currentMonth = 0;
-      user.usage.lastResetDate = now;
-      await user.save();
-    }
-
-    // 플랜별 제한 정보
-    const limits = {
-      free: 5,
-      pro: 50,
-      premier: null // 무제한
-    };
-
-    const currentLimit = limits[user.subscription.plan];
-    const canGenerate = user.canGenerateScript();
-    const nextResetDate = new Date(user.usage.lastResetDate.getFullYear(), user.usage.lastResetDate.getMonth() + 1, 1);
-
-    res.json({
-      success: true,
-      usage: {
-        currentMonth: user.usage.currentMonth,
-        totalGenerated: user.usage.totalGenerated,
-        limit: currentLimit,
-        canGenerate: canGenerate,
-        planType: user.subscription.plan,
-        nextResetDate: nextResetDate.toISOString(),
-        daysUntilReset: Math.ceil((nextResetDate - now) / (1000 * 60 * 60 * 24))
-      }
-    });
-  } catch (error) {
-    console.error('사용량 조회 오류:', error);
-    res.status(500).json({
-      error: '사용량 조회 중 오류가 발생했습니다.'
-    });
-  }
-});
-
-module.exports = router;
+module.exports = router; 

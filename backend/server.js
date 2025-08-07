@@ -25,9 +25,9 @@ console.log('📂 [server.js] auth.js 임포트 중...');
 const authRoutes = require('./routes/auth'); // auth.js로 변경됨
 console.log('✅ [server.js] auth.js 임포트 완료');
 
-console.log('📂 [server.js] supabase-ai-script 임포트 중...');
-const aiScriptRoutes = require('./routes/supabase-ai-script');
-console.log('✅ [server.js] supabase-ai-script 임포트 완료');
+console.log('📂 [server.js] ai-script (고품질 프롬프트) 임포트 중...');
+const aiScriptRoutes = require('./routes/ai-script');
+console.log('✅ [server.js] ai-script (고품질 프롬프트) 임포트 완료');
 
 console.log('🎉 [server.js] 모든 라우트 파일 임포트 완료!');
 // MongoDB 완전 제거 완료

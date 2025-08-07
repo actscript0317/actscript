@@ -2051,6 +2051,125 @@ router.post('/sync-missing-users', async (req, res) => {
   }
 });
 
+// 중복 Auth 사용자 정리 엔드포인트
+router.post('/cleanup-duplicate-auth', async (req, res) => {
+  try {
+    console.log('🧹 중복 Auth 사용자 정리 시작...');
+    
+    // 1. Supabase Auth 사용자 목록
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    if (authError) {
+      return res.status(500).json({ success: false, error: authError.message });
+    }
+    
+    // 2. users 테이블 사용자 목록
+    const { data: tableUsers, error: tableError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, username, created_at');
+    if (tableError) {
+      return res.status(500).json({ success: false, error: tableError.message });
+    }
+    
+    // 3. 이메일별로 그룹화
+    const emailGroups = {};
+    authUsers.users.forEach(user => {
+      if (!emailGroups[user.email]) {
+        emailGroups[user.email] = [];
+      }
+      emailGroups[user.email].push(user);
+    });
+    
+    // 4. 중복 이메일 찾기
+    const duplicates = [];
+    const toDelete = [];
+    
+    for (const [email, users] of Object.entries(emailGroups)) {
+      if (users.length > 1) {
+        // users 테이블에서 해당 이메일 찾기
+        const tableUser = tableUsers.find(u => u.email === email);
+        
+        if (tableUser) {
+          // users 테이블 ID와 일치하는 Auth 사용자 찾기
+          const matchingAuth = users.find(u => u.id === tableUser.id);
+          
+          if (matchingAuth) {
+            // 일치하는 것 제외하고 나머지 삭제 대상
+            const duplicateAuths = users.filter(u => u.id !== tableUser.id);
+            toDelete.push(...duplicateAuths);
+          } else {
+            // 일치하는 게 없으면 가장 최근 것 제외하고 삭제
+            const sorted = users.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            toDelete.push(...sorted.slice(1));
+          }
+          
+          duplicates.push({
+            email,
+            authCount: users.length,
+            tableUserId: tableUser.id,
+            authUserIds: users.map(u => u.id)
+          });
+        } else {
+          // users 테이블에 없으면 최신 것 제외하고 모두 삭제
+          const sorted = users.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          toDelete.push(...sorted.slice(1));
+          
+          duplicates.push({
+            email,
+            authCount: users.length,
+            tableUserId: null,
+            authUserIds: users.map(u => u.id)
+          });
+        }
+      }
+    }
+    
+    // 5. 중복 Auth 사용자 삭제
+    const deleteResults = [];
+    for (const user of toDelete) {
+      try {
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+        deleteResults.push({
+          id: user.id,
+          email: user.email,
+          success: !deleteError,
+          error: deleteError?.message
+        });
+        console.log(deleteError ? `❌ ${user.email} 삭제 실패` : `✅ ${user.email} 중복 Auth 삭제`);
+      } catch (error) {
+        deleteResults.push({
+          id: user.id,
+          email: user.email,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `중복 Auth 사용자 정리 완료`,
+      summary: {
+        totalAuthUsers: authUsers.users.length,
+        duplicateEmails: duplicates.length,
+        duplicateAuthUsers: toDelete.length,
+        deletedCount: deleteResults.filter(r => r.success).length,
+        failedCount: deleteResults.filter(r => !r.success).length
+      },
+      details: {
+        duplicates,
+        deleteResults
+      }
+    });
+  } catch (error) {
+    console.error('❌ 중복 Auth 정리 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '중복 Auth 정리 중 오류 발생',
+      error: error.message
+    });
+  }
+});
+
 console.log('✅ [auth.js] 라우터 모듈 내보내기 완료');
 
 module.exports = router;

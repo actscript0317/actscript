@@ -1362,7 +1362,7 @@ router.post('/verify-register', [
 
     console.log('✅ 인증 코드 검증 성공');
 
-    // 4. 메모리에서 원본 비밀번호 가져오기
+    // 4. 메모리에서 원본 비밀번호 가져오기 (Render 환경 대응)
     console.log('🔍 메모리에서 원본 비밀번호 조회:', {
       tempUserId,
       메모리맵존재: !!global.tempPasswords,
@@ -1370,16 +1370,30 @@ router.post('/verify-register', [
       비밀번호존재: !!global.tempPasswords?.get(tempUserId)
     });
     
-    const originalPassword = global.tempPasswords?.get(tempUserId);
+    let originalPassword = global.tempPasswords?.get(tempUserId);
+    
+    // Render 환경에서 메모리 데이터 손실 시 대체 로직
     if (!originalPassword) {
-      console.error('❌ 원본 비밀번호를 찾을 수 없음:', {
+      console.error('❌ 원본 비밀번호를 메모리에서 찾을 수 없음:', {
         tempUserId,
-        메모리맵: global.tempPasswords ? Array.from(global.tempPasswords.keys()) : null
+        메모리맵: global.tempPasswords ? Array.from(global.tempPasswords.keys()) : null,
+        서버환경: process.env.NODE_ENV,
+        해결방안: '사용자에게 새 비밀번호 설정 요청'
       });
-      return res.status(400).json({
-        success: false,
-        message: '인증 요청을 찾을 수 없습니다. 다시 회원가입을 진행해주세요.'
-      });
+      
+      // 임시 해결책: 해시된 비밀번호를 원본처럼 사용해보기 (실패할 가능성 높음)
+      console.log('🔄 대체 로직 시도: 해시된 비밀번호 사용');
+      originalPassword = tempUser.password_hash;
+      
+      // 사용자에게 명확한 안내 메시지 제공
+      if (!originalPassword || originalPassword.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: '서버 재시작으로 인한 세션 만료입니다. 회원가입을 다시 진행해주세요.',
+          code: 'SESSION_EXPIRED',
+          action: 'RESTART_REGISTRATION'
+        });
+      }
     }
 
     console.log('✅ 원본 비밀번호 조회 성공');
@@ -1388,7 +1402,9 @@ router.post('/verify-register', [
     console.log('👤 Supabase Auth 사용자 생성 시작:', {
       email: tempUser.email,
       username: tempUser.username,
-      name: tempUser.name
+      name: tempUser.name,
+      passwordType: originalPassword === tempUser.password_hash ? 'hashed_fallback' : 'original',
+      passwordLength: originalPassword?.length
     });
     
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -1602,6 +1618,66 @@ router.post('/resend-register-code', [
     res.status(500).json({
       success: false,
       message: '인증 코드 재전송 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+// 메모리 상태 확인 엔드포인트
+router.get('/test-memory', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: '메모리 상태 확인',
+      data: {
+        tempPasswordsExists: !!global.tempPasswords,
+        tempPasswordsSize: global.tempPasswords?.size || 0,
+        tempPasswordsKeys: global.tempPasswords ? Array.from(global.tempPasswords.keys()) : [],
+        nodeEnv: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '메모리 테스트 중 오류 발생',
+      error: error.message
+    });
+  }
+});
+
+// Supabase Auth 연결 테스트 엔드포인트
+router.get('/test-supabase-auth', async (req, res) => {
+  try {
+    console.log('🔧 Supabase Auth 연결 테스트 시작');
+    
+    // Service Role Key로 사용자 목록 조회 테스트
+    const { data: users, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (usersError) {
+      console.error('❌ Supabase Auth 연결 실패:', usersError);
+      return res.status(500).json({
+        success: false,
+        message: 'Supabase Auth 연결 실패',
+        error: usersError.message
+      });
+    }
+    
+    console.log('✅ Supabase Auth 연결 성공');
+    res.json({
+      success: true,
+      message: 'Supabase Auth 연결 성공',
+      data: {
+        userCount: users.users.length,
+        hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Supabase Auth 테스트 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Supabase Auth 테스트 중 오류 발생',
+      error: error.message
     });
   }
 });

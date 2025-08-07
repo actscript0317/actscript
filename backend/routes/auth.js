@@ -7,6 +7,40 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const router = express.Router();
 
+// temp_users 테이블 확인 엔드포인트
+router.get('/test-temp-users', async (req, res) => {
+  try {
+    console.log('🔧 temp_users 테이블 테스트 중...');
+    
+    // temp_users 테이블 조회 시도
+    const { data, error } = await supabase
+      .from('temp_users')
+      .select('count', { count: 'exact', head: true });
+    
+    if (error) {
+      console.error('❌ temp_users 테이블 조회 실패:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'temp_users 테이블에 접근할 수 없습니다.',
+        error: error.message
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'temp_users 테이블 접근 성공'
+    });
+    
+  } catch (error) {
+    console.error('❌ temp_users 테이블 테스트 중 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '테스트 중 오류 발생',
+      error: error.message
+    });
+  }
+});
+
 // Supabase 설정 테스트 엔드포인트
 router.get('/test-supabase', async (req, res) => {
   try {
@@ -1058,7 +1092,19 @@ router.post('/request-register', [
     .withMessage('이름은 50자를 초과할 수 없습니다.')
 ], async (req, res) => {
   try {
-    console.log('📝 회원가입 요청 처리 시작:', req.body);
+    console.log('📝 회원가입 요청 처리 시작:', {
+      email: req.body.email,
+      username: req.body.username,
+      name: req.body.name,
+      hasPassword: !!req.body.password
+    });
+
+    // Supabase 환경 변수 확인
+    console.log('🔧 Supabase 환경 변수 확인:', {
+      SUPABASE_URL: !!process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    });
 
     // 유효성 검사
     const errors = validationResult(req);
@@ -1119,9 +1165,8 @@ router.post('/request-register', [
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // 5. 인증 코드 생성 및 해싱
+    // 5. 인증 코드 생성 (6자리 숫자, 해시하지 않음 - 스키마 VARCHAR(10) 제약)
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10분 후
 
     // 6. Supabase에 임시 사용자 생성
@@ -1133,26 +1178,30 @@ router.post('/request-register', [
           username,
           name,
           password_hash: hashedPassword,
-          verification_code: hashedVerificationCode,
+          verification_code: verificationCode, // 평문으로 저장 (VARCHAR(10) 제약)
           expires_at: expiresAt.toISOString()
         })
         .select()
         .single();
     }, '임시 사용자 생성');
 
+    if (!tempUserResult.success) {
+      console.error('❌ 임시 사용자 생성 실패:', {
+        error: tempUserResult.error,
+        data: { email, username, name }
+      });
+      return res.status(500).json({
+        success: false,
+        message: '임시 사용자 생성에 실패했습니다.',
+        error: tempUserResult.error?.message || 'Unknown error'
+      });
+    }
+
     // 원본 비밀번호를 메모리에 임시 저장 (보안상 주의 - 실제 운영에서는 Redis 등 사용 권장)
     if (!global.tempPasswords) {
       global.tempPasswords = new Map();
     }
     global.tempPasswords.set(tempUserResult.data.id, password);
-
-    if (!tempUserResult.success) {
-      console.error('❌ 임시 사용자 생성 실패:', tempUserResult.error);
-      return res.status(500).json({
-        success: false,
-        message: '임시 사용자 생성에 실패했습니다.'
-      });
-    }
 
     console.log('✅ 임시 사용자 생성 완료:', tempUserResult.data.id);
 
@@ -1252,9 +1301,8 @@ router.post('/verify-register', [
       });
     }
 
-    // 3. 인증 코드 검증
-    const hashedInputCode = crypto.createHash('sha256').update(code).digest('hex');
-    const isValidCode = hashedInputCode === tempUser.verification_code;
+    // 3. 인증 코드 검증 (평문 비교)
+    const isValidCode = code === tempUser.verification_code;
     
     if (!isValidCode) {
       console.log('❌ 인증 코드 검증 실패:', { tempUserId, code });
@@ -1412,7 +1460,6 @@ router.post('/resend-register-code', [
 
     // 2. 새로운 인증 코드 생성
     const newVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedNewVerificationCode = crypto.createHash('sha256').update(newVerificationCode).digest('hex');
     const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10분 후
 
     // 3. 임시 사용자 정보 업데이트
@@ -1420,7 +1467,7 @@ router.post('/resend-register-code', [
       return await supabase
         .from('temp_users')
         .update({
-          verification_code: hashedNewVerificationCode,
+          verification_code: newVerificationCode, // 평문으로 저장
           expires_at: newExpiresAt.toISOString()
         })
         .eq('id', tempUserId)

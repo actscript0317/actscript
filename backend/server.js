@@ -29,6 +29,17 @@ console.log('📂 [server.js] ai-script (고품질 프롬프트) 임포트 중..
 const aiScriptRoutes = require('./routes/ai-script');
 console.log('✅ [server.js] ai-script (고품질 프롬프트) 임포트 완료');
 
+// Supabase 기반 라우터들 임포트
+console.log('📂 [server.js] Supabase 기반 라우터들 임포트 중...');
+const supabaseActorProfileRoutes = require('./routes/supabase-actor-profiles');
+const supabaseActorRecruitmentRoutes = require('./routes/supabase-actor-recruitments');
+const supabaseModelRecruitmentRoutes = require('./routes/supabase-model-recruitments');
+const supabaseCommunityPostRoutes = require('./routes/supabase-community-posts');
+const supabaseBookmarkRoutes = require('./routes/supabase-bookmarks');
+const supabaseLikeRoutes = require('./routes/supabase-likes');
+const supabaseAdminRoutes = require('./routes/supabase-admin');
+console.log('✅ [server.js] Supabase 기반 라우터들 임포트 완료');
+
 console.log('🎉 [server.js] 모든 라우트 파일 임포트 완료!');
 // MongoDB 완전 제거 완료
 // const actorProfileRoutes = require('./routes/actor-profiles');
@@ -406,6 +417,18 @@ console.log('📝 [server.js] 기타 라우트들 등록 중...');
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/emotions', emotionRoutes);
 app.use('/api/ai-script', aiScriptRoutes);
+
+// Supabase 기반 라우터들 등록
+console.log('📝 [server.js] Supabase 기반 라우터들 등록 중...');
+app.use('/api/actor-profiles', supabaseActorProfileRoutes);
+app.use('/api/actor-recruitments', supabaseActorRecruitmentRoutes);
+app.use('/api/model-recruitments', supabaseModelRecruitmentRoutes);
+app.use('/api/community-posts', supabaseCommunityPostRoutes);
+app.use('/api/bookmarks', supabaseBookmarkRoutes);
+app.use('/api/likes', supabaseLikeRoutes);
+app.use('/api/admin', supabaseAdminRoutes);
+console.log('✅ [server.js] Supabase 기반 라우터들 등록 완료');
+
 console.log('✅ [server.js] 모든 API 라우트 등록 완료');
 
 // 기본 루트 라우트 (라우팅 테스트용)
@@ -414,13 +437,20 @@ app.get('/', (req, res) => {
     message: 'ActScript Backend Server is running!',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      auth: '/api/auth/*',
-      scripts: '/api/scripts/*',
-      emotions: '/api/emotions/*',
-      aiScript: '/api/ai-script/*'
-    }
+          endpoints: {
+        health: '/health',
+        auth: '/api/auth/*',
+        scripts: '/api/scripts/*',
+        emotions: '/api/emotions/*',
+        aiScript: '/api/ai-script/*',
+        actorProfiles: '/api/actor-profiles/*',
+        actorRecruitments: '/api/actor-recruitments/*',
+        modelRecruitments: '/api/model-recruitments/*',
+        communityPosts: '/api/community-posts/*',
+        bookmarks: '/api/bookmarks/*',
+        admin: '/api/admin/*',
+        likes: '/api/likes/*'
+      }
   });
 });
 
@@ -432,7 +462,14 @@ app.get('/api', (req, res) => {
       auth: '/api/auth/*',
       scripts: '/api/scripts/*',
       emotions: '/api/emotions/*',
-      aiScript: '/api/ai-script/*'
+      aiScript: '/api/ai-script/*',
+      actorProfiles: '/api/actor-profiles/*',
+      actorRecruitments: '/api/actor-recruitments/*',
+      modelRecruitments: '/api/model-recruitments/*',
+      communityPosts: '/api/community-posts/*',
+      bookmarks: '/api/bookmarks/*',
+      admin: '/api/admin/*',
+      likes: '/api/likes/*'
     }
   });
 });
@@ -490,14 +527,7 @@ function printRoutes(app) {
 // app.use('/api/bookmarks', bookmarkRoutes);
 // app.use('/api/admin', adminRoutes); // 임시 비활성화 (MongoDB 의존성 제거)
 
-// 관리자 패널 라우트 (조건부 로딩)
-try {
-  const adminPanelRoutes = require('./routes/admin-panel');
-  app.use('/api/admin', adminPanelRoutes);
-  console.log('✅ [server.js] 관리자 패널 라우트 등록 완료');
-} catch (error) {
-  console.warn('⚠️ [server.js] 관리자 패널 라우트 로딩 실패:', error.message);
-}
+// 기존 admin-panel 라우트는 supabase-admin으로 대체됨
 
 // app.use('/api/payment', paymentRoutes);
 
@@ -562,22 +592,7 @@ if (config.NODE_ENV === 'production') {
   });
 }
 
-// 기본 라우트 (API 전용)
-app.get('/api', (req, res) => {
-  res.json({
-    message: '연기 대본 라이브러리 API',
-    version: '1.0.0',
-    environment: config.NODE_ENV,
-    status: 'running',
-    timestamp: new Date().toISOString(),
-    endpoints: {
-      auth: '/api/auth',
-      scripts: '/api/scripts',
-      emotions: '/api/emotions',
-      aiScript: '/api/ai-script'
-    }
-  });
-});
+// 기본 라우트 (API 전용) - 중복 제거됨
 
 // 헬스 체크 라우트
 app.get('/health', (req, res) => {

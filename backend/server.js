@@ -30,7 +30,7 @@ const aiScriptRoutes = require('./routes/supabase-ai-script');
 console.log('✅ [server.js] supabase-ai-script 임포트 완료');
 
 console.log('🎉 [server.js] 모든 라우트 파일 임포트 완료!');
-// 임시로 MongoDB 기반 라우트들 비활성화 (Supabase 마이그레이션 완료 시까지)
+// MongoDB 완전 제거 완료
 // const actorProfileRoutes = require('./routes/actor-profiles');
 // const actorRecruitmentRoutes = require('./routes/actor-recruitments');
 // const communityPostRoutes = require('./routes/community-posts');
@@ -150,7 +150,7 @@ app.use((req, res, next) => {
 // 방문자 추적 미들웨어 (CORS 설정 이후, 다른 미들웨어 이전)
 app.use(visitorTracker);
 
-// Supabase를 주 데이터베이스로 사용
+// Supabase를 주 데이터베이스로 사용 (MongoDB 완전 제거)
 console.log('✅ Supabase 데이터베이스 연결 준비 완료');
 
 // 미들웨어 설정 - 기본 보안 정책
@@ -481,7 +481,7 @@ function printRoutes(app) {
   });
   console.log('📋 [server.js] 라우트 목록 출력 완료\n');
 }
-// 임시로 MongoDB 기반 라우트들 비활성화 (Supabase 마이그레이션 완료 시까지)
+// MongoDB 완전 제거 완료
 // app.use('/api/actor-profiles', actorProfileRoutes);
 // app.use('/api/actor-recruitments', actorRecruitmentRoutes);
 // app.use('/api/community-posts', communityPostRoutes);
@@ -680,7 +680,7 @@ app.use((error, req, res, next) => {
 // 서버 시작 함수
 const startServer = async () => {
   try {
-    console.log('🔄 Supabase 데이터베이스 준비 완료');
+    console.log('🔄 Supabase 데이터베이스 준비 완료 (MongoDB 제거됨)');
     
     // uploads 디렉토리 상태 확인
     const uploadsPath = path.join(__dirname, 'uploads');

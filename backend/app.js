@@ -3,7 +3,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const helmet = require('helmet');
-const mongoSanitize = require('express-mongo-sanitize');
+// MongoDB sanitize 제거됨
 const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
@@ -21,7 +21,7 @@ testConnection().then(success => {
   if (success) {
     console.log('✅ Supabase 연결 성공');
   } else {
-    console.log('⚠️ Supabase 연결 실패 - MongoDB로 계속 진행');
+    console.log('⚠️ Supabase 연결 실패');
   }
 }).catch(error => {
   console.warn('⚠️ Supabase 연결 테스트 중 오류:', error.message);
@@ -66,7 +66,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
-app.use(mongoSanitize());
+// MongoDB sanitize 제거됨
 app.use(xss());
 app.use(hpp());
 

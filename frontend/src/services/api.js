@@ -282,14 +282,10 @@ export const emotionAPI = {
   },
 };
 
-// 인증 API (Mailgun 기반)
+// 인증 API (Supabase 기반 - 통합된 단일 플로우)
 export const authAPI = {
-  // 1단계: 회원가입 정보 전송 및 인증 코드 요청
-  requestRegister: (data) => withRetry(() => api.post('/auth/request-register', data)),
-  // 2단계: 인증 코드 검증 및 회원가입 완료
-  verifyRegister: (data) => withRetry(() => api.post('/auth/verify-register', data)),
-  // 인증 코드 재전송
-  resendRegisterCode: (data) => withRetry(() => api.post('/auth/resend-register-code', data)),
+  // 회원가입 (Supabase Auth + 이메일 인증)
+  register: (data) => withRetry(() => api.post('/auth/register', data)),
   // 로그인
   login: (data) => withRetry(() => api.post('/auth/login', data)),
   // 로그아웃
@@ -302,10 +298,6 @@ export const authAPI = {
   changePassword: (data) => withRetry(() => api.put('/auth/password', data)),
   // 비밀번호 재설정 요청
   forgotPassword: (data) => withRetry(() => api.post('/auth/forgot-password', data)),
-  // 비밀번호 업데이트
-  updatePassword: (data) => withRetry(() => api.put('/auth/update-password', data)),
-  // 이메일 확인 재발송
-  resendVerification: (data) => withRetry(() => api.post('/auth/resend-verification', data)),
   // 이메일 인증 완료 후 사용자 프로필 생성
   completeSignup: (data) => withRetry(() => api.post('/auth/complete-signup', data)),
   // 회원탈퇴 (향후 구현 예정)

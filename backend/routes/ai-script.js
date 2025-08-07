@@ -1,8 +1,9 @@
 const express = require('express');
 const OpenAI = require('openai');
 const config = require('../config/env');
-const AIScript = require('../models/AIScript');
-const User = require('../models/User');
+// MongoDB 모델들 제거됨 - Supabase 마이그레이션 필요
+// const AIScript = require('../models/AIScript');
+// const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();

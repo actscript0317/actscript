@@ -7,6 +7,8 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const router = express.Router();
 
+console.log('🔄 [auth.js] 라우터 로딩 완료, 엔드포인트 등록 중...');
+
 // temp_users 테이블 확인 엔드포인트
 router.get('/test-temp-users', async (req, res) => {
   try {
@@ -259,6 +261,7 @@ router.post('/register-legacy', registerValidation, async (req, res) => {
 });
 
 // 로그인
+console.log('📝 [auth.js] /login 엔드포인트 등록됨');
 router.post('/login', loginValidation, async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1688,6 +1691,30 @@ router.get('/test-supabase-auth', async (req, res) => {
   }
 });
 
+// 등록된 라우트 확인 엔드포인트
+router.get('/test-routes', (req, res) => {
+  const routes = [];
+  
+  // Express 라우터의 스택에서 경로 정보 추출
+  router.stack.forEach((layer) => {
+    if (layer.route) {
+      const methods = Object.keys(layer.route.methods);
+      routes.push({
+        path: layer.route.path,
+        methods: methods
+      });
+    }
+  });
+  
+  res.json({
+    success: true,
+    message: 'auth.js에서 등록된 라우트 목록',
+    routes: routes,
+    totalRoutes: routes.length,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // users 테이블 접근 권한 테스트 엔드포인트
 router.get('/test-users-table', async (req, res) => {
   try {
@@ -1761,5 +1788,7 @@ router.get('/test-users-table', async (req, res) => {
     });
   }
 });
+
+console.log('✅ [auth.js] 라우터 모듈 내보내기 완료');
 
 module.exports = router;

@@ -27,13 +27,18 @@ testConnection().then(success => {
   console.warn('⚠️ Supabase 연결 테스트 중 오류:', error.message);
 });
 
-// 간단한 CORS 설정 (server.js에서 이미 설정되어 있다면 생략 가능)
-app.use(cors({
-  origin: ['https://actscript-1.onrender.com', 'http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
-}));
+// CORS 설정은 server.js에서 처리됨 (중복 방지)
+
+// 기본 건강 체크 엔드포인트
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV,
+    version: '1.0.0'
+  });
+});
 
 // 보안 미들웨어
 app.use(helmet({

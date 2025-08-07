@@ -1494,28 +1494,7 @@ router.post('/verify-register', [
       });
     }
 
-    const userInsertResult = { success: true, data: userData };
-
-    if (!userInsertResult.success) {
-      console.error('❌ users 테이블 사용자 생성 실패:', {
-        error: userInsertResult.error,
-        userId: authData.user.id,
-        email: tempUser.email,
-        username: tempUser.username
-      });
-      
-      // Auth 사용자 생성은 성공했지만 프로필 생성 실패 시 Auth 사용자 삭제
-      console.log('🔄 Auth 사용자 롤백 중...');
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      
-      return res.status(500).json({
-        success: false,
-        message: '사용자 프로필 생성에 실패했습니다.',
-        error: userInsertResult.error?.message
-      });
-    }
-
-    console.log('✅ users 테이블 사용자 생성 완료:', userInsertResult.data.id);
+    console.log('✅ users 테이블 사용자 생성 완료:', userData.id);
 
     // 7. 임시 사용자 및 메모리에서 비밀번호 삭제
     await supabase
@@ -1532,10 +1511,10 @@ router.post('/verify-register', [
       success: true,
       message: '회원가입이 완료되었습니다!',
       user: {
-        id: userInsertResult.data.id,
-        email: userInsertResult.data.email,
-        username: userInsertResult.data.username,
-        name: userInsertResult.data.name
+        id: userData.id,
+        email: userData.email,
+        username: userData.username,
+        name: userData.name
       }
     });
 

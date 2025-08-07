@@ -27,7 +27,8 @@
       "Bash(npx yarn install:*)",
       "Bash(timeout:*)",
       "Bash(PORT=10001 node server.js)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebFetch(domain:supabase.com)"
     ],
     "deny": []
   }

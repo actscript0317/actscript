@@ -346,21 +346,74 @@ router.post('/login', loginValidation, async (req, res) => {
       email: authData.user.email
     });
 
-    // 사용자 프로필 정보 조회
-    const userResult = await safeQuery(async () => {
+    // 사용자 프로필 정보 조회 (ID 우선, 실패 시 이메일로 재시도)
+    let userResult = await safeQuery(async () => {
       return await supabase
         .from('users')
         .select('*')
         .eq('id', authData.user.id)
         .single();
-    }, '사용자 프로필 조회');
+    }, '사용자 프로필 조회 (ID 기준)');
 
     if (!userResult.success) {
-      console.error('❌ 사용자 프로필 조회 실패:', userResult.error);
-      return res.status(userResult.error.code || 404).json({
-        success: false,
-        message: '사용자 정보를 찾을 수 없습니다.'
+      console.log('⚠️ ID 기준 조회 실패, 이메일로 재시도:', {
+        authUserId: authData.user.id,
+        email: authData.user.email,
+        error: userResult.error?.message
       });
+      
+      // 이메일로 재시도
+      userResult = await safeQuery(async () => {
+        return await supabase
+          .from('users')
+          .select('*')
+          .eq('email', authData.user.email)
+          .single();
+      }, '사용자 프로필 조회 (이메일 기준)');
+      
+      if (!userResult.success) {
+        console.error('❌ 사용자 프로필 조회 완전 실패:', {
+          authUserId: authData.user.id,
+          email: authData.user.email,
+          idError: userResult.error?.message,
+          emailError: userResult.error?.message
+        });
+        return res.status(404).json({
+          success: false,
+          message: '사용자 정보를 찾을 수 없습니다.',
+          details: 'Auth 사용자는 존재하지만 프로필 정보가 없습니다.'
+        });
+      }
+      
+      // 이메일로 찾았을 경우 ID 불일치 로그 및 자동 수정
+      console.log('⚠️ Auth ID와 users 테이블 ID 불일치 발견:', {
+        authUserId: authData.user.id,
+        tableUserId: userResult.data.id,
+        email: authData.user.email,
+        username: userResult.data.username
+      });
+      
+      // ID 자동 동기화 시도
+      console.log('🔄 users 테이블 ID 자동 동기화 시도...');
+      const syncResult = await safeQuery(async () => {
+        return await supabaseAdmin
+          .from('users')
+          .update({ id: authData.user.id })
+          .eq('email', authData.user.email)
+          .select()
+          .single();
+      }, 'ID 동기화');
+      
+      if (syncResult.success) {
+        console.log('✅ ID 동기화 완료:', {
+          oldId: userResult.data.id,
+          newId: authData.user.id,
+          email: authData.user.email
+        });
+        userResult.data = syncResult.data; // 업데이트된 데이터 사용
+      } else {
+        console.error('❌ ID 동기화 실패:', syncResult.error);
+      }
     }
 
     console.log('✅ 사용자 프로필 조회 성공:', {

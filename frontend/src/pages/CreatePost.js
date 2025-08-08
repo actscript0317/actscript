@@ -46,7 +46,6 @@ const CreatePost = () => {
     tags: '',
     // 배우 프로필 전용 필드
     name: '',
-    age: '',
     gender: '',
     height: '',
     weight: '',
@@ -378,7 +377,6 @@ const CreatePost = () => {
           submitData.append('gender', formData.gender || '기타');
           submitData.append('experience', formData.experience || '신인');
           submitData.append('location', formData.location || '서울');
-          if (formData.age) submitData.append('age', formData.age);
           if (formData.height) submitData.append('height', formData.height);
           if (formData.weight) submitData.append('weight', formData.weight);
           if (formData.education) submitData.append('education', formData.education);
@@ -649,23 +647,8 @@ const CreatePost = () => {
                   </div>
                 </div>
 
-                {/* 나이, 키, 몸무게 */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      나이
-                    </label>
-                    <input
-                      type="number"
-                      name="age"
-                      value={formData.age}
-                      onChange={handleChange}
-                      min="15"
-                      max="80"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="나이"
-                    />
-                  </div>
+                {/* 키, 몸무게 */}
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       키 (cm)

@@ -66,7 +66,7 @@ router.get('/', optionalAuth, async (req, res) => {
           username
         )
       `)
-      .eq('is_active', true);
+;
 
     // 필터 적용
     if (gender && gender !== 'all') {
@@ -80,12 +80,6 @@ router.get('/', optionalAuth, async (req, res) => {
     }
     if (specialty && specialty !== 'all') {
       query = query.contains('specialty', [specialty]);
-    }
-    if (ageMin) {
-      query = query.gte('age', parseInt(ageMin));
-    }
-    if (ageMax) {
-      query = query.lte('age', parseInt(ageMax));
     }
 
     // 검색 조건
@@ -115,15 +109,13 @@ router.get('/', optionalAuth, async (req, res) => {
     let countQuery = supabaseAdmin
       .from('actor_profiles')
       .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
+;
 
     // 동일한 필터 적용
     if (gender && gender !== 'all') countQuery = countQuery.eq('gender', gender);
     if (experience && experience !== 'all') countQuery = countQuery.eq('experience', experience);
     if (location && location !== 'all') countQuery = countQuery.eq('location', location);
     if (specialty && specialty !== 'all') countQuery = countQuery.contains('specialty', [specialty]);
-    if (ageMin) countQuery = countQuery.gte('age', parseInt(ageMin));
-    if (ageMax) countQuery = countQuery.lte('age', parseInt(ageMax));
     if (search) countQuery = countQuery.or(`title.ilike.%${search}%,content.ilike.%${search}%,name.ilike.%${search}%`);
 
     const countResult = await safeQuery(async () => countQuery, '프로필 개수 조회');
@@ -174,7 +166,6 @@ router.get('/:id', optionalAuth, async (req, res) => {
           )
         `)
         .eq('id', id)
-        .eq('is_active', true)
         .single();
     }, '특정 배우 프로필 조회');
 
@@ -238,7 +229,6 @@ router.get('/popular/trending', optionalAuth, async (req, res) => {
             username
           )
         `)
-        .eq('is_active', true)
         .order('views', { ascending: false })
         .limit(parseInt(limit));
     }, '인기 배우 프로필 조회');
@@ -310,7 +300,6 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
       name,
       title,
       content,
-      age,
       gender,
       height,
       weight,
@@ -318,7 +307,8 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
       location,
       specialty,
       contact,
-      portfolio
+      portfolio,
+      education
     } = req.body;
 
     // 필수 필드 검증
@@ -356,7 +346,6 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
       name,
       title,
       content,
-      age: age ? parseInt(age) : null,
       gender: gender || '기타',
       height: height ? parseInt(height) : null,
       weight: weight ? parseInt(weight) : null,
@@ -365,8 +354,8 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
       specialty: specialtyArray,
       contact: contact || '',
       portfolio: portfolio || '',
+      education: education || '',
       images: images,
-      is_active: true,
       views: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -459,7 +448,6 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
       name,
       title,
       content,
-      age,
       gender,
       height,
       weight,
@@ -467,7 +455,8 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
       location,
       specialty,
       contact,
-      portfolio
+      portfolio,
+      education
     } = req.body;
 
     // 이미지 처리
@@ -507,7 +496,6 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
     if (name !== undefined) updateData.name = name;
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
-    if (age !== undefined) updateData.age = age ? parseInt(age) : null;
     if (gender !== undefined) updateData.gender = gender;
     if (height !== undefined) updateData.height = height ? parseInt(height) : null;
     if (weight !== undefined) updateData.weight = weight ? parseInt(weight) : null;
@@ -516,6 +504,7 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
     if (specialty !== undefined) updateData.specialty = specialtyArray;
     if (contact !== undefined) updateData.contact = contact;
     if (portfolio !== undefined) updateData.portfolio = portfolio;
+    if (education !== undefined) updateData.education = education;
     if (imageUrl !== ownershipResult.data.image_url) updateData.image_url = imageUrl;
 
     const result = await safeQuery(async () => {
@@ -598,18 +587,15 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // 소프트 삭제 (is_active = false)
+    // 물리적 삭제
     const result = await safeQuery(async () => {
       return await supabaseAdmin
         .from('actor_profiles')
-        .update({ 
-          is_active: false,
-          updated_at: new Date().toISOString()
-        })
+        .delete()
         .eq('id', id)
         .select()
         .single();
-    }, '배우 프로필 비활성화');
+    }, '배우 프로필 삭제');
 
     if (!result.success) {
       return res.status(500).json({

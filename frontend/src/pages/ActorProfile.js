@@ -589,7 +589,7 @@ const ActorProfile = () => {
                   </div>
                   
                   <p className="text-sm text-gray-600 mb-2">
-                    {profile.gender || '기타'} • {profile.age ? `${profile.age}세` : '나이 미입력'} • {profile.location || '서울'}
+                    {profile.gender || '기타'} • {profile.location || '서울'}
                   </p>
                   
                   {profile.specialty && profile.specialty.length > 0 && (

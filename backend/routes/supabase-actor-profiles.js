@@ -301,14 +301,9 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
       title,
       content,
       gender,
-      height,
-      weight,
       experience,
       location,
-      specialty,
-      contact,
-      portfolio,
-      education
+      specialty
     } = req.body;
 
     // 필수 필드 검증
@@ -347,19 +342,18 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
       title,
       content,
       gender: gender || '기타',
-      height: height ? parseInt(height) : null,
-      weight: weight ? parseInt(weight) : null,
       experience: experience || '신인',
       location: location || '서울',
       specialty: specialtyArray,
-      contact: contact || '',
-      portfolio: portfolio || '',
-      education: education || '',
-      images: images,
       views: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+
+    // 이미지가 있으면 추가
+    if (images && images.length > 0) {
+      profileData.images = images;
+    }
 
     const result = await safeQuery(async () => {
       return await supabaseAdmin
@@ -449,14 +443,9 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
       title,
       content,
       gender,
-      height,
-      weight,
       experience,
       location,
-      specialty,
-      contact,
-      portfolio,
-      education
+      specialty
     } = req.body;
 
     // 이미지 처리
@@ -497,15 +486,9 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
     if (gender !== undefined) updateData.gender = gender;
-    if (height !== undefined) updateData.height = height ? parseInt(height) : null;
-    if (weight !== undefined) updateData.weight = weight ? parseInt(weight) : null;
     if (experience !== undefined) updateData.experience = experience;
     if (location !== undefined) updateData.location = location;
     if (specialty !== undefined) updateData.specialty = specialtyArray;
-    if (contact !== undefined) updateData.contact = contact;
-    if (portfolio !== undefined) updateData.portfolio = portfolio;
-    if (education !== undefined) updateData.education = education;
-    if (imageUrl !== ownershipResult.data.image_url) updateData.image_url = imageUrl;
 
     const result = await safeQuery(async () => {
       return await supabaseAdmin

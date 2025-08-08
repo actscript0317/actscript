@@ -340,20 +340,21 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
       user_id: req.user.id,
       name,
       title,
-      content,
-      gender: gender || '기타',
-      experience: experience || '신인',
-      location: location || '서울',
-      specialty: specialtyArray,
-      views: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      content
     };
 
+    // 기본값이 있는 필드들 추가
+    if (gender) profileData.gender = gender;
+    if (experience) profileData.experience = experience;
+    if (location) profileData.location = location;
+    if (specialtyArray && specialtyArray.length > 0) profileData.specialty = specialtyArray;
+    
     // 이미지가 있으면 추가
     if (images && images.length > 0) {
       profileData.images = images;
     }
+    
+    console.log('🔍 최종 전송 데이터:', JSON.stringify(profileData, null, 2));
 
     const result = await safeQuery(async () => {
       return await supabaseAdmin
@@ -364,6 +365,13 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
     }, '배우 프로필 생성');
 
     if (!result.success) {
+      console.error('❌ 프로필 생성 실패 상세 오류:', {
+        error: result.error,
+        errorMessage: result.error?.message,
+        errorCode: result.error?.code,
+        profileData: JSON.stringify(profileData, null, 2)
+      });
+
       // 업로드된 파일들 삭제
       if (req.files) {
         req.files.forEach(file => {
@@ -378,7 +386,8 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
       return res.status(500).json({
         success: false,
         message: '프로필 생성 중 오류가 발생했습니다.',
-        error: result.error.message
+        error: result.error?.message || '데이터베이스 오류가 발생했습니다.',
+        details: result.error
       });
     }
 

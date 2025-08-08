@@ -112,8 +112,8 @@ const AIScript = () => {
   // 옵션 데이터 (모든 사용자에게 전체 기능 제공)
   const characterOptions = [
     { value: '1', label: '1인 독백', icon: '👤', available: true },
-    { value: '2-3', label: '2~3인 대화', icon: '👥', available: true, premium: false },
-    { value: '4+', label: '4인 이상 앙상블', icon: '👨‍👩‍👧‍👦', available: true, premium: false }
+    { value: '2-3', label: '2~3인 대화 (개발 중)', icon: '👥', available: false, premium: false },
+    { value: '4+', label: '4인 이상 앙상블 (개발 중)', icon: '👨‍👩‍👧‍👦', available: false, premium: false }
   ];
 
   const freeGenres = ['로맨스', '코미디', '드라마'];
@@ -616,11 +616,16 @@ const AIScript = () => {
                         value={option.value}
                         onChange={(e) => handleInputChange('characterCount', e.target.value)}
                         className="sr-only peer"
+                        disabled={!option.available}
                       />
-                      <div className="p-4 border-2 rounded-xl transition-all bg-gray-50 border-gray-200 cursor-pointer hover:bg-gray-100 peer-checked:bg-purple-50 peer-checked:border-purple-500 peer-checked:shadow-md">
+                      <div className={`p-4 border-2 rounded-xl transition-all ${
+                        option.available 
+                          ? 'bg-gray-50 border-gray-200 cursor-pointer hover:bg-gray-100 peer-checked:bg-purple-50 peer-checked:border-purple-500 peer-checked:shadow-md'
+                          : 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60'
+                      }`}>
                         <div className="text-center">
-                          <div className="text-2xl mb-2">{option.icon}</div>
-                          <div className="font-medium text-gray-900">
+                          <div className={`text-2xl mb-2 ${!option.available ? 'grayscale' : ''}`}>{option.icon}</div>
+                          <div className={`font-medium ${option.available ? 'text-gray-900' : 'text-gray-500'}`}>
                             {option.label}
                           </div>
                         </div>

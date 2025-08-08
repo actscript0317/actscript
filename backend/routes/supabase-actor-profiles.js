@@ -299,7 +299,6 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
     const {
       name,
       title,
-      content,
       gender,
       experience,
       location,
@@ -307,10 +306,10 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
     } = req.body;
 
     // 필수 필드 검증
-    if (!name || !title || !content) {
+    if (!name || !title) {
       return res.status(400).json({
         success: false,
-        message: '이름, 제목, 내용은 필수 입력 사항입니다.'
+        message: '이름, 제목은 필수 입력 사항입니다.'
       });
     }
 
@@ -339,8 +338,7 @@ router.post('/', authenticateToken, upload.array('images', 7), async (req, res) 
     const profileData = {
       user_id: req.user.id,
       name,
-      title,
-      content
+      title
     };
 
     // 기본값이 있는 필드들 추가
@@ -450,7 +448,6 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
     const {
       name,
       title,
-      content,
       gender,
       experience,
       location,
@@ -486,14 +483,11 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
       }
     }
 
-    const updateData = {
-      updated_at: new Date().toISOString()
-    };
+    const updateData = {};
 
     // 제공된 필드만 업데이트
     if (name !== undefined) updateData.name = name;
     if (title !== undefined) updateData.title = title;
-    if (content !== undefined) updateData.content = content;
     if (gender !== undefined) updateData.gender = gender;
     if (experience !== undefined) updateData.experience = experience;
     if (location !== undefined) updateData.location = location;

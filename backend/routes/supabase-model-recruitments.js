@@ -256,7 +256,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 });
 
 // 모델 모집 공고 생성
-router.post('/', authenticateToken, upload.single('image'), async (req, res) => {
+router.post('/', authenticateToken, upload.array('images', 7), async (req, res) => {
   try {
     console.log('📝 모델 모집 공고 생성:', req.user.id);
     console.log('📋 요청 데이터:', req.body);
@@ -293,11 +293,16 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
       });
     }
 
-    // 이미지 처리
-    let imageUrl = null;
-    if (req.file) {
-      imageUrl = `/uploads/model-recruitments/${req.file.filename}`;
-      console.log('📷 업로드된 이미지:', imageUrl);
+    // 다중 이미지 처리
+    let images = [];
+    if (req.files && req.files.length > 0) {
+      images = req.files.map(file => ({
+        url: `/uploads/model-recruitments/${file.filename}`,
+        filename: file.filename,
+        originalname: file.originalname,
+        size: file.size
+      }));
+      console.log('📷 업로드된 이미지들:', images);
     }
 
     // requirements가 문자열이면 배열로 변환
@@ -333,7 +338,7 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
       contact: contact || '',
       requirements: requirementsArray,
       is_urgent: is_urgent === 'true' || is_urgent === true,
-      image_url: imageUrl,
+      images: images,
       is_active: true,
       views: 0,
       created_at: new Date().toISOString(),
@@ -349,13 +354,15 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
     }, '모델 모집 공고 생성');
 
     if (!result.success) {
-      // 업로드된 파일 삭제
-      if (req.file) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch (e) {
-          console.warn('임시 파일 삭제 실패:', e.message);
-        }
+      // 업로드된 파일들 삭제
+      if (req.files) {
+        req.files.forEach(file => {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (e) {
+            console.warn('임시 파일 삭제 실패:', e.message);
+          }
+        });
       }
 
       return res.status(500).json({
@@ -374,13 +381,15 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
   } catch (error) {
     console.error('❌ 모델 모집 공고 생성 오류:', error);
     
-    // 업로드된 파일 삭제
-    if (req.file) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (e) {
-        console.warn('임시 파일 삭제 실패:', e.message);
-      }
+    // 업로드된 파일들 삭제
+    if (req.files) {
+      req.files.forEach(file => {
+        try {
+          fs.unlinkSync(file.path);
+        } catch (e) {
+          console.warn('임시 파일 삭제 실패:', e.message);
+        }
+      });
     }
 
     res.status(500).json({ 

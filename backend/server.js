@@ -25,6 +25,10 @@ console.log('📂 [server.js] auth.js 임포트 중...');
 const authRoutes = require('./routes/auth'); // auth.js로 변경됨
 console.log('✅ [server.js] auth.js 임포트 완료');
 
+console.log('📂 [server.js] supabase-auth.js 임포트 중...');
+const supabaseAuthRoutes = require('./routes/supabase-auth'); // Mailgun 인증 코드 방식
+console.log('✅ [server.js] supabase-auth.js 임포트 완료');
+
 console.log('📂 [server.js] ai-script (고품질 프롬프트) 임포트 중...');
 const aiScriptRoutes = require('./routes/ai-script');
 console.log('✅ [server.js] ai-script (고품질 프롬프트) 임포트 완료');
@@ -412,6 +416,10 @@ console.log('🔧 [server.js] API 라우트 등록 시작...');
 console.log('📝 [server.js] /api/auth 라우트 등록 중...');
 app.use('/api/auth', authRoutes);
 console.log('✅ [server.js] /api/auth 라우트 등록 완료');
+
+console.log('📝 [server.js] /api/v2/auth 라우트 등록 중...');
+app.use('/api/v2/auth', supabaseAuthRoutes); // Mailgun 인증 코드 방식
+console.log('✅ [server.js] /api/v2/auth 라우트 등록 완료');
 
 console.log('📝 [server.js] 기타 라우트들 등록 중...');
 app.use('/api/scripts', scriptRoutes);

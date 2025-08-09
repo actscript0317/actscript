@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { supabase, safeQuery } = require('../config/supabase');
+const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
 const { sendVerificationEmail } = require('../config/mailgun');
 // MongoDB 관련 의존성 모두 제거
@@ -61,9 +61,12 @@ router.post('/register', registerValidation, async (req, res) => {
 
     const { email, password, username, name } = req.body;
 
-    // 이메일 중복 확인
+    // 이메일 중복 확인 (Admin 클라이언트 사용)
     const existingEmailResult = await safeQuery(async () => {
-      return await supabase
+      if (!supabaseAdmin) {
+        throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+      }
+      return await supabaseAdmin
         .from('users')
         .select('email')
         .eq('email', email)
@@ -78,9 +81,12 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
-    // 사용자명 중복 확인
+    // 사용자명 중복 확인 (Admin 클라이언트 사용)
     const existingUserResult = await safeQuery(async () => {
-      return await supabase
+      if (!supabaseAdmin) {
+        throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+      }
+      return await supabaseAdmin
         .from('users')
         .select('username')
         .eq('username', username)
@@ -118,6 +124,64 @@ router.post('/register', registerValidation, async (req, res) => {
 
     console.log(`📧 인증 코드 생성: ${email} -> ${verificationCode}`);
 
+    // Supabase Auth에 사용자 미리 생성 (이메일 인증 비활성화)
+    let authData = null;
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username, name, role: 'user' },
+          emailRedirectTo: undefined // 이메일 인증 비활성화
+        }
+      });
+
+      if (error) {
+        console.error('❌ Supabase Auth 생성 실패:', error);
+        
+        // 인증 코드 정보 삭제
+        verificationCodes.delete(codeKey);
+        
+        let message = '회원가입에 실패했습니다.';
+        if (error.message.includes('already registered')) {
+          message = '이미 가입된 이메일입니다.';
+        } else if (error.message.includes('Password should be at least')) {
+          message = '비밀번호는 최소 8자 이상이어야 합니다.';
+        } else if (error.message.includes('over_email_send_rate_limit')) {
+          message = '너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해주세요.';
+        }
+        
+        return res.status(400).json({
+          success: false,
+          message,
+          error: error.message
+        });
+      }
+
+      authData = data;
+      console.log('✅ Supabase Auth 사용자 생성 완료:', authData.user.id);
+
+      // 인증 코드에 Auth 사용자 ID 추가
+      verificationCodes.set(codeKey, {
+        email,
+        password,
+        username,
+        name,
+        code: verificationCode,
+        authUserId: authData.user.id, // Auth 사용자 ID 저장
+        expiresAt: Date.now() + 10 * 60 * 1000
+      });
+
+    } catch (authError) {
+      console.error('❌ Supabase Auth 생성 중 오류:', authError);
+      verificationCodes.delete(codeKey);
+      return res.status(500).json({
+        success: false,
+        message: 'Auth 사용자 생성에 실패했습니다.',
+        error: 'AUTH_CREATION_FAILED'
+      });
+    }
+
     try {
       // Mailgun으로 인증 코드 이메일 발송
       await sendVerificationEmail(email, name, verificationCode);
@@ -136,7 +200,16 @@ router.post('/register', registerValidation, async (req, res) => {
     } catch (mailError) {
       console.error('❌ 인증 코드 이메일 발송 실패:', mailError);
       
-      // 메일 발송 실패시 저장된 코드 삭제
+      // 메일 발송 실패시 Auth 사용자 삭제 및 코드 삭제
+      try {
+        if (supabaseAdmin && supabaseAdmin.auth && supabaseAdmin.auth.admin && authData) {
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+          console.log('🗑️ 실패한 Auth 사용자 삭제 완료');
+        }
+      } catch (deleteError) {
+        console.warn('⚠️ 실패한 Auth 사용자 삭제 실패:', deleteError.message);
+      }
+      
       verificationCodes.delete(codeKey);
       
       return res.status(500).json({
@@ -206,40 +279,30 @@ router.post('/verify-code', [
 
     console.log('✅ 인증 코드 확인 완료:', storedData.email);
 
-    const { email, password, username, name } = storedData;
+    const { email, username, name, authUserId } = storedData;
+
+    // 이미 생성된 Auth 사용자 ID 사용
+    if (!authUserId) {
+      console.error('❌ Auth 사용자 ID가 없음');
+      return res.status(400).json({
+        success: false,
+        message: '인증 정보가 올바르지 않습니다.',
+        error: 'MISSING_AUTH_USER_ID'
+      });
+    }
+
+    // Auth 사용자 정보 구성 (실제 Auth 요청 없이)
+    const authData = {
+      user: {
+        id: authUserId,
+        email: email,
+        created_at: new Date().toISOString()
+      }
+    };
+
+    console.log('✅ 기존 Auth 사용자 사용:', authUserId);
 
     try {
-      // Supabase Auth에 사용자 생성 (이메일 인증 비활성화)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username,
-            name,
-            role: 'user'
-          },
-          emailRedirectTo: undefined // 이메일 인증 비활성화
-        }
-      });
-
-      if (authError) {
-        console.error('❌ Supabase Auth 생성 실패:', authError);
-        
-        let message = '회원가입에 실패했습니다.';
-        if (authError.message.includes('already registered')) {
-          message = '이미 가입된 이메일입니다.';
-        } else if (authError.message.includes('Password should be at least')) {
-          message = '비밀번호는 최소 8자 이상이어야 합니다.';
-        }
-        
-        return res.status(400).json({
-          success: false,
-          message,
-          error: authError.message
-        });
-      }
-
       // users 테이블에 사용자 정보 저장
       const userData = {
         id: authData.user.id,
@@ -258,7 +321,10 @@ router.post('/verify-code', [
       };
 
       const userResult = await safeQuery(async () => {
-        return await supabase
+        if (!supabaseAdmin) {
+          throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+        }
+        return await supabaseAdmin
           .from('users')
           .insert(userData)
           .select()
@@ -268,11 +334,14 @@ router.post('/verify-code', [
       if (!userResult.success) {
         console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
         
-        // Auth 사용자도 삭제 시도 (관리자 권한 필요)
-        // 실패하면 로그만 남기고 계속 진행
+        // Auth 사용자도 삭제 시도 (Admin 클라이언트 사용)
         try {
-          await supabase.auth.admin.deleteUser(authData.user.id);
-          console.log('🗑️ Auth 사용자 삭제 완료');
+          if (supabaseAdmin && supabaseAdmin.auth && supabaseAdmin.auth.admin) {
+            await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+            console.log('🗑️ Auth 사용자 삭제 완료');
+          } else {
+            console.warn('⚠️ Admin 클라이언트의 auth.admin이 사용 불가');
+          }
         } catch (deleteError) {
           console.warn('⚠️ Auth 사용자 삭제 실패:', deleteError.message);
         }

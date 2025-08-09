@@ -282,26 +282,26 @@ export const emotionAPI = {
   },
 };
 
-// 인증 API (Supabase 기반 - 통합된 단일 플로우)
+// 인증 API (Mailgun 인증 코드 방식)
 export const authAPI = {
-  // 회원가입 (Supabase Auth + 이메일 인증)
-  register: (data) => withRetry(() => api.post('/auth/register', data)),
+  // 회원가입 1단계: 인증 코드 발송
+  register: (data) => withRetry(() => api.post('/v2/auth/register', data)),
+  // 회원가입 2단계: 인증 코드 확인 및 회원가입 완료
+  verifyCode: (data) => withRetry(() => api.post('/v2/auth/verify-code', data)),
   // 로그인
-  login: (data) => withRetry(() => api.post('/auth/login', data)),
+  login: (data) => withRetry(() => api.post('/v2/auth/login', data)),
   // 로그아웃
-  logout: () => withRetry(() => api.post('/auth/logout')),
+  logout: () => withRetry(() => api.post('/v2/auth/logout')),
   // 현재 사용자 정보 조회
-  getMe: () => withRetry(() => api.get('/auth/me')),
+  getMe: () => withRetry(() => api.get('/v2/auth/me')),
   // 프로필 수정
-  updateProfile: (data) => withRetry(() => api.put('/auth/profile', data)),
+  updateProfile: (data) => withRetry(() => api.put('/v2/auth/profile', data)),
   // 비밀번호 변경
-  changePassword: (data) => withRetry(() => api.put('/auth/password', data)),
+  changePassword: (data) => withRetry(() => api.put('/v2/auth/password', data)),
   // 비밀번호 재설정 요청
-  forgotPassword: (data) => withRetry(() => api.post('/auth/forgot-password', data)),
-  // 이메일 인증 완료 후 사용자 프로필 생성
-  completeSignup: (data) => withRetry(() => api.post('/auth/complete-signup', data)),
+  forgotPassword: (data) => withRetry(() => api.post('/v2/auth/forgot-password', data)),
   // 회원탈퇴 (향후 구현 예정)
-  deleteAccount: (data) => withRetry(() => api.delete('/auth/delete-account', { data })),
+  deleteAccount: (data) => withRetry(() => api.delete('/v2/auth/delete-account', { data })),
 };
 
 // AI 스크립트 API

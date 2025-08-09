@@ -23,7 +23,29 @@ const loginValidation = [
   body('password').notEmpty().withMessage('비밀번호를 입력하세요.')
 ];
 
-// 회원가입 (이메일 인증 필요)
+// 인증 코드 임시 저장소 (메모리 기반)
+const verificationCodes = new Map();
+
+// 인증 코드 생성 함수
+function generateVerificationCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// 만료된 인증 코드 정리 (주기적 실행)
+function cleanupExpiredCodes() {
+  const now = Date.now();
+  for (const [key, value] of verificationCodes.entries()) {
+    if (now > value.expiresAt) {
+      verificationCodes.delete(key);
+      console.log(`🗑️ 만료된 인증 코드 삭제: ${value.email}`);
+    }
+  }
+}
+
+// 5분마다 만료된 코드 정리
+setInterval(cleanupExpiredCodes, 5 * 60 * 1000);
+
+// 회원가입 1단계: 이메일로 인증 코드 발송
 router.post('/register', registerValidation, async (req, res) => {
   try {
     console.log('🚀 회원가입 요청 시작:', req.body.email);
@@ -38,6 +60,23 @@ router.post('/register', registerValidation, async (req, res) => {
     }
 
     const { email, password, username, name } = req.body;
+
+    // 이메일 중복 확인
+    const existingEmailResult = await safeQuery(async () => {
+      return await supabase
+        .from('users')
+        .select('email')
+        .eq('email', email)
+        .single();
+    }, '이메일 중복 확인');
+
+    if (existingEmailResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: '이미 사용 중인 이메일입니다.',
+        error: 'DUPLICATE_EMAIL'
+      });
+    }
 
     // 사용자명 중복 확인
     const existingUserResult = await safeQuery(async () => {
@@ -56,75 +95,54 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
-    // 운영환경에 맞는 리다이렉트 URL 설정
-    const clientUrl = process.env.CLIENT_URL || 'https://actscript-1.onrender.com';
-    const redirectTo = `${clientUrl}/auth/callback`;
+    // 인증 코드 생성 및 저장
+    const verificationCode = generateVerificationCode();
+    const codeKey = `${email}_${Date.now()}`;
     
-    console.log('📧 이메일 리다이렉트 URL:', redirectTo);
-
-    // Supabase Auth에 사용자 생성 (이메일 인증 필요)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 인증 코드와 사용자 정보를 10분간 저장
+    verificationCodes.set(codeKey, {
       email,
       password,
-      options: {
-        data: {
-          username,
-          name,
-          role: 'user'
-        },
-        emailRedirectTo: redirectTo
-      }
+      username,
+      name,
+      code: verificationCode,
+      expiresAt: Date.now() + 10 * 60 * 1000 // 10분 후 만료
     });
 
-    if (authError) {
-      console.error('❌ 회원가입 실패:', authError);
-      
-      let message = '회원가입에 실패했습니다.';
-      if (authError.message.includes('already registered')) {
-        message = '이미 가입된 이메일입니다.';
-      } else if (authError.message.includes('Password should be at least')) {
-        message = '비밀번호는 최소 8자 이상이어야 합니다.';
-      } else if (authError.message.includes('Unable to validate email')) {
-        message = '이메일 형식이 올바르지 않습니다.';
+    // 기존 동일 이메일 인증 코드들 삭제 (최신 것만 유지)
+    for (const [key, value] of verificationCodes.entries()) {
+      if (value.email === email && key !== codeKey) {
+        verificationCodes.delete(key);
       }
-      
-      return res.status(400).json({
-        success: false,
-        message,
-        error: authError.message
-      });
     }
 
-    console.log('✅ 회원가입 Auth 생성 완료:', {
-      userId: authData.user?.id,
-      email: authData.user?.email,
-      emailConfirmed: !!authData.user?.email_confirmed_at
-    });
+    console.log(`📧 인증 코드 생성: ${email} -> ${verificationCode}`);
 
-    // 이메일 인증이 필요한 경우
-    if (!authData.user?.email_confirmed_at) {
-      console.log('📧 이메일 인증 필요 - 인증 메일 발송됨');
-      
+    try {
+      // Mailgun으로 인증 코드 이메일 발송
+      await sendVerificationEmail(email, name, verificationCode);
+      console.log('✅ 인증 코드 이메일 발송 성공');
+
       res.json({
         success: true,
-        message: '회원가입 요청이 완료되었습니다. 이메일을 확인하여 계정을 활성화해주세요.',
+        message: '인증 코드가 이메일로 발송되었습니다. 10분 내에 입력해주세요.',
         data: {
-          email: authData.user?.email,
-          needsEmailVerification: true,
-          redirectTo: redirectTo
+          email,
+          needsCodeVerification: true,
+          codeKey
         }
       });
-    } else {
-      // 즉시 가입 완료 (개발환경 등에서 이메일 인증 비활성화된 경우)
-      console.log('✅ 이메일 인증 없이 즉시 가입 완료');
+
+    } catch (mailError) {
+      console.error('❌ 인증 코드 이메일 발송 실패:', mailError);
       
-      res.json({
-        success: true,
-        message: '회원가입이 완료되었습니다.',
-        data: {
-          email: authData.user?.email,
-          needsEmailVerification: false
-        }
+      // 메일 발송 실패시 저장된 코드 삭제
+      verificationCodes.delete(codeKey);
+      
+      return res.status(500).json({
+        success: false,
+        message: '인증 이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.',
+        error: 'EMAIL_SEND_FAILED'
       });
     }
 
@@ -133,6 +151,175 @@ router.post('/register', registerValidation, async (req, res) => {
     res.status(500).json({
       success: false,
       message: '회원가입 중 오류가 발생했습니다.',
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 회원가입 2단계: 인증 코드 확인 및 회원가입 완료
+router.post('/verify-code', [
+  body('codeKey').notEmpty().withMessage('코드 키가 필요합니다.'),
+  body('verificationCode').isLength({ min: 6, max: 6 }).isNumeric().withMessage('6자리 숫자 코드를 입력하세요.')
+], async (req, res) => {
+  try {
+    console.log('🔍 인증 코드 확인 요청:', req.body.codeKey);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: '올바른 인증 코드를 입력하세요.',
+        errors: errors.array()
+      });
+    }
+
+    const { codeKey, verificationCode } = req.body;
+
+    // 저장된 인증 코드 확인
+    const storedData = verificationCodes.get(codeKey);
+    if (!storedData) {
+      return res.status(400).json({
+        success: false,
+        message: '인증 코드가 만료되었거나 존재하지 않습니다.',
+        error: 'CODE_NOT_FOUND'
+      });
+    }
+
+    // 만료 시간 확인
+    if (Date.now() > storedData.expiresAt) {
+      verificationCodes.delete(codeKey);
+      return res.status(400).json({
+        success: false,
+        message: '인증 코드가 만료되었습니다. 다시 요청해주세요.',
+        error: 'CODE_EXPIRED'
+      });
+    }
+
+    // 인증 코드 일치 확인
+    if (storedData.code !== verificationCode) {
+      return res.status(400).json({
+        success: false,
+        message: '인증 코드가 일치하지 않습니다.',
+        error: 'CODE_MISMATCH'
+      });
+    }
+
+    console.log('✅ 인증 코드 확인 완료:', storedData.email);
+
+    const { email, password, username, name } = storedData;
+
+    try {
+      // Supabase Auth에 사용자 생성 (이메일 인증 비활성화)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            name,
+            role: 'user'
+          },
+          emailRedirectTo: undefined // 이메일 인증 비활성화
+        }
+      });
+
+      if (authError) {
+        console.error('❌ Supabase Auth 생성 실패:', authError);
+        
+        let message = '회원가입에 실패했습니다.';
+        if (authError.message.includes('already registered')) {
+          message = '이미 가입된 이메일입니다.';
+        } else if (authError.message.includes('Password should be at least')) {
+          message = '비밀번호는 최소 8자 이상이어야 합니다.';
+        }
+        
+        return res.status(400).json({
+          success: false,
+          message,
+          error: authError.message
+        });
+      }
+
+      // users 테이블에 사용자 정보 저장
+      const userData = {
+        id: authData.user.id,
+        email,
+        username,
+        name,
+        role: 'user',
+        is_active: true,
+        is_email_verified: true, // 인증 코드로 확인했으므로 true
+        created_at: new Date().toISOString(),
+        subscription: 'free',
+        usage: {
+          scripts_generated: 0,
+          monthly_limit: 10
+        }
+      };
+
+      const userResult = await safeQuery(async () => {
+        return await supabase
+          .from('users')
+          .insert(userData)
+          .select()
+          .single();
+      }, '사용자 프로필 생성');
+
+      if (!userResult.success) {
+        console.error('❌ 사용자 프로필 생성 실패:', userResult.error);
+        
+        // Auth 사용자도 삭제 시도 (관리자 권한 필요)
+        // 실패하면 로그만 남기고 계속 진행
+        try {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+          console.log('🗑️ Auth 사용자 삭제 완료');
+        } catch (deleteError) {
+          console.warn('⚠️ Auth 사용자 삭제 실패:', deleteError.message);
+        }
+
+        return res.status(500).json({
+          success: false,
+          message: '사용자 정보 저장에 실패했습니다.',
+          error: 'PROFILE_CREATION_FAILED'
+        });
+      }
+
+      // 인증 코드 삭제 (사용 완료)
+      verificationCodes.delete(codeKey);
+
+      console.log('🎉 회원가입 완료:', email);
+
+      res.json({
+        success: true,
+        message: '회원가입이 완료되었습니다.',
+        user: {
+          id: userResult.data.id,
+          username: userResult.data.username,
+          email: userResult.data.email,
+          name: userResult.data.name,
+          role: userResult.data.role,
+          isEmailVerified: userResult.data.is_email_verified,
+          subscription: userResult.data.subscription,
+          usage: userResult.data.usage
+        }
+      });
+
+    } catch (signupError) {
+      console.error('❌ 사용자 생성 전체 과정 실패:', signupError);
+      
+      // 인증 코드는 유지 (재시도 가능하도록)
+      res.status(500).json({
+        success: false,
+        message: '회원가입 처리 중 오류가 발생했습니다.',
+        error: 'SIGNUP_PROCESS_FAILED'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ 인증 코드 확인 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '인증 코드 확인 중 오류가 발생했습니다.',
       debug: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

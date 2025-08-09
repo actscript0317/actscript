@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, Eye, EyeOff, Mail, Shield } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Mail, Shield, Key } from 'lucide-react';
 import { authAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -17,6 +17,12 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  
+  // 인증 코드 관련 상태
+  const [step, setStep] = useState(1); // 1: 정보입력, 2: 인증코드입력
+  const [verificationCode, setVerificationCode] = useState('');
+  const [codeKey, setCodeKey] = useState('');
+  const [remainingTime, setRemainingTime] = useState(600); // 10분 = 600초
   
   const navigate = useNavigate();
 
@@ -72,7 +78,25 @@ const Register = () => {
     return true;
   };
 
-  // 회원가입 처리 (Supabase Auth 전용)
+  // 타이머 시작
+  React.useEffect(() => {
+    let timer;
+    if (step === 2 && remainingTime > 0) {
+      timer = setInterval(() => {
+        setRemainingTime(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, remainingTime]);
+
+  // 시간 포맷팅
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // 1단계: 회원가입 정보 입력 및 인증 코드 발송
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
@@ -91,8 +115,10 @@ const Register = () => {
       });
 
       if (response.data.success) {
-        setSuccess(true);
-        toast.success('회원가입 요청이 완료되었습니다. 이메일을 확인하여 계정을 활성화해주세요.');
+        setCodeKey(response.data.data.codeKey);
+        setStep(2);
+        setRemainingTime(600); // 10분 재설정
+        toast.success('인증 코드가 이메일로 발송되었습니다.');
       } else {
         toast.error(response.data.message || '회원가입에 실패했습니다.');
       }
@@ -118,6 +144,65 @@ const Register = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 2단계: 인증 코드 확인 및 회원가입 완료
+  const handleVerifyCode = async (e) => {
+    e.preventDefault();
+
+    if (!verificationCode || verificationCode.length !== 6) {
+      toast.error('6자리 인증 코드를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const response = await authAPI.verifyCode({
+        codeKey,
+        verificationCode
+      });
+
+      if (response.data.success) {
+        setSuccess(true);
+        toast.success('회원가입이 완료되었습니다!');
+      } else {
+        toast.error(response.data.message || '인증 코드가 올바르지 않습니다.');
+      }
+    } catch (err) {
+      console.error('인증 코드 확인 에러:', err);
+      
+      let errorMessage = '인증 코드 확인 중 오류가 발생했습니다.';
+      
+      if (err.response?.status === 400) {
+        const error = err.response.data?.error;
+        if (error === 'CODE_EXPIRED') {
+          errorMessage = '인증 코드가 만료되었습니다. 다시 시도해주세요.';
+          setStep(1); // 1단계로 돌아가기
+        } else if (error === 'CODE_MISMATCH') {
+          errorMessage = '인증 코드가 일치하지 않습니다.';
+        } else if (error === 'CODE_NOT_FOUND') {
+          errorMessage = '인증 코드를 찾을 수 없습니다. 다시 시도해주세요.';
+          setStep(1); // 1단계로 돌아가기
+        } else {
+          errorMessage = err.response.data?.message || '인증 코드를 확인해주세요.';
+        }
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 다시 시도 (1단계로 돌아가기)
+  const handleRetry = () => {
+    setStep(1);
+    setVerificationCode('');
+    setCodeKey('');
+    setRemainingTime(600);
   };
 
 
@@ -158,8 +243,99 @@ const Register = () => {
     );
   }
 
+  // 인증 코드 입력 화면 (2단계)
+  if (step === 2) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary/10">
+              <Key className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              이메일 인증
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              <strong>{formData.email}</strong>로<br/>
+              인증 코드가 발송되었습니다.
+            </p>
+          </div>
 
-  // 회원가입 정보 입력 화면 (기본)
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <Mail className="h-5 w-5 text-blue-500 mr-2" />
+              <div className="text-sm text-blue-800">
+                <p className="font-semibold">이메일을 확인해주세요</p>
+                <p className="mt-1">
+                  {remainingTime > 0 ? (
+                    <>남은 시간: <span className="font-mono font-bold">{formatTime(remainingTime)}</span></>
+                  ) : (
+                    <span className="text-red-600 font-semibold">인증 코드가 만료되었습니다</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <form className="mt-8 space-y-6" onSubmit={handleVerifyCode}>
+            <div>
+              <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700 mb-1">
+                인증 코드 (6자리)
+              </label>
+              <input
+                id="verificationCode"
+                name="verificationCode"
+                type="text"
+                maxLength="6"
+                required
+                className="block w-full px-3 py-3 text-center text-2xl font-mono tracking-widest border border-gray-300 rounded-md placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                placeholder="000000"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                이메일로 받은 6자리 숫자를 입력하세요
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                type="submit"
+                disabled={loading || verificationCode.length !== 6 || remainingTime <= 0}
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    확인 중...
+                  </div>
+                ) : (
+                  '인증 확인'
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+              >
+                다시 시도
+              </button>
+            </div>
+          </form>
+
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              인증 코드가 오지 않았나요?<br/>
+              스팸 메일함을 확인해보세요.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 회원가입 정보 입력 화면 (1단계)
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">

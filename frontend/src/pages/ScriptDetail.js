@@ -396,8 +396,8 @@ const ScriptDetail = () => {
         {/* 대본 내용 */}
         <div className="bg-white rounded-lg shadow-md p-8 mb-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">대본 내용</h2>
-          <div className="bg-gray-50 rounded-lg p-6">
-            <pre className="whitespace-pre-wrap font-sans text-gray-800 leading-relaxed text-lg">
+          <div className="bg-gray-50 rounded-lg p-6 max-h-96 md:max-h-none overflow-y-auto">
+            <pre className="whitespace-pre-wrap font-sans text-gray-800 leading-relaxed text-lg overflow-x-auto">
               {script.content}
             </pre>
           </div>

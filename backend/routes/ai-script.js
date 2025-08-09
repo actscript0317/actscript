@@ -198,7 +198,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
     
     // 장르별 지시사항
     const genreDirectives = {
-      '로맨스': 'Focus on tender emotions, heart-fluttering moments, and sincere dialogue.',
+      '로맨스': '따뜻하고 설레는 한국 드라마 스타일의 로맨스 대본을 써줘,진심 어린 감정을 담아 희망적으로 마무리해.',
       '비극': 'Convey deep sorrow, irreversible loss, and emotionally devastating outcomes.',
       '코미디': 'Use light-hearted tone, comedic timing, and witty exchanges.',
       '스릴러': 'Build suspense with unexpected twists and fast-paced dialogue.',

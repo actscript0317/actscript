@@ -37,7 +37,8 @@
       "Bash(done)",
       "Bash(do echo \"요청 $i:\")",
       "Bash(do echo \"깨우기 시도 $i:\")",
-      "Bash(do echo \"상태 확인 $i:\")"
+      "Bash(do echo \"상태 확인 $i:\")",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

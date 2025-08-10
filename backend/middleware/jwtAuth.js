@@ -4,10 +4,20 @@ const { supabaseAdmin, safeQuery } = require('../config/supabase');
 // JWT Access Token 검증 미들웨어
 const authenticateJWT = async (req, res, next) => {
   try {
+    console.log('🔐 JWT 인증 시작:', {
+      url: req.url,
+      method: req.method,
+      hasAuth: !!req.headers.authorization
+    });
+    
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
+      console.log('❌ 토큰 누락:', {
+        authHeader,
+        url: req.url
+      });
       return res.status(401).json({
         success: false,
         message: '액세스 토큰이 필요합니다.',

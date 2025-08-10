@@ -144,6 +144,15 @@ api.interceptors.request.use(
     const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔑 토큰 헤더 설정:', {
+          url: config.url,
+          hasToken: !!token,
+          tokenLength: token?.length
+        });
+      }
+    } else if (process.env.NODE_ENV === 'development') {
+      console.log('⚠️ 토큰 없음:', config.url);
     }
 
     // OPTIONS 요청에 대한 헤더 설정

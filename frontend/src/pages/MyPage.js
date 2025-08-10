@@ -25,6 +25,7 @@ const MyPage = () => {
     savedScripts, 
     aiGeneratedScripts, 
     loading,
+    initialized,
     removeSavedScript,
     removeAIGeneratedScript,
     logout
@@ -212,7 +213,7 @@ const MyPage = () => {
       }
     };
 
-    if (isAuthenticated) {
+    if (isAuthenticated && initialized && !loading) {
       fetchMyPosts();
       fetchMySavedPosts();
     }
@@ -221,7 +222,7 @@ const MyPage = () => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, initialized, loading]);
 
   // 관리자 통계 데이터 로드
   const loadAdminStats = async () => {
@@ -250,10 +251,10 @@ const MyPage = () => {
 
   // 사용량 정보 로딩
   useEffect(() => {
-    if (user) {
+    if (user && initialized && !loading) {
       fetchUsageInfo();
     }
-  }, [user]);
+  }, [user, initialized, loading]);
 
   // 게시판 경로 가져오기
   const getBoardPath = (board) => {

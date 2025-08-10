@@ -15,6 +15,7 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState(null);
   const [aiGeneratedScripts, setAIGeneratedScripts] = useState([]);
   const [savedScripts, setSavedScripts] = useState([]);
@@ -33,6 +34,7 @@ export const AuthProvider = ({ children }) => {
       setSavedScripts([]);
     }
     setLoading(false);
+    setInitialized(true);
     setError(null);
   }, []);
 
@@ -223,19 +225,21 @@ export const AuthProvider = ({ children }) => {
         }
       } else {
         setLoading(false);
+        setInitialized(true);
       }
     };
 
     initializeAuth();
   }, [checkAuth, setAuthState]);
 
-  // 로그인 시 스크립트 로드
+  // 로그인 시 스크립트 로드 (초기화 완료 후에만)
   useEffect(() => {
-    if (user) {
+    if (user && initialized && !loading) {
+      console.log('📋 사용자 로그인 완료, 스크립트 로드 시작');
       loadAIGeneratedScripts();
       loadSavedScripts();
     }
-  }, [user, loadAIGeneratedScripts, loadSavedScripts]);
+  }, [user, initialized, loading, loadAIGeneratedScripts, loadSavedScripts]);
 
   // Supabase Auth 상태 변화 감지
   useEffect(() => {
@@ -268,6 +272,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
+    initialized,
     error,
     login,
     logout,

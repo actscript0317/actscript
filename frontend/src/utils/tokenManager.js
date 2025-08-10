@@ -56,13 +56,28 @@ export const getUser = () => {
 
 // 로그인 데이터 저장
 export const setAuthData = (tokens, user) => {
+  console.log('💾 인증 데이터 저장 시작:', {
+    hasAccessToken: !!tokens.accessToken,
+    hasRefreshToken: !!tokens.refreshToken,
+    expiresIn: tokens.expiresIn,
+    user: user.email
+  });
+  
   setAccessToken(tokens.accessToken, tokens.expiresIn);
   setRefreshToken(tokens.refreshToken);
   setUser(user);
   
+  // 저장 후 검증
+  const savedToken = getAccessToken();
+  const savedRefresh = getRefreshToken();
+  const savedUser = getUser();
+  
   console.log('✅ 인증 데이터 저장 완료:', {
     user: user.email,
-    tokenExpiry: new Date(Date.now() + tokens.expiresIn * 1000).toLocaleString()
+    tokenExpiry: new Date(Date.now() + tokens.expiresIn * 1000).toLocaleString(),
+    savedToken: !!savedToken,
+    savedRefresh: !!savedRefresh,
+    savedUser: !!savedUser
   });
 };
 
@@ -89,7 +104,16 @@ export const getAuthState = () => {
   const accessToken = getAccessToken();
   const refreshToken = getRefreshToken();
   
+  console.log('🔍 토큰 상태 확인:', {
+    hasUser: !!user,
+    hasAccessToken: !!accessToken,
+    hasRefreshToken: !!refreshToken,
+    tokenExpired: isAccessTokenExpired(),
+    user: user?.email
+  });
+  
   if (!user || !accessToken || !refreshToken) {
+    console.log('❌ 인증 데이터 누락, 로그아웃 처리');
     return null;
   }
   

@@ -10,44 +10,10 @@ const getMyBookmarks = async (req, res) => {
     const { page = 1, limit = 12, type } = req.query;
     console.log('🔖 북마크 목록 조회:', req.user.id);
 
+    // 먼저 간단한 쿼리로 북마크만 가져오기
     let query = supabaseAdmin
       .from('bookmarks')
-      .select(`
-        *,
-        scripts!bookmarks_script_id_fkey (
-          id,
-          title,
-          character_count,
-          gender,
-          mood,
-          created_at
-        ),
-        ai_scripts!bookmarks_ai_script_id_fkey (
-          id,
-          title,
-          character_count,
-          genre,
-          created_at
-        ),
-        actor_profiles!bookmarks_actor_profile_id_fkey (
-          id,
-          name,
-          title,
-          created_at
-        ),
-        actor_recruitments!bookmarks_actor_recruitment_id_fkey (
-          id,
-          title,
-          type,
-          created_at
-        ),
-        community_posts!bookmarks_community_post_id_fkey (
-          id,
-          title,
-          category,
-          created_at
-        )
-      `)
+      .select('*')
       .eq('user_id', req.user.id);
 
     // 타입별 필터링
@@ -80,10 +46,11 @@ const getMyBookmarks = async (req, res) => {
     const result = await safeQuery(async () => query, '북마크 목록 조회');
 
     if (!result.success) {
+      console.error('❌ 북마크 조회 실패:', result.error);
       return res.status(500).json({
         success: false,
         message: '북마크 조회 중 오류가 발생했습니다.',
-        error: result.error.message
+        error: '데이터베이스 오류가 발생했습니다.'
       });
     }
 

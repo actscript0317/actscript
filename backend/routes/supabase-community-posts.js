@@ -217,15 +217,15 @@ router.get('/my/posts', authenticateToken, async (req, res) => {
         .from('community_posts')
         .select('*')
         .eq('user_id', req.user.id)
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
     }, '내 커뮤니티 포스트 조회');
 
     if (!result.success) {
+      console.error('❌ 내 포스트 조회 실패:', result.error);
       return res.status(500).json({
         success: false,
         message: '내 포스트 조회 중 오류가 발생했습니다.',
-        error: result.error.message
+        error: '데이터베이스 오류가 발생했습니다.'
       });
     }
 

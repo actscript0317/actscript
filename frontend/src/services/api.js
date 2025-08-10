@@ -26,7 +26,7 @@ const getApiBaseUrl = () => {
     // actscript.onrender.com도 actscript-1로 리다이렉트
     return 'https://actscript-1.onrender.com/api';
   } else if (hostname.includes('actpiece.com')) {
-    return 'https://api.actpiece.com/api';
+    return 'https://actscript.onrender.com/api';
   }
   
   // 로컬 개발 환경

@@ -4,8 +4,8 @@ const { authenticateToken } = require('../middleware/supabaseAuth');
 
 const router = express.Router();
 
-// 사용자의 북마크 목록 조회
-router.get('/', authenticateToken, async (req, res) => {
+// 북마크 목록 조회 공통 로직
+const getMyBookmarks = async (req, res) => {
   try {
     const { page = 1, limit = 12, type } = req.query;
     console.log('🔖 북마크 목록 조회:', req.user.id);
@@ -134,7 +134,13 @@ router.get('/', authenticateToken, async (req, res) => {
       message: '서버 오류가 발생했습니다.' 
     });
   }
-});
+};
+
+// 사용자의 북마크 목록 조회 (기본 엔드포인트)
+router.get('/', authenticateToken, getMyBookmarks);
+
+// 사용자의 북마크 목록 조회 (별칭 엔드포인트)
+router.get('/my-bookmarks', authenticateToken, getMyBookmarks);
 
 // 북마크 추가
 router.post('/', authenticateToken, async (req, res) => {

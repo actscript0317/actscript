@@ -1,6 +1,7 @@
-const { supabase, getUserFromToken, handleSupabaseError } = require('../config/supabase');
+const { supabase, getUserFromToken, handleSupabaseError, supabaseAdmin, safeQuery } = require('../config/supabase');
+const { verifyAccessToken } = require('../utils/jwt');
 
-// Supabase JWT 토큰 검증 미들웨어
+// 통합 토큰 검증 미들웨어 (Supabase JWT + 커스텀 JWT 모두 지원)
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -9,14 +10,92 @@ const authenticateToken = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: '액세스 토큰이 필요합니다.'
+        message: '액세스 토큰이 필요합니다.',
+        code: 'MISSING_TOKEN'
       });
     }
 
-    // Supabase에서 사용자 정보 추출
-    const user = await getUserFromToken(token);
-    
-    if (!user) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔐 통합 토큰 인증 시작:', {
+        url: req.url,
+        method: req.method,
+        tokenLength: token?.length,
+        tokenStart: token?.substring(0, 20) + '...'
+      });
+    }
+
+    // 1. 먼저 커스텀 JWT 토큰 검증 시도
+    let customJWTUser = null;
+    try {
+      const decoded = verifyAccessToken(token);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ 커스텀 JWT 검증 성공:', decoded);
+      }
+      
+      // 사용자 정보 조회
+      const userResult = await safeQuery(async () => {
+        if (!supabaseAdmin) {
+          throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+        }
+        return await supabaseAdmin
+          .from('users')
+          .select('*')
+          .eq('id', decoded.userId)
+          .single();
+      }, 'JWT 사용자 정보 조회');
+
+      if (userResult.success && userResult.data.is_active) {
+        customJWTUser = {
+          id: userResult.data.id,
+          email: userResult.data.email,
+          username: userResult.data.username,
+          name: userResult.data.name,
+          role: userResult.data.role || 'user',
+          subscription: userResult.data.subscription,
+          usage: userResult.data.usage
+        };
+      }
+    } catch (jwtError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⚠️ 커스텀 JWT 검증 실패, Supabase JWT 시도:', jwtError.message);
+      }
+    }
+
+    // 2. 커스텀 JWT가 성공하면 사용
+    if (customJWTUser) {
+      req.user = customJWTUser;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ 커스텀 JWT 인증 성공:', customJWTUser.email);
+      }
+      return next();
+    }
+
+    // 3. 커스텀 JWT 실패시 Supabase JWT 시도
+    try {
+      const user = await getUserFromToken(token);
+      
+      if (!user) {
+        throw new Error('Supabase JWT 검증 실패');
+      }
+
+      // 사용자 정보를 req.user에 설정
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role: user.user_metadata?.role || 'user'
+      };
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Supabase JWT 인증 성공:', user.email);
+      }
+      return next();
+      
+    } catch (supabaseError) {
+      console.error('❌ 모든 토큰 검증 실패:', {
+        jwtError: '커스텀 JWT 검증 실패',
+        supabaseError: supabaseError.message
+      });
+      
       return res.status(401).json({
         success: false,
         message: '유효하지 않은 토큰입니다.',
@@ -24,33 +103,13 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // 사용자 정보를 req.user에 설정
-    req.user = {
-      id: user.id,
-      email: user.email,
-      role: user.user_metadata?.role || 'user'
-    };
-
-    next();
   } catch (error) {
-    console.error('토큰 인증 실패:', error);
-    
-    // JWT 토큰 만료 또는 유효하지 않은 경우 구체적인 메시지 제공
-    let message = '토큰 인증에 실패했습니다.';
-    let code = 'AUTH_FAILED';
-    
-    if (error.message && error.message.includes('expired')) {
-      message = '토큰이 만료되었습니다. 다시 로그인해 주세요.';
-      code = 'TOKEN_EXPIRED';
-    } else if (error.message && error.message.includes('invalid')) {
-      message = '유효하지 않은 토큰입니다. 다시 로그인해 주세요.';
-      code = 'INVALID_TOKEN';
-    }
+    console.error('토큰 인증 중 오류:', error);
     
     return res.status(401).json({
       success: false,
-      message: message,
-      code: code
+      message: '토큰 인증에 실패했습니다.',
+      code: 'AUTH_FAILED'
     });
   }
 };

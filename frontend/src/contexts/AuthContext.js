@@ -80,6 +80,15 @@ export const AuthProvider = ({ children }) => {
       const res = await authAPI.login({ email, password });
       
       if (res.data.success && res.data.tokens && res.data.user) {
+        console.log('🎉 로그인 성공, 토큰 타입 확인:', {
+          hasTokens: !!res.data.tokens,
+          hasAccessToken: !!res.data.tokens?.accessToken,
+          hasRefreshToken: !!res.data.tokens?.refreshToken,
+          hasSession: !!res.data.session,
+          sessionToken: res.data.session?.access_token?.substring(0, 20) + '...',
+          accessToken: res.data.tokens?.accessToken?.substring(0, 20) + '...'
+        });
+        
         setAuthState(res.data.user, res.data.tokens);
         setLoading(false);
         
@@ -208,16 +217,24 @@ export const AuthProvider = ({ children }) => {
           // 먼저 사용자 정보 설정 (UI 즉시 반영)
           setUser(authState.user);
           
-          // 토큰이 만료되었거나 갱신이 필요한 경우 백그라운드에서 검증
+          // 토큰이 만료되었거나 갱신이 필요한 경우
           if (authState.needsRefresh || isAccessTokenExpired()) {
-            console.log('🔄 토큰 만료, 인증 상태 확인 중...');
-          }
-          
-          // 토큰 유효성 검사를 통해 실제 인증 상태 확인
-          const isValid = await checkAuth();
-          if (!isValid) {
-            // 토큰이 유효하지 않으면 로그아웃 처리
-            setAuthState(null, null);
+            console.log('🔄 토큰 만료됨, 인증 상태 확인 중...');
+            
+            // 토큰 유효성 검사를 통해 실제 인증 상태 확인
+            const isValid = await checkAuth();
+            if (!isValid) {
+              // 토큰이 유효하지 않으면 로그아웃 처리
+              console.log('❌ 토큰 검증 실패, 로그아웃 처리');
+              setAuthState(null, null);
+            } else {
+              console.log('✅ 토큰 검증 성공 또는 갱신 완료');
+            }
+          } else {
+            // 토큰이 아직 유효한 경우
+            console.log('✅ 토큰이 유효함, 인증 상태 복원 완료');
+            setLoading(false);
+            setInitialized(true);
           }
         } catch (error) {
           console.error('인증 초기화 오류:', error);

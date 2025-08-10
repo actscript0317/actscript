@@ -197,6 +197,60 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
+// 내가 작성한 모델 모집 공고 목록 조회
+router.get('/my/recruitments', authenticateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 12 } = req.query;
+    console.log('👤 내 모델 모집 공고 조회:', req.user.id);
+
+    const offset = (page - 1) * limit;
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('model_recruitments')
+        .select('*')
+        .eq('user_id', req.user.id)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + parseInt(limit) - 1);
+    }, '내 모델 모집 공고 목록 조회');
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: '모집 공고 조회 중 오류가 발생했습니다.',
+        error: result.error.message
+      });
+    }
+
+    // 전체 개수 조회
+    const countResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('model_recruitments')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', req.user.id);
+    }, '내 모델 모집 공고 개수 조회');
+
+    const total = countResult.success ? countResult.count : 0;
+
+    res.json({
+      success: true,
+      data: result.data || [],
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ 내 모델 모집 공고 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '서버 오류가 발생했습니다.'
+    });
+  }
+});
+
 // 특정 모델 모집 공고 조회
 router.get('/:id', optionalAuth, async (req, res) => {
   try {

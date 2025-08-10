@@ -1,4 +1,12 @@
 import axios from 'axios';
+import { 
+  getAccessToken, 
+  getRefreshToken, 
+  setAuthData, 
+  clearAuthData, 
+  isAccessTokenExpired,
+  getTokenStatus 
+} from '../utils/tokenManager';
 
 // API 기본 설정 - 환경에 따른 동적 URL 설정
 const getApiBaseUrl = () => {
@@ -45,6 +53,56 @@ const api = axios.create({
   }
 });
 
+// 토큰 갱신 중인지 추적하는 플래그
+let isRefreshing = false;
+let failedQueue = [];
+
+// 토큰 갱신 큐 처리
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+// 토큰 갱신 함수
+const refreshToken = async () => {
+  const refresh = getRefreshToken();
+  
+  if (!refresh) {
+    throw new Error('No refresh token available');
+  }
+  
+  try {
+    const response = await axios.post(`${API_BASE_URL}/v2/auth/refresh`, {
+      refreshToken: refresh
+    });
+    
+    if (response.data.success) {
+      const { tokens } = response.data;
+      // Access Token만 업데이트 (Refresh Token은 유지)
+      setAuthData({
+        accessToken: tokens.accessToken,
+        refreshToken: refresh,
+        expiresIn: tokens.expiresIn
+      }, JSON.parse(localStorage.getItem('user')));
+      
+      return tokens.accessToken;
+    } else {
+      throw new Error('Token refresh failed');
+    }
+  } catch (error) {
+    console.error('토큰 갱신 실패:', error);
+    clearAuthData();
+    throw error;
+  }
+};
+
 // 재시도 로직을 위한 헬퍼 함수
 const withRetry = async (apiCall, retries = 3, delay = 2000) => {
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -82,8 +140,8 @@ const withRetry = async (apiCall, retries = 3, delay = 2000) => {
 // 요청 인터셉터
 api.interceptors.request.use(
   (config) => {
-    // 토큰이 있으면 헤더에 추가
-    const token = localStorage.getItem('token');
+    // JWT Access Token 사용
+    const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -121,22 +179,68 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
     // 에러 응답 로깅
     console.error('❌ [API 응답 실패]', {
       status: error.response?.status,
       data: error.response?.data,
       message: error.message,
-      url: error.config?.url,
+      url: originalRequest?.url,
       code: error.code
     });
 
-    // 401 에러 처리 (인증 실패)
+    // 401 에러이고 토큰 만료 오류인 경우 자동 갱신 시도
+    if (error.response?.status === 401 && 
+        error.response?.data?.code === 'TOKEN_EXPIRED' && 
+        !originalRequest._retry) {
+      
+      if (isRefreshing) {
+        // 이미 토큰 갱신 중이면 큐에 추가
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const newToken = await refreshToken();
+        processQueue(null, newToken);
+        
+        // 원래 요청 재시도
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        
+        // 토큰 갱신 실패시 로그아웃 처리
+        clearAuthData();
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // 다른 401 에러 처리
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+      // /me 엔드포인트가 아닌 경우에만 강제 리다이렉트
+      if (!originalRequest?.url?.includes('/me')) {
+        clearAuthData();
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
       }
     }
 

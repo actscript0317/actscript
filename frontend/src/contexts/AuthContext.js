@@ -2,6 +2,13 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { authAPI, scriptAPI } from '../services/api';
 import { supabase } from '../utils/supabase';
 import { toast } from 'react-hot-toast';
+import { 
+  setAuthData, 
+  clearAuthData, 
+  getAuthState, 
+  isAccessTokenExpired,
+  getTokenStatus
+} from '../utils/tokenManager';
 
 const AuthContext = createContext(null);
 
@@ -12,15 +19,15 @@ export const AuthProvider = ({ children }) => {
   const [aiGeneratedScripts, setAIGeneratedScripts] = useState([]);
   const [savedScripts, setSavedScripts] = useState([]);
 
-  // 인증 상태 설정
-  const setAuthState = useCallback((userData, token) => {
-    if (userData && token) {
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+  // 인증 상태 설정 (새로운 JWT 토큰 시스템용)
+  const setAuthState = useCallback((userData, tokens = null) => {
+    if (userData && tokens) {
+      // 새로운 JWT 토큰 시스템 사용
+      setAuthData(tokens, userData);
       setUser(userData);
     } else {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      // 로그아웃 처리
+      clearAuthData();
       setUser(null);
       setAIGeneratedScripts([]);
       setSavedScripts([]);
@@ -32,15 +39,18 @@ export const AuthProvider = ({ children }) => {
   // 로그인 상태 확인
   const checkAuth = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
+      const authState = getAuthState();
+      if (!authState) {
         setAuthState(null, null);
         return false;
       }
 
       const res = await authAPI.getMe();
       if (res.data.success && res.data.user) {
-        setAuthState(res.data.user, token);
+        // 사용자 정보만 업데이트 (토큰은 이미 저장되어 있음)
+        setUser(res.data.user);
+        setLoading(false);
+        setError(null);
         return true;
       } else {
         setAuthState(null, null);
@@ -48,7 +58,11 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('[인증 확인 실패]', error);
-      setAuthState(null, null);
+      if (error.response?.status === 401) {
+        // 401 에러는 토큰 만료이므로 자동 갱신이 시도됨
+        // 자동 갱신이 실패하면 clearAuthData가 이미 호출됨
+        setAuthState(null, null);
+      }
       return false;
     } finally {
       setLoading(false);
@@ -63,9 +77,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authAPI.login({ email, password });
       
-      if (res.data.success && res.data.session && res.data.user) {
-        const token = res.data.session.access_token;
-        setAuthState(res.data.user, token);
+      if (res.data.success && res.data.tokens && res.data.user) {
+        setAuthState(res.data.user, res.data.tokens);
         setLoading(false);
         
         return { 
@@ -185,25 +198,35 @@ export const AuthProvider = ({ children }) => {
 
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    
-    if (token && savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-        setLoading(false);
-        // 백그라운드에서 토큰 유효성 검사
-        checkAuth().catch(() => {
+    const initializeAuth = async () => {
+      const authState = getAuthState();
+      
+      if (authState) {
+        try {
+          // 먼저 사용자 정보 설정 (UI 즉시 반영)
+          setUser(authState.user);
+          
+          // 토큰이 만료되었거나 갱신이 필요한 경우 백그라운드에서 검증
+          if (authState.needsRefresh || isAccessTokenExpired()) {
+            console.log('🔄 토큰 만료, 인증 상태 확인 중...');
+          }
+          
+          // 토큰 유효성 검사를 통해 실제 인증 상태 확인
+          const isValid = await checkAuth();
+          if (!isValid) {
+            // 토큰이 유효하지 않으면 로그아웃 처리
+            setAuthState(null, null);
+          }
+        } catch (error) {
+          console.error('인증 초기화 오류:', error);
           setAuthState(null, null);
-        });
-      } catch (error) {
-        console.error('저장된 사용자 데이터 파싱 오류:', error);
-        setAuthState(null, null);
+        }
+      } else {
+        setLoading(false);
       }
-    } else {
-      setLoading(false);
-    }
+    };
+
+    initializeAuth();
   }, [checkAuth, setAuthState]);
 
   // 로그인 시 스크립트 로드

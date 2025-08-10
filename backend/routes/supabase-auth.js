@@ -2,6 +2,9 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
+const { authenticateJWT } = require('../middleware/jwtAuth');
+const { generateTokenPair } = require('../utils/jwt');
+const { createRefreshToken, deleteAllUserRefreshTokens } = require('../utils/refreshTokenManager');
 const { sendVerificationEmail } = require('../config/mailgun');
 // MongoDB 관련 의존성 모두 제거
 const router = express.Router();
@@ -526,6 +529,12 @@ router.post('/login', loginValidation, async (req, res) => {
         .eq('id', authData.user.id);
     }
 
+    // JWT 토큰 페어 생성
+    const tokenPair = generateTokenPair(userResult.data.id, userResult.data.email);
+    
+    // Refresh Token 저장
+    const refreshToken = await createRefreshToken(userResult.data.id, userResult.data.email);
+    
     console.log('✅ 로그인 성공:', email);
 
     res.json({
@@ -541,6 +550,13 @@ router.post('/login', loginValidation, async (req, res) => {
         subscription: userResult.data.subscription,
         usage: userResult.data.usage
       },
+      tokens: {
+        accessToken: tokenPair.accessToken,
+        refreshToken: refreshToken,
+        expiresIn: tokenPair.expiresIn,
+        refreshExpiresIn: tokenPair.refreshExpiresIn
+      },
+      // 기존 Supabase 세션도 유지 (호환성을 위해)
       session: authData.session
     });
 
@@ -553,18 +569,104 @@ router.post('/login', loginValidation, async (req, res) => {
   }
 });
 
-// 로그아웃
-router.post('/logout', authenticateToken, async (req, res) => {
+// 토큰 갱신
+router.post('/refresh', [
+  body('refreshToken').notEmpty().withMessage('리프레시 토큰이 필요합니다.')
+], async (req, res) => {
   try {
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      console.error('로그아웃 오류:', error);
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: '로그아웃 중 오류가 발생했습니다.'
+        message: '리프레시 토큰이 필요합니다.',
+        errors: errors.array()
       });
     }
+
+    const { refreshToken } = req.body;
+    const { verifyRefreshTokenData } = require('../utils/refreshTokenManager');
+
+    // Refresh Token 검증
+    let tokenData;
+    try {
+      tokenData = verifyRefreshTokenData(refreshToken);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: error.message,
+        code: 'INVALID_REFRESH_TOKEN'
+      });
+    }
+
+    // 사용자 정보 조회
+    const userResult = await safeQuery(async () => {
+      if (!supabaseAdmin) {
+        throw new Error('Supabase Admin 클라이언트가 설정되지 않았습니다.');
+      }
+      return await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('id', tokenData.userId)
+        .single();
+    }, '토큰 갱신 사용자 정보 조회');
+
+    if (!userResult.success) {
+      return res.status(401).json({
+        success: false,
+        message: '사용자 정보를 찾을 수 없습니다.',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    const user = userResult.data;
+
+    // 비활성 사용자 체크
+    if (!user.is_active) {
+      return res.status(403).json({
+        success: false,
+        message: '비활성화된 계정입니다.',
+        code: 'ACCOUNT_DISABLED'
+      });
+    }
+
+    // 새로운 액세스 토큰 생성
+    const newTokenPair = generateTokenPair(user.id, user.email);
+    
+    console.log('🔄 토큰 갱신 성공:', user.email);
+
+    res.json({
+      success: true,
+      message: '토큰이 갱신되었습니다.',
+      tokens: {
+        accessToken: newTokenPair.accessToken,
+        expiresIn: newTokenPair.expiresIn
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ 토큰 갱신 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '토큰 갱신 중 오류가 발생했습니다.',
+      code: 'REFRESH_FAILED'
+    });
+  }
+});
+
+// 로그아웃
+router.post('/logout', authenticateJWT, async (req, res) => {
+  try {
+    // 사용자의 모든 Refresh Token 삭제
+    const deletedCount = deleteAllUserRefreshTokens(req.user.id);
+    
+    // Supabase 세션도 정리 (기존 호환성)
+    try {
+      await supabase.auth.signOut();
+    } catch (supabaseError) {
+      console.warn('Supabase 로그아웃 중 오류 (무시됨):', supabaseError.message);
+    }
+
+    console.log(`✅ 로그아웃 완료: ${req.user.email} (삭제된 토큰: ${deletedCount}개)`);
 
     res.json({
       success: true,
@@ -581,7 +683,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
 });
 
 // 현재 사용자 정보 조회
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', authenticateJWT, async (req, res) => {
   try {
     const userResult = await safeQuery(async () => {
       return await supabase

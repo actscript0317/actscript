@@ -269,19 +269,19 @@ const AIScript = () => {
       const trimmedLine = line.trim();
       
       // 섹션 헤더 감지
-      if (trimmedLine.match(/^\*\*제목:\*\*/i) || trimmedLine.match(/^제목:/i)) {
+      if (trimmedLine.match(/^===제목===$/i)) {
         if (currentSection.content.length > 0) sections.push(currentSection);
         currentSection = { type: 'title', content: [line] };
-      } else if (trimmedLine.match(/^\*\*상황[ ]?설명:\*\*/i) || trimmedLine.match(/^상황[ ]?설명:/i) || trimmedLine.match(/^\[상황[ ]?설명\]/i)) {
+      } else if (trimmedLine.match(/^===상황[ ]?설명===$/i)) {
         if (currentSection.content.length > 0) sections.push(currentSection);
         currentSection = { type: 'situation', content: [line] };
-      } else if (trimmedLine.match(/^\*\*인물:\*\*/i) || trimmedLine.match(/^인물:/i) || trimmedLine.match(/^\[등장인물\]/i) || trimmedLine.match(/^\[인물\]/i)) {
+      } else if (trimmedLine.match(/^===등장인물===$/i)) {
         if (currentSection.content.length > 0) sections.push(currentSection);
         currentSection = { type: 'character', content: [line] };
-      } else if (trimmedLine.match(/^\*\*독백:\*\*/i) || trimmedLine.match(/^독백:/i) || trimmedLine.match(/^\[독백\]/i) || trimmedLine.match(/^\*\*대본:\*\*/i) || trimmedLine.match(/^대본:/i) || trimmedLine.match(/^\[대본\]/i)) {
+      } else if (trimmedLine.match(/^===대본===$/i)) {
         if (currentSection.content.length > 0) sections.push(currentSection);
         currentSection = { type: 'dialogue', content: [line] };
-      } else if (trimmedLine.match(/^\*\*연기[ ]?팁:\*\*/i) || trimmedLine.match(/^연기[ ]?팁:/i) || trimmedLine.match(/^\*\*연기[ ]?포인트:\*\*/i)) {
+      } else if (trimmedLine.match(/^===연기[ ]?팁===$/i)) {
         if (currentSection.content.length > 0) sections.push(currentSection);
         currentSection = { type: 'tips', content: [line] };
       } else {

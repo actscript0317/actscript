@@ -169,9 +169,9 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     // 길이 변환
     const lengthMap = {
-      'short': '짧은 (1-2분)',
-      'medium': '중간 길이 (3-5분)', 
-      'long': '긴 (5-10분)'
+      'short': '짧은 대본 (총 대사 6~8줄, 1개의 장면)',
+      'medium': '중간 길이 대본 (총 대사 12~16줄, 2개의 장면)',
+      'long': '긴 대본 (총 대사 20~30줄, 3~4개의 장면)'
     };
 
     const lengthText = lengthMap[length] || length;
@@ -205,8 +205,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
       사랑에 빠진 인물이 상대방 앞에서 진심 어린 감정을 표현하는 장면을 중심으로,  
       설렘과 긴장, 조심스러운 고백까지 감정의 흐름을 세밀하게 담아내고,  
       결말은 희망적이고 따뜻하게 마무리해줘.  
-      대사는 부드럽고 자연스러운 구어체로,  
-      행동과 표정 지시문은 감정 변화를 섬세하게 보여줄 수 있게 포함해.  
+       
       `,
         '비극': `
       깊고 무거운 비극적 감정과 상황을 담아 대본을 써줘.  

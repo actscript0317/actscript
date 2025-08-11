@@ -372,7 +372,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
 인물: 이름:(성+이름), 나이, 성격과 현재 상황 간략 설명 
 대본: 위 스타일 지침에 맞춰 ${lengthText} 분량 작성
  대본 형식(대본의 형식을 동일하게 유지할 것.):
- 제목:
+===제목===
  불안의 그림자
 
  상황 설명:

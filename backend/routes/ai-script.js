@@ -326,6 +326,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
 대본: 위 스타일 지침에 맞춰 ${lengthText} 분량 작성  
 연기 팁: 감정 흐름과 호흡 지침
 
+위 내용들을 바탕으로 장르${genre}감정을 중심으로 한 대본을 작성해 주세요.
 `;
 
     // OpenAI API 호출

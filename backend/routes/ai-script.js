@@ -191,7 +191,8 @@ router.post('/generate', authenticateToken, async (req, res) => {
       '20s': '20대', 
       '30s-40s': '30~40대',
       '50s': '50대',
-      '70s+': '70대 이상'
+      '70s+': '70대 이상',
+      'random': '10대, 20대, 30대, 40대, 50대, 70+대 중 랜덤'
     };
     
     const ageText = ageMap[age] || age;

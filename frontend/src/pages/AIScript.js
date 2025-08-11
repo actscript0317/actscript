@@ -588,7 +588,7 @@ const AIScript = () => {
               AI 1인 독백 생성기
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              AI가 당신을 위한 감성적인 1인 독백 대본을 생성합니다. 다인 대화는 현재 개발 중입니다.
+              당신만을 위한 대본을 생성합니다.
             </p>
           </motion.div>
 

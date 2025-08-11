@@ -19,7 +19,9 @@ import {
   Archive,
   RotateCcw,
   Eye,
-  AlertCircle
+  AlertCircle,
+  Edit3,
+  FileText
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,6 +68,11 @@ const AIScript = () => {
   
   // 상세 보기 모달 상태
   const [showDetailModal, setShowDetailModal] = useState(false);
+  
+  // 메모 관련 상태
+  const [showMemoModal, setShowMemoModal] = useState(false);
+  const [scriptMemo, setScriptMemo] = useState('');
+  const [isSavingMemo, setIsSavingMemo] = useState(false);
   
   // 사용량 정보 로딩 상태
   const [loadingUsage, setLoadingUsage] = useState(true);
@@ -380,6 +387,44 @@ const AIScript = () => {
     setRewriteResult(null);
     setRewriteIntensity('');
     window.getSelection().removeAllRanges();
+  };
+
+  // 메모 관련 함수들
+  const loadMemo = () => {
+    if (generatedScriptId) {
+      const savedMemo = localStorage.getItem(`script-memo-${generatedScriptId}`);
+      if (savedMemo) {
+        setScriptMemo(savedMemo);
+      }
+    }
+  };
+
+  const saveMemo = async () => {
+    if (!generatedScriptId) {
+      toast.error('스크립트 ID가 없습니다.');
+      return;
+    }
+
+    setIsSavingMemo(true);
+    try {
+      localStorage.setItem(`script-memo-${generatedScriptId}`, scriptMemo);
+      toast.success('메모가 저장되었습니다!');
+      setShowMemoModal(false);
+    } catch (error) {
+      console.error('메모 저장 오류:', error);
+      toast.error('메모 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingMemo(false);
+    }
+  };
+
+  const openMemoModal = () => {
+    loadMemo();
+    setShowMemoModal(true);
+  };
+
+  const closeMemoModal = () => {
+    setShowMemoModal(false);
   };
 
   // 대본 생성 핸들러
@@ -855,7 +900,7 @@ const AIScript = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
                   <button
                     onClick={() => setShowDetailModal(true)}
                     className="flex items-center justify-center px-3 sm:px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
@@ -909,6 +954,14 @@ const AIScript = () => {
                     <Archive className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">대본함</span>
                     <span className="sm:hidden">함</span>
+                  </button>
+                  <button
+                    onClick={openMemoModal}
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
+                  >
+                    <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">📝 메모</span>
+                    <span className="sm:hidden">메모</span>
                   </button>
                   <button
                     onClick={() => {
@@ -1158,7 +1211,7 @@ const AIScript = () => {
 
                   {/* 하단 액션 버튼 */}
                   <div className="p-3 sm:p-4 md:p-6 border-t border-gray-200 bg-gray-50">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4 max-w-4xl mx-auto">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4 max-w-4xl mx-auto">
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(generatedScript);
@@ -1210,10 +1263,20 @@ const AIScript = () => {
                       </button>
                       <button
                         onClick={() => navigate('/script-vault')}
-                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base col-span-2 sm:col-span-1"
+                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
                         <Archive className="w-4 h-4 mr-1 sm:mr-2" />
                         대본함
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDetailModal(false);
+                          openMemoModal();
+                        }}
+                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
+                      >
+                        <Edit3 className="w-4 h-4 mr-1 sm:mr-2" />
+                        메모
                       </button>
                     </div>
                     
@@ -1241,6 +1304,113 @@ const AIScript = () => {
                         <span className="hidden sm:inline">새 생성</span>
                         <span className="sm:hidden">새로</span>
                       </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 메모 모달 */}
+          <AnimatePresence>
+            {showMemoModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                onClick={closeMemoModal}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mr-4">
+                          <Edit3 className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold text-gray-900">대본 메모</h2>
+                          <p className="text-gray-600">연습에 도움이 될 메모를 작성하세요</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={closeMemoModal}
+                        className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
+                      >
+                        <X className="w-5 h-5 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                    {/* 메모 입력 */}
+                    <div className="space-y-3">
+                      <label className="text-lg font-semibold text-gray-800">메모 내용</label>
+                      <textarea
+                        value={scriptMemo}
+                        onChange={(e) => setScriptMemo(e.target.value)}
+                        placeholder="대본에 대한 메모를 작성하세요...&#10;- 연기 팁&#10;- 감정 포인트&#10;- 무대 설정&#10;- 기타 연출 노트"
+                        className="w-full h-64 p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none text-sm leading-relaxed"
+                      />
+                      <div className="text-right text-xs text-gray-500">
+                        {scriptMemo.length} / 1000자
+                      </div>
+                    </div>
+
+                    {/* 저장 버튼 */}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={saveMemo}
+                        disabled={isSavingMemo || scriptMemo.length > 1000}
+                        className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+                          isSavingMemo || scriptMemo.length > 1000
+                            ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                            : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md hover:shadow-lg'
+                        }`}
+                      >
+                        {isSavingMemo ? (
+                          <div className="flex items-center justify-center space-x-2">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                            />
+                            <span>저장 중...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center space-x-2">
+                            <Save className="w-5 h-5" />
+                            <span>메모 저장</span>
+                          </div>
+                        )}
+                      </button>
+                      <button
+                        onClick={closeMemoModal}
+                        className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors"
+                      >
+                        취소
+                      </button>
+                    </div>
+
+                    {/* 메모 사용 안내 */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <div className="flex items-start text-amber-700">
+                        <FileText className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium mb-1">💡 메모 활용 팁</p>
+                          <ul className="text-xs space-y-1">
+                            <li>• 대본의 감정 포인트나 연기 방향을 기록하세요</li>
+                            <li>• 연습하면서 발견한 중요한 부분을 메모하세요</li>
+                            <li>• 메모는 브라우저에 저장되어 다음에도 확인할 수 있습니다</li>
+                          </ul>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </motion.div>

@@ -169,9 +169,9 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     // 길이 변환
     const lengthMap = {
-      'short': '짧은 대본, 대사 6~8줄(지시문 제외)', 
-      'medium': '중간 길이 대본, 대사 12~16줄(지시문 제외)',
-      'long': '긴 대본, 대사 20~30줄(지시문 제외)'
+      'short': '짧은 대본, 대사 6~8문단(지시문 제외)', 
+      'medium': '중간 길이 대본, 대사 12~16문단(지시문 제외)',
+      'long': '긴 대본, 대사 20~30문단(지시문 제외)'
     };
 
     const lengthText = lengthMap[length] || length;
@@ -350,7 +350,6 @@ router.post('/generate', authenticateToken, async (req, res) => {
  - 인물이 현실에서 한국어로 말할 때 쓰는 자연스러운 말투만 사용하기.
  - 마지막 대사는 감정이 남도록 구성.
  - 대본과 상황을 정확하게 일치할 것. 예: 누군가에게 고백하는 장면이라면 그 대상 앞에서 말하는 대사, 지시문, 상황을 일치시킬 것.
- - 지시문은 적절하게 배치할 것. 너무 많은 지시문은 지양할 것.
 
 **4. 서사 구조**
  1. 초반: 현재 상황 또는 사건에 대한 불만·분노·억울함 직설적으로 제시  
@@ -381,6 +380,8 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
  **이지원:**  
  너무 힘들어. 모두들 잘 사는 것 같은데, 왜 나만 이러지?  
+
+ (한숨을 쉬며)나를 몰아부치고 있어
 
 
  ===연기 팁===

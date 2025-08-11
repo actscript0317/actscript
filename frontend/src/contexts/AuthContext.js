@@ -183,7 +183,7 @@ export const AuthProvider = ({ children }) => {
   const removeAIGeneratedScript = useCallback(async (scriptId) => {
     try {
       await scriptAPI.deleteAIScript(scriptId);
-      setAIGeneratedScripts(prev => prev.filter(script => script._id !== scriptId));
+      setAIGeneratedScripts(prev => prev.filter(script => script.id !== scriptId));
       toast.success('AI 생성 스크립트가 삭제되었습니다.');
     } catch (error) {
       console.error('AI 스크립트 삭제 실패:', error);

@@ -904,7 +904,7 @@ const ScriptVault = () => {
                 {currentScripts.map((script, index) => (
                   activeTab === 'ai' ? (
                     <motion.div
-                      key={script._id}
+                      key={script.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
@@ -972,7 +972,7 @@ const ScriptVault = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleViewMemo(script._id);
+                            handleViewMemo(script.id);
                           }}
                           className="flex items-center justify-center px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm rounded-lg transition-colors"
                         >
@@ -982,7 +982,7 @@ const ScriptVault = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteScript(script._id);
+                            handleDeleteScript(script.id);
                           }}
                           className="flex items-center justify-center px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition-colors"
                         >
@@ -1098,7 +1098,7 @@ const ScriptVault = () => {
                         onClick={async () => {
                           try {
                             if (selectedScript.isAIGenerated) {
-                              await removeAIGeneratedScript(selectedScript._id);
+                              await removeAIGeneratedScript(selectedScript.id);
                             } else {
                               // For user-written scripts, we'll navigate to a new page or handle deletion differently
                               alert('직접 작성 대본은 삭제할 수 없습니다.');

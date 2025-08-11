@@ -8,6 +8,7 @@ import {
   Clock, 
   Wand2, 
   Copy, 
+  Save,
   RefreshCw,
   ChevronDown,
   X,

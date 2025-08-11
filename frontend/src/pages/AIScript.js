@@ -139,7 +139,7 @@ const AIScript = () => {
     { value: '30s-40s', label: '30~40대', description: '성숙한 어른의 현실적 고민', icon: '💼' },
     { value: '50s', label: '50대', description: '중년의 깊이 있는 성찰', icon: '🎯' },
     { value: '70s+', label: '70대 이상', description: '인생 경험과 지혜', icon: '🎋' },
-    { value: 'random', label: '랜덤', description: 'AI가 상황에 맞는 연령대 선택', icon: '🎲' }
+    { value: 'random', label: '랜덤', description: '10대, 20대, 30대, 40대, 50대, 70+대 중 랜덤', icon: '🎲' }
   ];
 
   // 폼 데이터 변경 핸들러

@@ -14,11 +14,13 @@ import {
   X,
   Search,
   Edit3,
-  MessageCircle
+  MessageCircle,
+  Save,
+  Check
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { 
+import api, { 
   actorProfileAPI, 
   actorRecruitmentAPI, 
   modelRecruitmentAPI, 
@@ -42,6 +44,9 @@ const ScriptVault = () => {
   const [showMemoModal, setShowMemoModal] = useState(false);
   const [selectedMemo, setSelectedMemo] = useState('');
   const [selectedScriptId, setSelectedScriptId] = useState(null);
+  const [isEditingMemo, setIsEditingMemo] = useState(false);
+  const [editedMemo, setEditedMemo] = useState('');
+  const [isSavingMemo, setIsSavingMemo] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
   const [sortBy, setSortBy] = useState('createdAt'); // 'createdAt', 'likes', 'views'
@@ -481,18 +486,74 @@ const ScriptVault = () => {
   };
 
   // 메모 조회 핸들러
-  const handleViewMemo = (scriptId) => {
-    const savedMemo = localStorage.getItem(`script-memo-${scriptId}`);
-    setSelectedMemo(savedMemo || '');
-    setSelectedScriptId(scriptId);
-    setShowMemoModal(true);
+  const handleViewMemo = async (scriptId) => {
+    try {
+      const response = await api.get(`/ai-script/scripts/${scriptId}/memo`);
+      const memo = response.data.memo || '';
+      setSelectedMemo(memo);
+      setEditedMemo(memo);
+      setSelectedScriptId(scriptId);
+      setIsEditingMemo(false);
+      setShowMemoModal(true);
+    } catch (error) {
+      console.error('메모 조회 오류:', error);
+      // API 호출 실패 시 빈 메모로 시작
+      setSelectedMemo('');
+      setEditedMemo('');
+      setSelectedScriptId(scriptId);
+      setIsEditingMemo(false);
+      setShowMemoModal(true);
+      toast.error('메모를 불러오지 못했습니다.');
+    }
+  };
+
+  // 메모 편집 시작
+  const handleStartEditMemo = () => {
+    setIsEditingMemo(true);
+  };
+
+  // 메모 편집 취소
+  const handleCancelEditMemo = () => {
+    setEditedMemo(selectedMemo);
+    setIsEditingMemo(false);
+  };
+
+  // 메모 저장
+  const handleSaveMemo = async () => {
+    if (!selectedScriptId) {
+      toast.error('스크립트 ID가 없습니다.');
+      return;
+    }
+
+    setIsSavingMemo(true);
+    try {
+      const response = await api.put(`/ai-script/scripts/${selectedScriptId}/memo`, {
+        memo: editedMemo
+      });
+      
+      if (response.data.success) {
+        setSelectedMemo(editedMemo);
+        setIsEditingMemo(false);
+        toast.success('메모가 저장되었습니다!');
+      } else {
+        throw new Error(response.data.error || '메모 저장에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('메모 저장 오류:', error);
+      toast.error(error.response?.data?.error || '메모 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingMemo(false);
+    }
   };
 
   // 메모 모달 닫기
   const handleCloseMemoModal = () => {
     setShowMemoModal(false);
     setSelectedMemo('');
+    setEditedMemo('');
     setSelectedScriptId(null);
+    setIsEditingMemo(false);
+    setIsSavingMemo(false);
   };
 
   // 현재 탭에 따른 대본/글 목록 가져오기
@@ -1097,45 +1158,108 @@ const ScriptVault = () => {
                     </div>
                   </div>
 
-                  <div className="p-6">
-                    {selectedMemo ? (
-                      <>
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-                          <h3 className="text-lg font-semibold text-amber-800 mb-3">📝 저장된 메모</h3>
-                          <div className="bg-white p-4 rounded-lg border border-amber-300 max-h-64 overflow-y-auto">
-                            <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                              {selectedMemo}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right text-xs text-gray-500">
-                          {selectedMemo.length} / 1000자
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Edit3 className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-500 mb-2">저장된 메모가 없습니다</h3>
-                        <p className="text-gray-400 mb-6">
-                          이 대본에 대한 메모가 아직 작성되지 않았습니다.
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          💡 대본 생성 페이지에서 메모를 작성할 수 있습니다.
-                        </p>
+                  <div className="p-6 space-y-6">
+                    {/* 메모 입력/조회 */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-lg font-semibold text-gray-800">메모 내용</label>
+                        {!isEditingMemo && selectedMemo && (
+                          <button
+                            onClick={handleStartEditMemo}
+                            className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-sm rounded-lg transition-colors"
+                          >
+                            수정
+                          </button>
+                        )}
                       </div>
+                      
+                      {isEditingMemo || !selectedMemo ? (
+                        <>
+                          <textarea
+                            value={editedMemo}
+                            onChange={(e) => setEditedMemo(e.target.value)}
+                            placeholder="대본에 대한 메모를 작성하세요...&#10;- 연기 팁&#10;- 감정 포인트&#10;- 무대 설정&#10;- 기타 연출 노트"
+                            className="w-full h-64 p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none text-sm leading-relaxed"
+                            maxLength={1000}
+                          />
+                          <div className="text-right text-xs text-gray-500">
+                            {editedMemo.length} / 1000자
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                            <div className="bg-white p-4 rounded-lg border border-amber-300 max-h-64 overflow-y-auto">
+                              <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                                {selectedMemo}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-gray-500">
+                            {selectedMemo.length} / 1000자
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* 액션 버튼 */}
+                    {isEditingMemo ? (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleSaveMemo}
+                          disabled={isSavingMemo || editedMemo.length > 1000}
+                          className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all ${
+                            isSavingMemo || editedMemo.length > 1000
+                              ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                              : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md hover:shadow-lg'
+                          }`}
+                        >
+                          {isSavingMemo ? (
+                            <div className="flex items-center justify-center space-x-2">
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                              />
+                              <span>저장 중...</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center space-x-2">
+                              <Save className="w-5 h-5" />
+                              <span>메모 저장</span>
+                            </div>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleCancelEditMemo}
+                          className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    ) : !selectedMemo && (
+                      <button
+                        onClick={handleStartEditMemo}
+                        className="w-full py-3 px-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-medium transition-all shadow-md hover:shadow-lg"
+                      >
+                        <div className="flex items-center justify-center space-x-2">
+                          <Edit3 className="w-5 h-5" />
+                          <span>메모 작성하기</span>
+                        </div>
+                      </button>
                     )}
 
                     {/* 안내 메시지 */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                      <div className="flex items-start text-blue-700">
-                        <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <div className="flex items-start text-amber-700">
+                        <Edit3 className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
                         <div className="text-sm">
-                          <p className="font-medium mb-1">💡 메모 작성 팁</p>
-                          <p>AI 대본 생성 페이지에서 대본을 생성한 후 '메모' 버튼을 클릭하여 연기 팁이나 감정 포인트를 기록할 수 있습니다.</p>
+                          <p className="font-medium mb-1">💡 메모 활용 팁</p>
+                          <ul className="text-xs space-y-1">
+                            <li>• 대본의 감정 포인트나 연기 방향을 기록하세요</li>
+                            <li>• 연습하면서 발견한 중요한 부분을 메모하세요</li>
+                            <li>• 메모는 브라우저에 저장되어 다음에도 확인할 수 있습니다</li>
+                          </ul>
                         </div>
                       </div>
                     </div>

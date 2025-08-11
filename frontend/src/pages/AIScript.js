@@ -386,11 +386,16 @@ const AIScript = () => {
   };
 
   // 메모 관련 함수들
-  const loadMemo = () => {
+  const loadMemo = async () => {
     if (generatedScriptId) {
-      const savedMemo = localStorage.getItem(`script-memo-${generatedScriptId}`);
-      if (savedMemo) {
-        setScriptMemo(savedMemo);
+      try {
+        const response = await api.get(`/ai-script/scripts/${generatedScriptId}/memo`);
+        const memo = response.data.memo || '';
+        setScriptMemo(memo);
+      } catch (error) {
+        console.error('메모 로딩 오류:', error);
+        // API 오류 시 빈 메모로 시작
+        setScriptMemo('');
       }
     }
   };
@@ -403,12 +408,19 @@ const AIScript = () => {
 
     setIsSavingMemo(true);
     try {
-      localStorage.setItem(`script-memo-${generatedScriptId}`, scriptMemo);
-      toast.success('메모가 저장되었습니다!');
-      setShowMemoModal(false);
+      const response = await api.put(`/ai-script/scripts/${generatedScriptId}/memo`, {
+        memo: scriptMemo
+      });
+      
+      if (response.data.success) {
+        toast.success('메모가 저장되었습니다!');
+        setShowMemoModal(false);
+      } else {
+        throw new Error(response.data.error || '메모 저장에 실패했습니다.');
+      }
     } catch (error) {
       console.error('메모 저장 오류:', error);
-      toast.error('메모 저장 중 오류가 발생했습니다.');
+      toast.error(error.response?.data?.error || '메모 저장 중 오류가 발생했습니다.');
     } finally {
       setIsSavingMemo(false);
     }

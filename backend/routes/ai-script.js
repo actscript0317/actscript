@@ -229,7 +229,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
         names: '2000년대 후반~2010년대 초반 출생 세대의 이름 (예: 김지호, 박서연, 이도윤, 최하은, 정시우, 강유나)'
       },
       '20s': {
-        language: '20대 특유의 세련되고 트렌디한 말투. "레알", "개", "ㅇㅇ", "아니 근데" 등의 신조어와 줄임말 자연스럽게 사용',
+        language: '20대 특유의 자연스러운 구어체, 짧고 간결한 문장 위주로, 친근하고 솔직한 말투로 작성해줘.',
         psychology: '취업 걱정, 연애와 이별, 독립에 대한 부담감, 미래에 대한 불안, 자아실현 욕구, 사회적 관계의 복잡함',
         situations: '취업 준비, 첫 직장 생활, 원룸 독립, 연애와 이별, 친구들의 결혼 소식, 부모님께 독립 선언',
         names: '1990년대 후반~2000년대 초반 출생 세대의 이름 (예: 김민준, 이지원, 박준호, 최예린, 정현우, 송지은)'
@@ -842,6 +842,99 @@ router.get('/saved', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: '저장된 스크립트 조회 중 오류가 발생했습니다.',
+      message: error.message
+    });
+  }
+});
+
+// AI 스크립트 메모 업데이트
+router.put('/scripts/:id/memo', authenticateToken, async (req, res) => {
+  try {
+    const { memo } = req.body;
+    
+    // 메모는 빈 문자열도 허용 (메모 삭제)
+    if (memo !== undefined && memo !== null && memo.length > 1000) {
+      return res.status(400).json({
+        error: '메모는 1000자를 초과할 수 없습니다.'
+      });
+    }
+
+    // 스크립트 존재 여부와 소유권 확인
+    const scriptResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .select('id, user_id')
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .single();
+    }, 'AI 스크립트 소유권 확인');
+
+    if (!scriptResult.success) {
+      return res.status(404).json({
+        error: '스크립트를 찾을 수 없거나 접근 권한이 없습니다.'
+      });
+    }
+
+    // 메모 업데이트
+    const updateResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .update({ memo: memo || null })
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .select()
+        .single();
+    }, 'AI 스크립트 메모 업데이트');
+
+    if (!updateResult.success) {
+      return res.status(500).json({
+        error: '메모 업데이트 중 오류가 발생했습니다.',
+        message: updateResult.error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '메모가 성공적으로 저장되었습니다.',
+      script: updateResult.data
+    });
+
+  } catch (error) {
+    console.error('AI 스크립트 메모 업데이트 오류:', error);
+    res.status(500).json({
+      error: '메모 저장 중 오류가 발생했습니다.',
+      message: error.message
+    });
+  }
+});
+
+// AI 스크립트 메모 조회
+router.get('/scripts/:id/memo', authenticateToken, async (req, res) => {
+  try {
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .select('id, memo')
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .single();
+    }, 'AI 스크립트 메모 조회');
+
+    if (!result.success) {
+      return res.status(404).json({
+        error: '스크립트를 찾을 수 없거나 접근 권한이 없습니다.'
+      });
+    }
+
+    res.json({
+      success: true,
+      memo: result.data.memo || ''
+    });
+
+  } catch (error) {
+    console.error('AI 스크립트 메모 조회 오류:', error);
+    res.status(500).json({
+      error: '메모 조회 중 오류가 발생했습니다.',
       message: error.message
     });
   }

@@ -119,7 +119,7 @@ const AIScript = () => {
     { value: '4+', label: '4인 이상 앙상블 (개발 중)', icon: '👨‍👩‍👧‍👦', available: false, premium: false }
   ];
 
-  const freeGenres = ['로맨스', '코미디', '드라마'];
+  const freeGenres = ['로맨스','비극', '코미디', '드라마'];
   const premiumGenres = ['스릴러', '액션', '공포', '판타지', 'SF', '미스터리', '시대극'];
   const genres = [...freeGenres, ...premiumGenres];
 

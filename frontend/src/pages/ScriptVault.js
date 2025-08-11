@@ -754,44 +754,41 @@ const ScriptVault = () => {
           >
             {/* 탭 */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full max-w-4xl">
+              <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full">
                 <button
                   onClick={() => setActiveTab('ai')}
-                  className={`flex items-center px-3 sm:px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
+                  className={`flex items-center px-3 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm min-w-max ${
                     activeTab === 'ai'
                       ? 'bg-white text-purple-600 shadow-md'
                       : 'text-gray-600 hover:text-purple-600'
                   }`}
                 >
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">AI 생성 대본</span>
-                  <span className="sm:hidden">AI 대본</span>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  <span>AI 생성 대본</span>
                   <span className="ml-1">({aiGeneratedScripts.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('saved')}
-                  className={`flex items-center px-3 sm:px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
+                  className={`flex items-center px-3 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm min-w-max ${
                     activeTab === 'saved'
                       ? 'bg-white text-blue-600 shadow-md'
                       : 'text-gray-600 hover:text-blue-600'
                   }`}
                 >
-                  <Bookmark className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">저장한 글</span>
-                  <span className="sm:hidden">저장글</span>
+                  <Bookmark className="w-4 h-4 mr-2" />
+                  <span>저장한 글</span>
                   <span className="ml-1">({mySavedPosts.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('written')}
-                  className={`flex items-center px-3 sm:px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
+                  className={`flex items-center px-3 py-3 rounded-lg font-medium transition-all whitespace-nowrap text-sm min-w-max ${
                     activeTab === 'written'
                       ? 'bg-white text-green-600 shadow-md'
                       : 'text-gray-600 hover:text-green-600'
                   }`}
                 >
-                  <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">내가 작성한 글</span>
-                  <span className="sm:hidden">작성글</span>
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  <span>내가 작성한 글</span>
                   <span className="ml-1">({myPosts.length})</span>
                 </button>
               </div>
@@ -1005,36 +1002,36 @@ const ScriptVault = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
+                className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-2 sm:p-4"
                 onClick={handleCloseModal}
               >
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-5xl w-full h-[90vh] flex flex-col"
+                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-5xl h-[95vh] sm:h-[90vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                   onWheel={(e) => e.stopPropagation()}
                 >
                   {/* 헤더 - 고정 */}
-                  <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+                  <div className="flex-shrink-0 p-3 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
+                      <div className="flex items-center min-w-0 flex-1">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
                           <Eye className="w-6 h-6 text-white" />
                         </div>
-                        <div>
-                          <h2 className="text-2xl font-bold text-gray-900">
+                        <div className="min-w-0">
+                          <h2 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                             {getScriptDisplayTitle(selectedScript)}
                           </h2>
-                          <p className="text-gray-600">
+                          <p className="text-sm sm:text-base text-gray-600 truncate">
                             {selectedScript.isAIGenerated ? 'AI 생성 대본' : '저장된 대본'} · 
                             {selectedScript.characterCount}명 · {selectedScript.genre}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex flex-wrap gap-2 text-sm">
+                      <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+                        <div className="hidden sm:flex flex-wrap gap-2 text-sm">
                           {selectedScript.isAIGenerated && (
                             <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full">
                               AI 생성
@@ -1062,10 +1059,10 @@ const ScriptVault = () => {
                   </div>
 
                   {/* 대본 내용 - 스크롤 가능 영역 */}
-                  <div className="flex-1 overflow-y-auto bg-gray-50 p-8" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+                  <div className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-8" style={{ maxHeight: 'calc(95vh - 140px)' }}>
                     <div className="max-w-4xl mx-auto">
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-                        <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed">
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-8">
+                        <div className="prose prose-sm sm:prose-lg max-w-none text-gray-800 leading-relaxed overflow-x-hidden word-break-keep-all break-words">
                           {parseAndRenderScript(selectedScript.content)}
                         </div>
                       </div>
@@ -1073,26 +1070,26 @@ const ScriptVault = () => {
                   </div>
 
                   {/* 하단 액션 버튼 - 고정 */}
-                  <div className="flex-shrink-0 p-6 border-t border-gray-200 bg-gray-50">
-                    <div className="flex flex-wrap gap-3 justify-center">
+                  <div className="flex-shrink-0 p-3 sm:p-6 border-t border-gray-200 bg-gray-50">
+                    <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(selectedScript.content);
                           alert('대본이 클립보드에 복사되었습니다!');
                         }}
-                        className="flex items-center px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
-                        <Copy className="w-5 h-5 mr-2" />
-                        복사하기
+                        <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                        복사
                       </button>
                       <button
                         onClick={() => window.print()}
-                        className="flex items-center px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
-                        인쇄하기
+                        인쇄
                       </button>
                       <button
                         onClick={async () => {
@@ -1109,10 +1106,10 @@ const ScriptVault = () => {
                             alert('삭제 중 오류가 발생했습니다.');
                           }
                         }}
-                        className="flex items-center px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors shadow-md"
+                        className="flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                       >
-                        <Trash2 className="w-5 h-5 mr-2" />
-                        삭제하기
+                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                        삭제
                       </button>
                     </div>
                   </div>

@@ -200,16 +200,17 @@ router.post('/generate', authenticateToken, async (req, res) => {
     // 장르별 지시사항
     const genreDirectives = {
       '로맨스': '따뜻하고 설레는 한국 드라마 스타일의 로맨스 대본을 써줘,진심 어린 감정을 담아 희망적으로 마무리해.',
-      '비극': 'Convey deep sorrow, irreversible loss, and emotionally devastating outcomes.',
-      '코미디': 'Use light-hearted tone, comedic timing, and witty exchanges.',
-      '스릴러': 'Build suspense with unexpected twists and fast-paced dialogue.',
-      '액션': 'Include fast-paced, dynamic scenes with urgent dialogue and physical tension.',
-      '공포': 'Create an eerie mood with unsettling descriptions and tense interactions.',
-      '판타지': 'Incorporate magical elements, fantastical settings, and imaginative conflicts.',
-      'SF': 'Base the story on futuristic or scientific concepts, with logical consistency.',
-      '시대극': 'Use historically appropriate language and cultural context.',
+      '비극': '비극적인 감정을 담아 마무리해.',
+      '코미디': '코미디 스타일의 대본을 써줘, 재미있고 웃긴 대사를 많이 사용해.',
+      '스릴러': '스릴러 스타일의 대본을 써줘, 긴장감 있는 대사를 많이 사용해.',
+      '액션': '액션 스타일의 대본을 써줘, 긴장감 있는 대사를 많이 사용해.',
+      '공포': '공포 스타일의 대본을 써줘, 무서운 대사를 많이 사용해.',
+      '판타지': '판타지 스타일의 대본을 써줘, 환상적인 대사를 많이 사용해.',
+      'SF': 'SF 스타일의 대본을 써줘, 논리적인 대사를 많이 사용해.',
+      '시대극': '시대극 스타일의 대본을 써줘, 시대에 맞는 대사를 많이 사용해.',
     }[genre] || 'Keep the tone consistent with the selected genre.';
 
+    const genreDirective = genreDirectives;
 
     // 등장인물별 지시사항
     const characterDirectivesMap = {
@@ -313,7 +314,9 @@ router.post('/generate', authenticateToken, async (req, res) => {
 대본: 위 스타일 지침에 맞춰 ${lengthText} 분량 작성  
 연기 팁: 감정 흐름과 호흡 지침
 
-위 내용들을 바탕으로 장르${genre}감정을 중심으로 한 대본을 작성해 주세요.
+**7. 장르 지시사항:**  
+${genreDirective}
+
 `;
 
     // OpenAI API 호출

@@ -8,17 +8,14 @@ import {
   Clock, 
   Wand2, 
   Copy, 
-  Save, 
   RefreshCw,
   ChevronDown,
   X,
   Film,
   ArrowRight,
   Check,
-  Maximize2,
   Archive,
   RotateCcw,
-  Eye,
   AlertCircle,
   Edit3,
   FileText
@@ -66,8 +63,6 @@ const AIScript = () => {
   const [isRewriting, setIsRewriting] = useState(false);
   const [rewriteResult, setRewriteResult] = useState(null);
   
-  // 상세 보기 모달 상태
-  const [showDetailModal, setShowDetailModal] = useState(false);
   
   // 메모 관련 상태
   const [showMemoModal, setShowMemoModal] = useState(false);
@@ -900,15 +895,7 @@ const AIScript = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
-                  <button
-                    onClick={() => setShowDetailModal(true)}
-                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                  >
-                    <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">👁️ 자세히 보기</span>
-                    <span className="sm:hidden">자세히</span>
-                  </button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(generatedScript);
@@ -918,34 +905,6 @@ const AIScript = () => {
                   >
                     <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                     복사
-                  </button>
-                  <button
-                    onClick={() => {
-                      try {
-                        if (generatedScriptId) {
-                          // MongoDB에 저장된 AI 스크립트를 대본함에 저장
-                          if (addSavedScript) {
-                            addSavedScript({ scriptId: generatedScriptId });
-                            // 성공 메시지와 함께 대본함으로 이동
-                            toast.success('대본이 성공적으로 저장되었습니다! 대본함으로 이동합니다.');
-                            setTimeout(() => {
-                              navigate('/script-vault');
-                            }, 1000);
-                          } else {
-                            toast.error('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
-                          }
-                        } else {
-                          toast.error('스크립트 ID가 없습니다. 다시 생성해주세요.');
-                        }
-                      } catch (error) {
-                        console.error('저장 중 오류:', error);
-                        toast.error('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
-                      }
-                    }}
-                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                  >
-                    <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                    저장
                   </button>
                   <button
                     onClick={() => navigate('/script-vault')}
@@ -969,7 +928,7 @@ const AIScript = () => {
                       setError('');
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base col-span-2 sm:col-span-1"
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                   >
                     <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                     다시 생성
@@ -1146,170 +1105,6 @@ const AIScript = () => {
             )}
           </AnimatePresence>
 
-          {/* 대본 상세 보기 모달 */}
-          <AnimatePresence>
-            {showDetailModal && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-2 sm:p-4"
-                onClick={() => setShowDetailModal(false)}
-              >
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-5xl w-full max-h-[98vh] sm:max-h-[95vh] overflow-hidden"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* 헤더 */}
-                  <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-3 sm:mr-4">
-                          <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">대본 자세히 보기</h2>
-                          <p className="text-sm sm:text-base text-gray-600 hidden sm:block">생성된 대본을 크고 명확하게 확인하세요</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between sm:justify-end space-x-3">
-                        <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
-                          <span className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
-                            {formData.characterCount}명
-                          </span>
-                          <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
-                            {formData.genre}
-                          </span>
-                          <span className="px-2 py-1 sm:px-3 bg-green-100 text-green-700 rounded-full">
-                            {formData.gender === 'male' ? '남자' : formData.gender === 'female' ? '여자' : '랜덤'}
-                          </span>
-                          <span className="px-2 py-1 sm:px-3 bg-orange-100 text-orange-700 rounded-full">
-                            {ages.find(age => age.value === formData.age)?.label || formData.age}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => setShowDetailModal(false)}
-                          className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
-                        >
-                          <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 대본 내용 */}
-                  <div className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-6 md:p-8">
-                    <div className="max-w-4xl mx-auto">
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8 text-sm sm:text-base leading-relaxed">
-                        {parseAndRenderScript(generatedScript)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 하단 액션 버튼 */}
-                  <div className="p-3 sm:p-4 md:p-6 border-t border-gray-200 bg-gray-50">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4 max-w-4xl mx-auto">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(generatedScript);
-                          toast.success('대본이 클립보드에 복사되었습니다!');
-                        }}
-                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                      >
-                        <Copy className="w-4 h-4 mr-1 sm:mr-2" />
-                        복사
-                      </button>
-                      <button
-                        onClick={() => {
-                          try {
-                            if (generatedScriptId) {
-                              // MongoDB에 저장된 AI 스크립트를 대본함에 저장
-                              if (addSavedScript) {
-                                addSavedScript({ scriptId: generatedScriptId });
-                                // 성공 메시지와 함께 대본함으로 이동
-                                toast.success('대본이 성공적으로 저장되었습니다! 대본함으로 이동합니다.');
-                                setTimeout(() => {
-                                  navigate('/script-vault');
-                                }, 1000);
-                              } else {
-                                toast.error('저장 기능에 오류가 있습니다. 페이지를 새로고침한 후 다시 시도해주세요.');
-                              }
-                            } else {
-                              toast.error('스크립트 ID가 없습니다. 다시 생성해주세요.');
-                            }
-                          } catch (error) {
-                            console.error('저장 중 오류:', error);
-                            toast.error('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
-                          }
-                        }}
-                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                      >
-                        <Save className="w-4 h-4 mr-1 sm:mr-2" />
-                        저장
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowDetailModal(false);
-                          setShowRewriteModal(true);
-                        }}
-                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                      >
-                        <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">리라이팅</span>
-                        <span className="sm:hidden">수정</span>
-                      </button>
-                      <button
-                        onClick={() => navigate('/script-vault')}
-                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                      >
-                        <Archive className="w-4 h-4 mr-1 sm:mr-2" />
-                        대본함
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowDetailModal(false);
-                          openMemoModal();
-                        }}
-                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                      >
-                        <Edit3 className="w-4 h-4 mr-1 sm:mr-2" />
-                        메모
-                      </button>
-                    </div>
-                    
-                    {/* 추가 버튼들 */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 max-w-2xl mx-auto mt-3 sm:mt-4">
-                      <button
-                        onClick={() => window.print()}
-                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                      >
-                        <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                        </svg>
-                        <span className="hidden sm:inline">인쇄하기</span>
-                        <span className="sm:hidden">인쇄</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setGeneratedScript('');
-                          setGeneratedScriptId(null);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className="flex items-center justify-center px-3 sm:px-4 py-3 bg-slate-500 hover:bg-slate-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                      >
-                        <RotateCcw className="w-4 h-4 mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">새 생성</span>
-                        <span className="sm:hidden">새로</span>
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* 메모 모달 */}
           <AnimatePresence>

@@ -39,6 +39,9 @@ const ScriptVault = () => {
   const [activeTab, setActiveTab] = useState('ai'); // 'ai', 'saved', 'written'
   const [selectedScript, setSelectedScript] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showMemoModal, setShowMemoModal] = useState(false);
+  const [selectedMemo, setSelectedMemo] = useState('');
+  const [selectedScriptId, setSelectedScriptId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
   const [sortBy, setSortBy] = useState('createdAt'); // 'createdAt', 'likes', 'views'
@@ -477,6 +480,21 @@ const ScriptVault = () => {
     setSelectedScript(null);
   };
 
+  // 메모 조회 핸들러
+  const handleViewMemo = (scriptId) => {
+    const savedMemo = localStorage.getItem(`script-memo-${scriptId}`);
+    setSelectedMemo(savedMemo || '');
+    setSelectedScriptId(scriptId);
+    setShowMemoModal(true);
+  };
+
+  // 메모 모달 닫기
+  const handleCloseMemoModal = () => {
+    setShowMemoModal(false);
+    setSelectedMemo('');
+    setSelectedScriptId(null);
+  };
+
   // 현재 탭에 따른 대본/글 목록 가져오기
   const getCurrentScripts = () => {
     let scripts;
@@ -885,10 +903,20 @@ const ScriptVault = () => {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleScriptClick(script)}
-                          className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+                          className="flex items-center justify-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
                         >
-                          <Eye className="w-4 h-4 mr-2" />
-                          상세보기
+                          <Eye className="w-4 h-4 mr-1" />
+                          상세
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewMemo(script._id);
+                          }}
+                          className="flex items-center justify-center px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm rounded-lg transition-colors"
+                        >
+                          <Edit3 className="w-4 h-4 mr-1" />
+                          메모
                         </button>
                         <button
                           onClick={(e) => {
@@ -1025,6 +1053,91 @@ const ScriptVault = () => {
                         <Trash2 className="w-5 h-5 mr-2" />
                         삭제하기
                       </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 메모 조회 모달 */}
+          <AnimatePresence>
+            {showMemoModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                onClick={handleCloseMemoModal}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mr-4">
+                          <Edit3 className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold text-gray-900">대본 메모</h2>
+                          <p className="text-gray-600">저장된 메모를 확인하세요</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleCloseMemoModal}
+                        className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
+                      >
+                        <X className="w-5 h-5 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    {selectedMemo ? (
+                      <>
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                          <h3 className="text-lg font-semibold text-amber-800 mb-3">📝 저장된 메모</h3>
+                          <div className="bg-white p-4 rounded-lg border border-amber-300 max-h-64 overflow-y-auto">
+                            <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                              {selectedMemo}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right text-xs text-gray-500">
+                          {selectedMemo.length} / 1000자
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Edit3 className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-500 mb-2">저장된 메모가 없습니다</h3>
+                        <p className="text-gray-400 mb-6">
+                          이 대본에 대한 메모가 아직 작성되지 않았습니다.
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          💡 대본 생성 페이지에서 메모를 작성할 수 있습니다.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* 안내 메시지 */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                      <div className="flex items-start text-blue-700">
+                        <svg className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-sm">
+                          <p className="font-medium mb-1">💡 메모 작성 팁</p>
+                          <p>AI 대본 생성 페이지에서 대본을 생성한 후 '메모' 버튼을 클릭하여 연기 팁이나 감정 포인트를 기록할 수 있습니다.</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </motion.div>

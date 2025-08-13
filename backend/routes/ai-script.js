@@ -325,7 +325,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
  - 성별: ${genderText}
  - 연령대: ${ageText}
  - 인원: ${characterCount}명
- - 등장인물별 지시사항
+ - 등장인물별 지시사항: ${characterDirectives}
 
 **1. 서사 구조**
  - 점진적 감정 축적 → 마지막 폭발
@@ -359,7 +359,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
 **5. 대본 대사 줄바꿈 규칙** (100% 지킬 것.)
  1. 한 문장이 끝나면 그 다음줄에 대사를 작성한다.
- 2. 같은 화자라도 감정, 주제, 분위기가 전환되면 한 줄을 공백으로 띄우고 그 다음 줄에 작성한다.
+ 2. 대사를 작성할 때, 같은 화자라도 감정, 주제, 분위기가 전환되면 한 줄을 공백으로 띄우고 그 다음 줄에 작성한다.
 
 **6. 지시문 규칙**
  - 행동, 톤, 감정 등을 적절히 사용한다.

@@ -192,50 +192,6 @@ const AIScript = () => {
     }));
   };
 
-  // 퍼센트 슬라이더 변경 핸들러
-  const handlePercentageChange = (index, newPercentage) => {
-    setFormData(prev => {
-      const newCharacters = [...prev.characters];
-      const oldPercentage = newCharacters[index].percentage;
-      const diff = newPercentage - oldPercentage;
-      
-      // 현재 인물의 퍼센트 업데이트
-      newCharacters[index].percentage = newPercentage;
-      
-      // 다른 인물들의 퍼센트를 조정하여 총합이 100이 되도록 함
-      const otherIndices = newCharacters
-        .map((_, i) => i)
-        .filter(i => i !== index);
-      
-      if (otherIndices.length > 0) {
-        // 다른 인물들에게서 차이만큼 빼기 (균등하게 분배)
-        const adjustmentPerOther = diff / otherIndices.length;
-        
-        otherIndices.forEach(i => {
-          newCharacters[i].percentage = Math.max(5, Math.min(90, 
-            newCharacters[i].percentage - adjustmentPerOther
-          ));
-        });
-        
-        // 정확한 100% 맞추기 위한 미세 조정
-        const currentTotal = newCharacters.reduce((sum, char) => sum + char.percentage, 0);
-        const adjustment = 100 - currentTotal;
-        
-        if (Math.abs(adjustment) > 0.1) {
-          // 첫 번째 다른 인물에게 조정값 적용
-          const adjustIndex = otherIndices[0];
-          newCharacters[adjustIndex].percentage = Math.max(5, Math.min(90,
-            newCharacters[adjustIndex].percentage + adjustment
-          ));
-        }
-      }
-      
-      return {
-        ...prev,
-        characters: newCharacters
-      };
-    });
-  };
 
   // 텍스트 선택 핸들러
   const handleTextSelection = () => {
@@ -566,10 +522,11 @@ const AIScript = () => {
         return;
       }
       
-      // 총 퍼센트가 100인지 확인 (약간의 오차 허용)
+      // 총 퍼센트가 정확히 100인지 확인
       const totalPercentage = formData.characters.reduce((sum, char) => sum + char.percentage, 0);
-      if (Math.abs(totalPercentage - 100) > 1) {
-        setError('모든 인물의 대사 분량 합계가 100%가 되어야 합니다.');
+      if (totalPercentage !== 100) {
+        alert(`❌ 대사 분량 조정 필요\n\n현재 총 분량: ${totalPercentage}%\n필요한 분량: 100%\n\n각 인물의 분량을 조정하여 정확히 100%가 되도록 해주세요.`);
+        setError(`대사 분량 합계가 ${totalPercentage}%입니다. 정확히 100%가 되도록 조정해주세요.`);
         return;
       }
     }
@@ -813,36 +770,60 @@ const AIScript = () => {
                     인물 설정
                   </label>
                   {/* 총 분량 표시 */}
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <div className={`border rounded-lg p-4 mb-4 transition-all duration-300 ${
+                    formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) === 100
+                      ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                      : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'
+                  }`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-purple-800">총 대사 분량</span>
+                      <span className={`text-sm font-medium ${
+                        formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) === 100
+                          ? 'text-green-800'
+                          : 'text-red-800'
+                      }`}>
+                        총 대사 분량 
+                        {formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) === 100 
+                          ? ' ✅ 완료' 
+                          : ' ⚠️ 조정 필요'
+                        }
+                      </span>
                       <span className={`text-lg font-bold ${
-                        Math.abs((formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0)) - 100) < 1 
+                        formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) === 100
                           ? 'text-green-600' 
                           : 'text-red-600'
                       }`}>
-                        {Math.round(formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0))}%
+                        {formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0)}% / 100%
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div className="w-full bg-gray-200 rounded-full h-3 mt-2">
                       <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          Math.abs((formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0)) - 100) < 1
+                        className={`h-3 rounded-full transition-all duration-300 ${
+                          formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) === 100
                             ? 'bg-green-500'
-                            : 'bg-red-500'
+                            : formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) > 100
+                            ? 'bg-red-500'
+                            : 'bg-orange-400'
                         }`}
                         style={{ 
                           width: `${Math.min(100, formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0))}%` 
                         }}
                       ></div>
                     </div>
+                    {formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) !== 100 && (
+                      <p className="text-xs text-red-600 mt-2">
+                        {formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) > 100 
+                          ? `${formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0) - 100}% 초과됨` 
+                          : `${100 - formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0)}% 부족함`
+                        }
+                      </p>
+                    )}
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {formData.characters.map((character, index) => (
                       <div key={index} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                         <h4 className="font-medium text-gray-800 mb-3">인물 {index + 1}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                           {/* 인물 이름 */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">이름</label>
@@ -855,49 +836,50 @@ const AIScript = () => {
                             />
                           </div>
                           
-                          {/* 인물 성별 */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">성별</label>
-                            <select
-                              value={character.gender}
-                              onChange={(e) => handleCharacterChange(index, 'gender', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            >
-                              <option value="">성별 선택</option>
-                              <option value="male">남자</option>
-                              <option value="female">여자</option>
-                              <option value="random">랜덤</option>
-                            </select>
-                          </div>
-                          
-                          {/* 인물 연령대 */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">연령대</label>
-                            <select
-                              value={character.age}
-                              onChange={(e) => handleCharacterChange(index, 'age', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            >
-                              <option value="">연령대 선택</option>
-                              {ages.map((age) => (
-                                <option key={age.value} value={age.value}>{age.label}</option>
-                              ))}
-                            </select>
+                          {/* 인물 성별과 연령대를 한 줄로 */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">성별</label>
+                              <select
+                                value={character.gender}
+                                onChange={(e) => handleCharacterChange(index, 'gender', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              >
+                                <option value="">성별 선택</option>
+                                <option value="male">남자</option>
+                                <option value="female">여자</option>
+                                <option value="random">랜덤</option>
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">연령대</label>
+                              <select
+                                value={character.age}
+                                onChange={(e) => handleCharacterChange(index, 'age', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              >
+                                <option value="">연령대 선택</option>
+                                {ages.map((age) => (
+                                  <option key={age.value} value={age.value}>{age.label}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                           
                           {/* 인물 분량 (퍼센트 슬라이더) */}
-                          <div className="md:col-span-2">
+                          <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              대사 분량: {Math.round(character.percentage || 0)}%
+                              대사 분량: {character.percentage || 0}%
                             </label>
                             <div className="relative">
                               <input
                                 type="range"
                                 min="5"
                                 max="90"
-                                step="1"
+                                step="5"
                                 value={character.percentage || 0}
-                                onChange={(e) => handlePercentageChange(index, parseInt(e.target.value))}
+                                onChange={(e) => handleCharacterChange(index, 'percentage', parseInt(e.target.value))}
                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                                 style={{
                                   background: `linear-gradient(to right, 
@@ -909,12 +891,12 @@ const AIScript = () => {
                               />
                               <div className="flex justify-between text-xs text-gray-500 mt-1">
                                 <span>5%</span>
-                                <span className="text-purple-600 font-medium">{Math.round(character.percentage || 0)}%</span>
+                                <span className="text-purple-600 font-medium">{character.percentage || 0}%</span>
                                 <span>90%</span>
                               </div>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              슬라이더를 드래그하여 이 인물의 대사 비중을 조절하세요
+                              5% 단위로 조절 가능
                             </p>
                           </div>
                         </div>

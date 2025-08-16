@@ -322,8 +322,8 @@ router.post('/generate', authenticateToken, async (req, res) => {
       characterDirectives = characters.map((char, index) => {
         const charGender = char.gender === 'male' ? '남성' : char.gender === 'female' ? '여성' : '성별 자유롭게';
         const charAge = ageMap[char.age] || char.age;
-        const charLength = lengthMap[char.length] || char.length;
-        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 분량: ${charLength}`;
+        const charPercentage = char.percentage || 25; // 기본값 25%
+        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 대사 분량: 전체의 ${charPercentage}%`;
       }).join('\n');
     }
 
@@ -408,10 +408,13 @@ ${parseInt(characterCount) === 1 ?
 ${parseInt(characterCount) === 1 ? 
   `인물명: [위 스타일 지침에 맞춰 ${lengthText} 분량 작성]
 같은 인물의 대사라면 인물명 작성은 생략한다.` :
-  `각 인물별로 지정된 분량에 맞춰 대화 형식으로 작성
+  `각 인물별로 지정된 분량 비율에 맞춰 대화 형식으로 작성
 ${characters && characters.map((char, index) => 
-  `${char.name}: [${lengthMap[char.length] || char.length}]`
-).join('\n')}`
+  `${char.name}: [전체 대사의 ${char.percentage || 25}% 담당]`
+).join('\n')}
+
+**중요**: 각 인물의 대사 분량을 정확히 지정된 퍼센트에 맞춰 작성하세요. 
+전체 대본에서 각 인물이 차지하는 대사의 비중을 퍼센트로 계산하여 배분하세요.`
 }
 
 ===연기 팁===

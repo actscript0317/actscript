@@ -162,12 +162,16 @@ const AIScript = () => {
           newData.characters = [];
         } else if (count > 1) {
           const newCharacters = [];
+          // 각 인물에게 균등하게 퍼센트 배분
+          const equalPercentage = Math.floor(100 / count);
+          const remainder = 100 - (equalPercentage * count);
+          
           for (let i = 0; i < count; i++) {
             newCharacters.push({
               name: `인물 ${i + 1}`,
               gender: '',
               age: '',
-              length: 'medium'
+              percentage: i === 0 ? equalPercentage + remainder : equalPercentage // 첫 번째 인물에게 나머지 퍼센트 추가
             });
           }
           newData.characters = newCharacters;
@@ -186,6 +190,51 @@ const AIScript = () => {
         i === index ? { ...char, [field]: value } : char
       )
     }));
+  };
+
+  // 퍼센트 슬라이더 변경 핸들러
+  const handlePercentageChange = (index, newPercentage) => {
+    setFormData(prev => {
+      const newCharacters = [...prev.characters];
+      const oldPercentage = newCharacters[index].percentage;
+      const diff = newPercentage - oldPercentage;
+      
+      // 현재 인물의 퍼센트 업데이트
+      newCharacters[index].percentage = newPercentage;
+      
+      // 다른 인물들의 퍼센트를 조정하여 총합이 100이 되도록 함
+      const otherIndices = newCharacters
+        .map((_, i) => i)
+        .filter(i => i !== index);
+      
+      if (otherIndices.length > 0) {
+        // 다른 인물들에게서 차이만큼 빼기 (균등하게 분배)
+        const adjustmentPerOther = diff / otherIndices.length;
+        
+        otherIndices.forEach(i => {
+          newCharacters[i].percentage = Math.max(5, Math.min(90, 
+            newCharacters[i].percentage - adjustmentPerOther
+          ));
+        });
+        
+        // 정확한 100% 맞추기 위한 미세 조정
+        const currentTotal = newCharacters.reduce((sum, char) => sum + char.percentage, 0);
+        const adjustment = 100 - currentTotal;
+        
+        if (Math.abs(adjustment) > 0.1) {
+          // 첫 번째 다른 인물에게 조정값 적용
+          const adjustIndex = otherIndices[0];
+          newCharacters[adjustIndex].percentage = Math.max(5, Math.min(90,
+            newCharacters[adjustIndex].percentage + adjustment
+          ));
+        }
+      }
+      
+      return {
+        ...prev,
+        characters: newCharacters
+      };
+    });
   };
 
   // 텍스트 선택 핸들러
@@ -510,10 +559,17 @@ const AIScript = () => {
     // 멀티 캐릭터 모드일 때 추가 검증
     if (parseInt(formData.characterCount) > 1) {
       const hasEmptyFields = formData.characters.some(char => 
-        !char.name.trim() || !char.gender || !char.age || !char.length
+        !char.name.trim() || !char.gender || !char.age || typeof char.percentage !== 'number'
       );
       if (hasEmptyFields) {
         setError('모든 인물의 설정을 완료해주세요. (이름, 성별, 연령대, 분량)');
+        return;
+      }
+      
+      // 총 퍼센트가 100인지 확인 (약간의 오차 허용)
+      const totalPercentage = formData.characters.reduce((sum, char) => sum + char.percentage, 0);
+      if (Math.abs(totalPercentage - 100) > 1) {
+        setError('모든 인물의 대사 분량 합계가 100%가 되어야 합니다.');
         return;
       }
     }
@@ -756,6 +812,32 @@ const AIScript = () => {
                     <Edit3 className="w-6 h-6 mr-3 text-purple-500" />
                     인물 설정
                   </label>
+                  {/* 총 분량 표시 */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-purple-800">총 대사 분량</span>
+                      <span className={`text-lg font-bold ${
+                        Math.abs((formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0)) - 100) < 1 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`}>
+                        {Math.round(formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0))}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          Math.abs((formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0)) - 100) < 1
+                            ? 'bg-green-500'
+                            : 'bg-red-500'
+                        }`}
+                        style={{ 
+                          width: `${Math.min(100, formData.characters.reduce((sum, char) => sum + (char.percentage || 0), 0))}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
                   <div className="space-y-4">
                     {formData.characters.map((character, index) => (
                       <div key={index} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
@@ -803,18 +885,37 @@ const AIScript = () => {
                             </select>
                           </div>
                           
-                          {/* 인물 분량 */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">대사 분량</label>
-                            <select
-                              value={character.length}
-                              onChange={(e) => handleCharacterChange(index, 'length', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            >
-                              {lengths.map((length) => (
-                                <option key={length.value} value={length.value}>{length.label} ({length.time})</option>
-                              ))}
-                            </select>
+                          {/* 인물 분량 (퍼센트 슬라이더) */}
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              대사 분량: {Math.round(character.percentage || 0)}%
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="range"
+                                min="5"
+                                max="90"
+                                step="1"
+                                value={character.percentage || 0}
+                                onChange={(e) => handlePercentageChange(index, parseInt(e.target.value))}
+                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                                style={{
+                                  background: `linear-gradient(to right, 
+                                    #8b5cf6 0%, 
+                                    #8b5cf6 ${character.percentage || 0}%, 
+                                    #e5e7eb ${character.percentage || 0}%, 
+                                    #e5e7eb 100%)`
+                                }}
+                              />
+                              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                <span>5%</span>
+                                <span className="text-purple-600 font-medium">{Math.round(character.percentage || 0)}%</span>
+                                <span>90%</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              슬라이더를 드래그하여 이 인물의 대사 비중을 조절하세요
+                            </p>
                           </div>
                         </div>
                       </div>

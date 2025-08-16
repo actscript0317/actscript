@@ -157,13 +157,21 @@ router.post('/generate', authenticateToken, async (req, res) => {
       throw error;
     }
 
-    const { characterCount, genre, length, gender, age } = req.body;
+    const { characterCount, genre, length, gender, age, characters } = req.body;
 
     // 입력값 검증
     if (!characterCount || !genre || !length || !gender || !age) {
       return res.status(400).json({
         error: '모든 필드를 입력해주세요.',
         required: ['characterCount', 'genre', 'length', 'gender', 'age']
+      });
+    }
+
+    // 멀티 캐릭터 모드일 때 characters 배열 검증
+    if (parseInt(characterCount) > 1 && (!characters || !Array.isArray(characters))) {
+      return res.status(400).json({
+        error: '등장인물이 2명 이상일 때는 각 인물의 설정이 필요합니다.',
+        required: ['characters']
       });
     }
 
@@ -269,14 +277,6 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     const genreDirective = genreDirectives;
 
-    // 등장인물별 지시사항
-    const characterDirectivesMap = {
-      '1': '자기 고백형 서사로 독백하듯이 내면의 솔직한 이야기를 말하는 구조',
-      '2-3': '2-3명의 인물이 자연스럽게 대화하는 구조',
-      '4+': '4명 이상의 인물이 자연스럽게 대화하는 구조'
-    };
-    
-    const characterDirectives = characterDirectivesMap[characterCount] || '2-3명의 인물이 자연스럽게 대화하는 구조';
 
     // 나이별 세부 지시사항
     const ageDirectives = {
@@ -314,6 +314,18 @@ router.post('/generate', authenticateToken, async (req, res) => {
     
     const ageDirective = ageDirectives[age] || ageDirectives['20s'];
 
+    // 캐릭터별 지시사항 생성
+    let characterDirectives = '';
+    if (parseInt(characterCount) === 1) {
+      characterDirectives = `1인 독백: ${genderText}, ${ageText}`;
+    } else if (characters && Array.isArray(characters)) {
+      characterDirectives = characters.map((char, index) => {
+        const charGender = char.gender === 'male' ? '남성' : char.gender === 'female' ? '여성' : '성별 자유롭게';
+        const charAge = ageMap[char.age] || char.age;
+        const charLength = lengthMap[char.length] || char.length;
+        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 분량: ${charLength}`;
+      }).join('\n');
+    }
 
     // OpenAI에 보낼 프롬프트 생성
     const prompt = `당신은 한국 드라마, 영화, 연극의 대본을 전문적으로 쓰는 작가입니다.  
@@ -381,13 +393,26 @@ router.post('/generate', authenticateToken, async (req, res) => {
 어떤 상황에서 누구에게 하는 말인지, 왜 이런 감정 상태인지 3-4줄로 설명
 
 ===등장인물===
- 이름: [실제 한국 이름]
+${parseInt(characterCount) === 1 ? 
+  ` 이름: [실제 한국 이름]
  나이: [해당 연령대]
- 성격: [간략한 성격과 현재 상황]
+ 성격: [간략한 성격과 현재 상황]` :
+  `${characters && characters.map((char, index) => 
+    ` 인물 ${index + 1}: ${char.name}
+ 나이: ${ageMap[char.age] || char.age}
+ 성격: [간략한 성격과 현재 상황]`
+  ).join('\n\n')}`
+}
 
 ===대본===
-인물명: [위 스타일 지침에 맞춰 ${lengthText} 분량 작성]
-같은 인물의 대사라면 인물명 작성은 생략한다.
+${parseInt(characterCount) === 1 ? 
+  `인물명: [위 스타일 지침에 맞춰 ${lengthText} 분량 작성]
+같은 인물의 대사라면 인물명 작성은 생략한다.` :
+  `각 인물별로 지정된 분량에 맞춰 대화 형식으로 작성
+${characters && characters.map((char, index) => 
+  `${char.name}: [${lengthMap[char.length] || char.length}]`
+).join('\n')}`
+}
 
 ===연기 팁===
 [감정 흐름과 호흡 지침]

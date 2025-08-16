@@ -46,7 +46,8 @@ const AIScript = () => {
     genre: '',
     length: '',
     gender: '',
-    age: ''
+    age: '',
+    characters: []
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -115,8 +116,9 @@ const AIScript = () => {
   // 옵션 데이터 (모든 사용자에게 전체 기능 제공)
   const characterOptions = [
     { value: '1', label: '1인 독백', icon: '👤', available: true },
-    { value: '2-3', label: '2~3인 대화 (개발 중)', icon: '👥', available: false, premium: false },
-    { value: '4+', label: '4인 이상 앙상블 (개발 중)', icon: '👨‍👩‍👧‍👦', available: false, premium: false }
+    { value: '2', label: '2인 대화', icon: '👥', available: true, premium: false },
+    { value: '3', label: '3인 대화', icon: '👥', available: true, premium: false },
+    { value: '4', label: '4인 앙상블', icon: '👨‍👩‍👧‍👦', available: true, premium: false }
   ];
 
   const freeGenres = ['로맨스','비극', '코미디', '드라마'];
@@ -147,9 +149,42 @@ const AIScript = () => {
 
   // 폼 데이터 변경 핸들러
   const handleInputChange = (field, value) => {
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // 인물 수가 변경될 때 characters 배열 초기화/업데이트
+      if (field === 'characterCount') {
+        const count = parseInt(value);
+        if (count === 1) {
+          newData.characters = [];
+        } else if (count > 1) {
+          const newCharacters = [];
+          for (let i = 0; i < count; i++) {
+            newCharacters.push({
+              name: `인물 ${i + 1}`,
+              gender: '',
+              age: '',
+              length: 'medium'
+            });
+          }
+          newData.characters = newCharacters;
+        }
+      }
+      
+      return newData;
+    });
+  };
+
+  // 개별 인물 설정 변경 핸들러
+  const handleCharacterChange = (index, field, value) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      characters: prev.characters.map((char, i) => 
+        i === index ? { ...char, [field]: value } : char
+      )
     }));
   };
 
@@ -460,9 +495,27 @@ const AIScript = () => {
     }
     
     // 입력값 검증
-    if (!formData.characterCount || !formData.genre || !formData.length || !formData.gender || !formData.age) {
-      setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이, 성별, 연령대)');
-      return;
+    if (parseInt(formData.characterCount) === 1) {
+      if (!formData.characterCount || !formData.genre || !formData.length || !formData.gender || !formData.age) {
+        setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이, 성별, 연령대)');
+        return;
+      }
+    } else {
+      if (!formData.characterCount || !formData.genre || !formData.length) {
+        setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이)');
+        return;
+      }
+    }
+
+    // 멀티 캐릭터 모드일 때 추가 검증
+    if (parseInt(formData.characterCount) > 1) {
+      const hasEmptyFields = formData.characters.some(char => 
+        !char.name.trim() || !char.gender || !char.age || !char.length
+      );
+      if (hasEmptyFields) {
+        setError('모든 인물의 설정을 완료해주세요. (이름, 성별, 연령대, 분량)');
+        return;
+      }
     }
 
     setIsGenerating(true);
@@ -470,13 +523,20 @@ const AIScript = () => {
     setGeneratedScript('');
 
     try {
-      const response = await api.post('/ai-script/generate', {
+      const requestData = {
         characterCount: formData.characterCount,
         genre: formData.genre,
         length: formData.length,
-        gender: formData.gender,
-        age: formData.age
-      });
+        gender: parseInt(formData.characterCount) === 1 ? formData.gender : 'random',
+        age: parseInt(formData.characterCount) === 1 ? formData.age : 'random'
+      };
+
+      // 멀티 캐릭터 모드일 때 characters 데이터 추가
+      if (parseInt(formData.characterCount) > 1) {
+        requestData.characters = formData.characters;
+      }
+
+      const response = await api.post('/ai-script/generate', requestData);
 
       const data = response.data;
 
@@ -639,10 +699,10 @@ const AIScript = () => {
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              AI 1인 독백 생성기
+              AI 대본 생성기
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              당신만을 위한 대본을 생성합니다.
+              1인 독백부터 멀티 캐릭터 대화까지, 맞춤형 대본을 생성합니다.
             </p>
           </motion.div>
 
@@ -689,6 +749,80 @@ const AIScript = () => {
                 </div>
               </div>
 
+              {/* 인물 개별 설정 (2명 이상일 때만 표시) */}
+              {parseInt(formData.characterCount) > 1 && (
+                <div className="space-y-4">
+                  <label className="flex items-center text-lg font-semibold text-gray-800">
+                    <Edit3 className="w-6 h-6 mr-3 text-purple-500" />
+                    인물 설정
+                  </label>
+                  <div className="space-y-4">
+                    {formData.characters.map((character, index) => (
+                      <div key={index} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                        <h4 className="font-medium text-gray-800 mb-3">인물 {index + 1}</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* 인물 이름 */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">이름</label>
+                            <input
+                              type="text"
+                              value={character.name}
+                              onChange={(e) => handleCharacterChange(index, 'name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="인물 이름을 입력하세요"
+                            />
+                          </div>
+                          
+                          {/* 인물 성별 */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">성별</label>
+                            <select
+                              value={character.gender}
+                              onChange={(e) => handleCharacterChange(index, 'gender', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                              <option value="">성별 선택</option>
+                              <option value="male">남자</option>
+                              <option value="female">여자</option>
+                              <option value="random">랜덤</option>
+                            </select>
+                          </div>
+                          
+                          {/* 인물 연령대 */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">연령대</label>
+                            <select
+                              value={character.age}
+                              onChange={(e) => handleCharacterChange(index, 'age', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                              <option value="">연령대 선택</option>
+                              {ages.map((age) => (
+                                <option key={age.value} value={age.value}>{age.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          {/* 인물 분량 */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">대사 분량</label>
+                            <select
+                              value={character.length}
+                              onChange={(e) => handleCharacterChange(index, 'length', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                              {lengths.map((length) => (
+                                <option key={length.value} value={length.value}>{length.label} ({length.time})</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 장르 선택 */}
               <div className="space-y-4">
                 <label className="flex items-center text-lg font-semibold text-gray-800">
@@ -734,60 +868,64 @@ const AIScript = () => {
                 </div>
               </div>
 
-              {/* 성별 선택 */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <Users className="w-6 h-6 mr-3 text-purple-500" />
-                  성별
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {genders.map((gender) => (
-                    <label key={gender.value} className="relative">
-                      <input
-                        type="radio"
-                        name="gender"
-                        value={gender.value}
-                        onChange={(e) => handleInputChange('gender', e.target.value)}
-                        className="sr-only peer"
-                      />
-                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-blue-50 peer-checked:to-indigo-50 peer-checked:border-blue-500 peer-checked:shadow-md">
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">{gender.icon}</div>
-                          <div className="font-medium text-gray-900">{gender.label}</div>
+              {/* 성별 선택 (1인 독백일 때만) */}
+              {parseInt(formData.characterCount) === 1 && (
+                <div className="space-y-4">
+                  <label className="flex items-center text-lg font-semibold text-gray-800">
+                    <Users className="w-6 h-6 mr-3 text-purple-500" />
+                    성별
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {genders.map((gender) => (
+                      <label key={gender.value} className="relative">
+                        <input
+                          type="radio"
+                          name="gender"
+                          value={gender.value}
+                          onChange={(e) => handleInputChange('gender', e.target.value)}
+                          className="sr-only peer"
+                        />
+                        <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-blue-50 peer-checked:to-indigo-50 peer-checked:border-blue-500 peer-checked:shadow-md">
+                          <div className="text-center">
+                            <div className="text-2xl mb-2">{gender.icon}</div>
+                            <div className="font-medium text-gray-900">{gender.label}</div>
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  ))}
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* 연령대 선택 */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <Clock className="w-6 h-6 mr-3 text-indigo-500" />
-                  연령대
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {ages.map((age) => (
-                    <label key={age.value} className="cursor-pointer">
-                      <input
-                        type="radio"
-                        name="age"
-                        value={age.value}
-                        onChange={(e) => handleInputChange('age', e.target.value)}
-                        className="sr-only peer"
-                      />
-                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-indigo-50 peer-checked:to-purple-50 peer-checked:border-indigo-500 peer-checked:shadow-md">
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">{age.icon}</div>
-                          <div className="font-medium text-gray-900 mb-1">{age.label}</div>
-                          <div className="text-xs text-gray-600">{age.description}</div>
+              {/* 연령대 선택 (1인 독백일 때만) */}
+              {parseInt(formData.characterCount) === 1 && (
+                <div className="space-y-4">
+                  <label className="flex items-center text-lg font-semibold text-gray-800">
+                    <Clock className="w-6 h-6 mr-3 text-indigo-500" />
+                    연령대
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {ages.map((age) => (
+                      <label key={age.value} className="cursor-pointer">
+                        <input
+                          type="radio"
+                          name="age"
+                          value={age.value}
+                          onChange={(e) => handleInputChange('age', e.target.value)}
+                          className="sr-only peer"
+                        />
+                        <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-indigo-50 peer-checked:to-purple-50 peer-checked:border-indigo-500 peer-checked:shadow-md">
+                          <div className="text-center">
+                            <div className="text-2xl mb-2">{age.icon}</div>
+                            <div className="font-medium text-gray-900 mb-1">{age.label}</div>
+                            <div className="text-xs text-gray-600">{age.description}</div>
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  ))}
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 생성 버튼 */}
               <div className="pt-6">

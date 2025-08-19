@@ -311,12 +311,13 @@ const AIScript = () => {
       const beforeSlash = currentValue.slice(0, lastSlash);
       const afterCursor = currentValue.slice(cursorPos);
       
-      const newValue = beforeSlash + `/${characterName} ` + afterCursor;
+      // / 없이 인물 이름만 삽입 (태그 완료)
+      const newValue = beforeSlash + `${characterName} ` + afterCursor;
       handleInputChange('customPrompt', newValue);
       
       // 커서 위치 업데이트
       setTimeout(() => {
-        const newCursorPos = lastSlash + characterName.length + 2;
+        const newCursorPos = lastSlash + characterName.length + 1;
         textareaRef.setSelectionRange(newCursorPos, newCursorPos);
         textareaRef.focus();
       }, 0);
@@ -331,8 +332,9 @@ const AIScript = () => {
     const isValidTag = formData.characters.some(char => char.name === tagName);
     
     if (isValidTag) {
-      // /인물이름을 실제 인물이름으로 바꿈
-      const newValue = formData.customPrompt.replace(tag, tagName);
+      // /인물이름을 실제 인물이름으로 바꿈 (정확한 매칭을 위해 전역 교체 사용)
+      const tagRegex = new RegExp(tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'g');
+      const newValue = formData.customPrompt.replace(tagRegex, tagName);
       handleInputChange('customPrompt', newValue);
     }
   };
@@ -1373,40 +1375,6 @@ const AIScript = () => {
                     )}
                     
                     <div className={`relative ${parseInt(formData.characterCount) > 1 ? 'pr-32' : ''}`}>
-                      {/* 하이라이트된 텍스트를 보여주는 오버레이 */}
-                      {parseInt(formData.characterCount) > 1 && (
-                        <div 
-                          className="absolute inset-0 px-4 py-3 pointer-events-none whitespace-pre-wrap break-words text-transparent rounded-xl z-10"
-                          style={{ 
-                            font: 'inherit',
-                            lineHeight: 'inherit',
-                            fontSize: 'inherit'
-                          }}
-                        >
-                          {formData.customPrompt.split(/(\/.+?(?=\s|$|\/))/).map((part, index) => {
-                            if (part.startsWith('/')) {
-                              const tagName = part.substring(1).trim();
-                              const isValidTag = formData.characters.some(char => char.name === tagName);
-                              return (
-                                <span
-                                  key={index}
-                                  className={`${
-                                    isValidTag 
-                                      ? 'bg-green-200 text-green-900 cursor-pointer' 
-                                      : 'bg-red-200 text-red-900'
-                                  } px-1 rounded pointer-events-auto`}
-                                  onClick={isValidTag ? () => selectTaggedCharacter(part, index) : undefined}
-                                  title={isValidTag ? `클릭하여 "${tagName}" 태그 완료` : `알 수 없는 인물: ${tagName}`}
-                                >
-                                  {part}
-                                </span>
-                              );
-                            }
-                            return <span key={index} className="text-transparent">{part}</span>;
-                          })}
-                        </div>
-                      )}
-                      
                       <textarea
                         ref={(el) => setTextareaRef(el)}
                         value={formData.customPrompt}
@@ -1415,24 +1383,56 @@ const AIScript = () => {
                           // 자동완성 패널에서 엔터키로 선택
                           if (showCharacterPanel && e.key === 'Enter') {
                             e.preventDefault();
-                            const availableCharacters = formData.characters.filter(char => 
-                              char.name.toLowerCase().includes(
-                                formData.customPrompt.slice(
-                                  formData.customPrompt.lastIndexOf('/', cursorPosition) + 1, 
-                                  cursorPosition
-                                ).toLowerCase()
-                              )
-                            );
-                            if (availableCharacters.length > 0) {
-                              selectCharacterFromAutocomplete(availableCharacters[0].name);
+                            const currentValue = formData.customPrompt;
+                            const currentCursor = e.target.selectionStart;
+                            const beforeCursor = currentValue.slice(0, currentCursor);
+                            const lastSlash = beforeCursor.lastIndexOf('/');
+                            
+                            if (lastSlash !== -1) {
+                              const searchTerm = beforeCursor.slice(lastSlash + 1).toLowerCase();
+                              const availableCharacters = formData.characters.filter(char => 
+                                char.name.toLowerCase().includes(searchTerm)
+                              );
+                              if (availableCharacters.length > 0) {
+                                selectCharacterFromAutocomplete(availableCharacters[0].name);
+                              }
                             }
                           }
                         }}
                         placeholder="AI에게 원하는 대본의 구체적인 지시사항을 작성하세요. 예) '병원에서 의사와 환자가 나누는 마지막 대화. 환자는 시한부 선고를 받았고, 의사는 희망을 잃지 말라고 격려한다. 감동적이면서도 현실적인 대화로 구성해줘.'"
-                        className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none relative z-20 bg-transparent"
+                        className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
                         rows="4"
-                        style={{ caretColor: 'black' }}
                       />
+                      
+                      {/* 태그 하이라이트 표시 (textarea 아래) */}
+                      {parseInt(formData.characterCount) > 1 && formData.customPrompt && (
+                        <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+                          <div className="text-xs font-medium text-gray-600 mb-2">인물 태그:</div>
+                          <div className="text-sm">
+                            {formData.customPrompt.split(/(\/.+?(?=\s|$|\/))/).map((part, index) => {
+                              if (part.startsWith('/')) {
+                                const tagName = part.substring(1).trim();
+                                const isValidTag = formData.characters.some(char => char.name === tagName);
+                                return (
+                                  <span
+                                    key={index}
+                                    className={`inline-block mx-1 px-2 py-1 rounded cursor-pointer transition-colors ${
+                                      isValidTag 
+                                        ? 'bg-green-100 text-green-800 border border-green-300 hover:bg-green-200' 
+                                        : 'bg-red-100 text-red-800 border border-red-300'
+                                    }`}
+                                    onClick={isValidTag ? () => selectTaggedCharacter(part, index) : undefined}
+                                    title={isValidTag ? `클릭하여 "${tagName}" 태그 완료` : `알 수 없는 인물: ${tagName}`}
+                                  >
+                                    {part} {isValidTag && '✓'}
+                                  </span>
+                                );
+                              }
+                              return null; // 일반 텍스트는 표시하지 않음
+                            })}
+                          </div>
+                        </div>
+                      )}
                       
                       {/* 자동완성 패널 */}
                       {showCharacterPanel && parseInt(formData.characterCount) > 1 && (

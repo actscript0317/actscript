@@ -1408,27 +1408,48 @@ const AIScript = () => {
                       {parseInt(formData.characterCount) > 1 && formData.customPrompt && (
                         <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
                           <div className="text-xs font-medium text-gray-600 mb-2">인물 태그:</div>
-                          <div className="text-sm">
+                          <div className="text-sm flex flex-wrap gap-1">
+                            {/* 완성된 태그 표시 (/ 없는 인물명) */}
+                            {formData.characters.map((char, index) => {
+                              const charName = char.name;
+                              const hasCompletedTag = formData.customPrompt.includes(charName) && 
+                                                    !formData.customPrompt.includes(`/${charName}`);
+                              
+                              if (hasCompletedTag) {
+                                return (
+                                  <span
+                                    key={`completed-${index}`}
+                                    className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 border border-green-300 rounded-full text-xs font-medium"
+                                  >
+                                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                                    {charName}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })}
+                            
+                            {/* 미완성 태그 표시 (/ 있는 태그) */}
                             {formData.customPrompt.split(/(\/.+?(?=\s|$|\/))/).map((part, index) => {
                               if (part.startsWith('/')) {
                                 const tagName = part.substring(1).trim();
                                 const isValidTag = formData.characters.some(char => char.name === tagName);
                                 return (
                                   <span
-                                    key={index}
-                                    className={`inline-block mx-1 px-2 py-1 rounded cursor-pointer transition-colors ${
+                                    key={`incomplete-${index}`}
+                                    className={`inline-block px-2 py-1 rounded cursor-pointer transition-colors ${
                                       isValidTag 
-                                        ? 'bg-green-100 text-green-800 border border-green-300 hover:bg-green-200' 
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200' 
                                         : 'bg-red-100 text-red-800 border border-red-300'
                                     }`}
                                     onClick={isValidTag ? () => selectTaggedCharacter(part, index) : undefined}
                                     title={isValidTag ? `클릭하여 "${tagName}" 태그 완료` : `알 수 없는 인물: ${tagName}`}
                                   >
-                                    {part} {isValidTag && '✓'}
+                                    {part} {isValidTag && '→'}
                                   </span>
                                 );
                               }
-                              return null; // 일반 텍스트는 표시하지 않음
+                              return null;
                             })}
                           </div>
                         </div>

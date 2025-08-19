@@ -47,7 +47,14 @@ const AIScript = () => {
     length: '',
     gender: '',
     age: '',
-    characters: []
+    characters: [],
+    // 새로운 옵션들
+    characterRelationships: '', // 인물 간 이해관계
+    setting: '', // 배경/시대/장소
+    theme: '', // 주제 또는 메시지
+    structure: '', // 전개 구조
+    triggerEvent: '', // 특별한 사건(트리거)
+    customPrompt: '' // 프롬프트 작성란
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -154,6 +161,41 @@ const AIScript = () => {
     { value: '주조연', label: '주조연', description: '주연급 조연 역할', icon: '🌟' }
   ];
 
+  // 인물 간 이해관계 옵션
+  const relationshipTypes = [
+    { value: '연인', label: '연인', description: '서로 사랑하는 관계', icon: '💕' },
+    { value: '친구', label: '친구', description: '친밀한 우정 관계', icon: '👫' },
+    { value: '가족', label: '가족', description: '혈연 또는 가족 관계', icon: '👨‍👩‍👧‍👦' },
+    { value: '경쟁자', label: '경쟁자', description: '서로 경쟁하는 관계', icon: '⚔️' },
+    { value: '상사부하', label: '상사-부하', description: '직장 내 상하관계', icon: '👔' },
+    { value: '스승제자', label: '스승-제자', description: '가르치고 배우는 관계', icon: '📚' },
+    { value: '적대관계', label: '적대관계', description: '서로 대립하는 관계', icon: '😤' },
+    { value: '모르는사이', label: '모르는 사이', description: '처음 만나는 관계', icon: '❓' }
+  ];
+
+  // 배경/시대/장소 옵션
+  const settings = [
+    { value: '현대도시', label: '현대 도시', description: '현재 시대의 도시 배경', icon: '🏙️' },
+    { value: '현대시골', label: '현대 시골', description: '현재 시대의 시골 배경', icon: '🌾' },
+    { value: '학교', label: '학교', description: '초중고등학교 또는 대학교', icon: '🏫' },
+    { value: '직장', label: '직장', description: '회사나 사무실 환경', icon: '🏢' },
+    { value: '카페', label: '카페/식당', description: '카페나 식당 같은 일상 공간', icon: '☕' },
+    { value: '병원', label: '병원', description: '병원이나 의료시설', icon: '🏥' },
+    { value: '조선시대', label: '조선시대', description: '전통 시대 배경', icon: '🏯' },
+    { value: '미래', label: '미래', description: '미래 시대 배경', icon: '🚀' },
+    { value: '자유', label: '자유 설정', description: '배경을 자유롭게 설정', icon: '🎨' }
+  ];
+
+  // 전개 구조 옵션
+  const structures = [
+    { value: '3막구조', label: '3막 구조', description: '발단-전개-절정-결말', icon: '📖' },
+    { value: '숏폼', label: '숏폼 구조', description: '빠른 전개의 짧은 구조', icon: '⚡' },
+    { value: '대화중심', label: '대화 중심', description: '대화로만 이루어진 구조', icon: '💬' },
+    { value: '감정몰입', label: '감정 몰입', description: '감정 변화에 집중한 구조', icon: '🎭' },
+    { value: '반전', label: '반전 구조', description: '마지막에 반전이 있는 구조', icon: '🔄' },
+    { value: '회상', label: '회상 구조', description: '과거를 회상하는 구조', icon: '💭' }
+  ];
+
   // 폼 데이터 변경 핸들러
   const handleInputChange = (field, value) => {
     setFormData(prev => {
@@ -179,7 +221,8 @@ const AIScript = () => {
               gender: '',
               age: '',
               roleType: i === 0 ? '주연' : '조연', // 첫 번째 인물은 주연, 나머지는 조연
-              percentage: i === 0 ? equalPercentage + remainder : equalPercentage // 첫 번째 인물에게 나머지 퍼센트 추가
+              percentage: i === 0 ? equalPercentage + remainder : equalPercentage, // 첫 번째 인물에게 나머지 퍼센트 추가
+              relationship: i === 0 ? '' : '친구' // 첫 번째 인물(주연)은 관계 없음, 나머지는 기본값 '친구'
             });
           }
           newData.characters = newCharacters;
@@ -522,11 +565,12 @@ const AIScript = () => {
 
     // 멀티 캐릭터 모드일 때 추가 검증
     if (parseInt(formData.characterCount) > 1) {
-      const hasEmptyFields = formData.characters.some(char => 
-        !char.name.trim() || !char.gender || !char.age || !char.roleType || typeof char.percentage !== 'number'
+      const hasEmptyFields = formData.characters.some((char, index) => 
+        !char.name.trim() || !char.gender || !char.age || !char.roleType || typeof char.percentage !== 'number' || 
+        (index > 0 && !char.relationship) // 첫 번째 인물(주연)이 아닐 때만 관계 필수
       );
       if (hasEmptyFields) {
-        setError('모든 인물의 설정을 완료해주세요. (이름, 성별, 연령대, 역할, 분량)');
+        setError('모든 인물의 설정을 완료해주세요. (이름, 성별, 연령대, 역할, 관계, 분량)');
         return;
       }
       
@@ -549,7 +593,13 @@ const AIScript = () => {
         genre: formData.genre,
         length: formData.length,
         gender: parseInt(formData.characterCount) === 1 ? formData.gender : 'random',
-        age: parseInt(formData.characterCount) === 1 ? formData.age : 'random'
+        age: parseInt(formData.characterCount) === 1 ? formData.age : 'random',
+        // 새로운 옵션들 추가
+        setting: formData.setting || '',
+        theme: formData.theme || '',
+        structure: formData.structure || '',
+        triggerEvent: formData.triggerEvent || '',
+        customPrompt: formData.customPrompt || ''
       };
 
       // 멀티 캐릭터 모드일 때 characters 데이터 추가
@@ -874,7 +924,7 @@ const AIScript = () => {
                               </select>
                             </div>
                             
-                            <div className="col-span-2">
+                            <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2">역할</label>
                               <select
                                 value={character.roleType || '조연'}
@@ -888,6 +938,25 @@ const AIScript = () => {
                                 ))}
                               </select>
                             </div>
+                            
+                            {index > 0 && ( // 첫 번째 인물(주연)이 아닐 때만 관계 선택 표시
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  주연과의 관계
+                                </label>
+                                <select
+                                  value={character.relationship || '친구'}
+                                  onChange={(e) => handleCharacterChange(index, 'relationship', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                >
+                                  {relationshipTypes.map((rel) => (
+                                    <option key={rel.value} value={rel.value}>
+                                      {rel.icon} {rel.label} - {rel.description}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                           </div>
                           
                           {/* 인물 분량 (퍼센트 슬라이더) */}
@@ -1032,6 +1101,142 @@ const AIScript = () => {
                   </div>
                 </div>
               )}
+
+              {/* 배경/시대/장소 선택 */}
+              <div className="space-y-4">
+                <label className="flex items-center text-lg font-semibold text-gray-800">
+                  <svg className="w-6 h-6 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  배경/시대/장소
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {settings.map((setting) => (
+                    <label key={setting.value} className="cursor-pointer">
+                      <input
+                        type="radio"
+                        name="setting"
+                        value={setting.value}
+                        onChange={(e) => handleInputChange('setting', e.target.value)}
+                        className="sr-only peer"
+                      />
+                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-indigo-50 peer-checked:to-purple-50 peer-checked:border-indigo-500 peer-checked:shadow-md">
+                        <div className="text-center">
+                          <div className="text-2xl mb-2">{setting.icon}</div>
+                          <div className="font-medium text-gray-900 mb-1">{setting.label}</div>
+                          <div className="text-xs text-gray-600">{setting.description}</div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 전개 구조 선택 */}
+              <div className="space-y-4">
+                <label className="flex items-center text-lg font-semibold text-gray-800">
+                  <svg className="w-6 h-6 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  전개 구조
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {structures.map((structure) => (
+                    <label key={structure.value} className="cursor-pointer">
+                      <input
+                        type="radio"
+                        name="structure"
+                        value={structure.value}
+                        onChange={(e) => handleInputChange('structure', e.target.value)}
+                        className="sr-only peer"
+                      />
+                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-green-50 peer-checked:to-emerald-50 peer-checked:border-green-500 peer-checked:shadow-md">
+                        <div className="text-center">
+                          <div className="text-2xl mb-2">{structure.icon}</div>
+                          <div className="font-medium text-gray-900 mb-1">{structure.label}</div>
+                          <div className="text-xs text-gray-600">{structure.description}</div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 주제/메시지 입력 */}
+              <div className="space-y-4">
+                <label className="flex items-center text-lg font-semibold text-gray-800">
+                  <svg className="w-6 h-6 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                  </svg>
+                  주제 또는 메시지 (선택사항)
+                </label>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <textarea
+                    value={formData.theme}
+                    onChange={(e) => handleInputChange('theme', e.target.value)}
+                    placeholder="대본에서 전달하고 싶은 주제나 메시지를 입력하세요. 예) '진정한 우정의 의미', '포기하지 않는 도전 정신', '가족의 소중함' 등"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    rows="3"
+                  />
+                  <div className="text-xs text-gray-500 mt-2">
+                    비워두면 선택한 장르와 설정에 맞는 자연스러운 주제가 자동으로 생성됩니다.
+                  </div>
+                </div>
+              </div>
+
+              {/* 특별한 사건/트리거 입력 */}
+              <div className="space-y-4">
+                <label className="flex items-center text-lg font-semibold text-gray-800">
+                  <svg className="w-6 h-6 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  특별한 사건/트리거 (선택사항)
+                </label>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <textarea
+                    value={formData.triggerEvent}
+                    onChange={(e) => handleInputChange('triggerEvent', e.target.value)}
+                    placeholder="이야기의 전환점이 되는 특별한 사건이나 상황을 입력하세요. 예) '갑작스런 전화', '예상치 못한 만남', '중요한 소식을 듣게 됨', '과거의 비밀이 드러남' 등"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    rows="3"
+                  />
+                  <div className="text-xs text-gray-500 mt-2">
+                    비워두면 선택한 장르와 구조에 맞는 자연스러운 사건이 자동으로 생성됩니다.
+                  </div>
+                </div>
+              </div>
+
+              {/* 커스텀 프롬프트 입력 */}
+              <div className="space-y-4">
+                <label className="flex items-center text-lg font-semibold text-gray-800">
+                  <svg className="w-6 h-6 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  직접 프롬프트 작성 (고급 옵션)
+                </label>
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start mb-3">
+                    <svg className="w-5 h-5 text-amber-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-sm text-amber-800">
+                      <p className="font-medium mb-1">💡 고급 사용자를 위한 옵션</p>
+                      <p>위의 옵션들 대신 AI에게 직접 지시사항을 작성할 수 있습니다. 이 필드를 작성하면 위의 다른 설정들을 덮어씁니다.</p>
+                    </div>
+                  </div>
+                  <textarea
+                    value={formData.customPrompt}
+                    onChange={(e) => handleInputChange('customPrompt', e.target.value)}
+                    placeholder="AI에게 원하는 대본의 구체적인 지시사항을 작성하세요. 예) '병원에서 의사와 환자가 나누는 마지막 대화. 환자는 시한부 선고를 받았고, 의사는 희망을 잃지 말라고 격려한다. 감동적이면서도 현실적인 대화로 구성해줘.'"
+                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                    rows="4"
+                  />
+                  <div className="text-xs text-amber-600 mt-2">
+                    이 필드를 작성하면 위의 모든 설정 옵션들이 무시되고 이 프롬프트가 우선 적용됩니다.
+                  </div>
+                </div>
+              </div>
 
               {/* 생성 버튼 */}
               <div className="pt-6">

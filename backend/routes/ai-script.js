@@ -157,7 +157,20 @@ router.post('/generate', authenticateToken, async (req, res) => {
       throw error;
     }
 
-    const { characterCount, genre, length, gender, age, characters } = req.body;
+    const { 
+      characterCount, 
+      genre, 
+      length, 
+      gender, 
+      age, 
+      characters,
+      // 새로운 옵션들
+      setting,
+      theme,
+      structure,
+      triggerEvent,
+      customPrompt
+    } = req.body;
 
     // 입력값 검증
     if (!characterCount || !genre || !length || !gender || !age) {
@@ -281,37 +294,53 @@ router.post('/generate', authenticateToken, async (req, res) => {
     const ageDirectives = {
       'teens': {
         language: '10대 특유의 생동감 있고 직접적인 말투 사용. "진짜", "완전", "대박", "헐" 등의 자연스러운 감탄사 활용',
-        psychology: '정체성 혼란, 진로 고민, 첫사랑, 부모와의 갈등, 친구관계, 입시 스트레스 등 10대 특유의 심리적 고민',
-        situations: '학교 생활, 입시 준비, 첫 알바, 부모님과의 갈등, 친구들과의 우정과 배신, 첫사랑과 이별',
         names: '2000년대 후반~2010년대 초반 출생 세대의 이름 (예: 김지호, 박서연, 이도윤, 최하은, 정시우, 강유나)'
       },
       '20s': {
         language: '20대 특유의 자연스러운 구어체, 짧고 간결한 문장 위주로, 친근하고 솔직한 말투로 작성해줘.',
-        psychology: '취업 걱정, 연애와 이별, 독립에 대한 부담감, 미래에 대한 불안, 자아실현 욕구, 사회적 관계의 복잡함',
-        situations: '취업 준비, 첫 직장 생활, 원룸 독립, 연애와 이별, 친구들의 결혼 소식, 부모님께 독립 선언',
         names: '1990년대 후반~2000년대 초반 출생 세대의 이름 (예: 김민준, 이지원, 박준호, 최예린, 정현우, 송지은)'
       },
       '30s-40s': {
         language: '안정적이고 성숙한 어조. 감정 표현이 절제되어 있으면서도 깊이 있는 말투. "그렇구나", "음..." 등의 사려깊은 표현',
-        psychology: '가정과 일의 균형, 중년의 위기감, 부모 돌봄과 자녀 교육, 경제적 압박감, 건강에 대한 걱정, 꿈과 현실의 타협',
-        situations: '직장에서의 승진 고민, 결혼과 육아, 부모님 건강 악화, 주택 구입, 아이 교육비, 노후 준비',
         names: '1980년대~1990년대 초반 출생 세대의 이름 (예: 김성민, 박미영, 이재혁, 최수진, 정동훈, 한소영)'
       },
       '50s': {
         language: '차분하고 경험이 묻어나는 말투. "그런 게 아니야", "인생이 뭔지 알겠더라" 등 인생 경험을 바탕으로 한 표현',
-        psychology: '자녀의 독립과 빈둥지 증후군, 갱년기와 건강 악화, 노후 불안, 부모 상실, 인생 후반에 대한 성찰',
-        situations: '자녀 결혼 준비, 정년 퇴직, 부모님 간병, 건강 검진 결과, 노후 자금 걱정, 배우자와의 관계 변화',
         names: '1960년대~1970년대 출생 세대의 이름 (예: 김영수, 박순희, 이기홍, 최미경, 정철수, 오금순)'
       },
       '70s+': {
         language: '경험과 지혜가 묻어나는 깊이 있는 말투. "그때는 말이야", "나 같은 늙은이가" 등 겸손하면서도 따뜻한 표현',
-        psychology: '죽음에 대한 수용, 자녀와 손자녀에 대한 걱정, 외로움과 고독감, 과거에 대한 그리움, 삶의 의미에 대한 성찰',
-        situations: '배우자나 친구의 죽음, 요양원 입소, 손자녀 돌봄, 유산 정리, 과거 친구들과의 재회, 홀로 되는 두려움',
         names: '1940년대~1950년대 출생 세대의 이름 (예: 김철수, 박영자, 이만수, 최순자, 정봉술, 오영희)'
       }
     };
     
     const ageDirective = ageDirectives[age] || ageDirectives['20s'];
+
+    // 배경/시대/장소 설정
+    const settingMap = {
+      '현대도시': '현대 한국의 도시 환경 (서울, 부산 등 대도시)',
+      '현대시골': '현재 한국의 시골이나 소도시 환경',
+      '학교': '학교 환경 (교실, 복도, 운동장, 도서관 등)',
+      '직장': '회사나 사무실 환경 (회의실, 사무실, 휴게실 등)',
+      '카페': '카페나 식당 같은 일상적인 만남의 공간',
+      '병원': '병원이나 의료시설 (병실, 진료실, 대기실 등)',
+      '조선시대': '조선시대 한국의 전통적 배경',
+      '미래': '미래 시대의 상상적 배경',
+      '자유': '배경은 상황과 이야기에 가장 어울리는 곳으로 자유롭게 설정'
+    };
+
+    // 전개 구조 설정
+    const structureMap = {
+      '3막구조': '발단-전개-절정-결말의 전통적 3막 구조로 체계적인 스토리텔링',
+      '숏폼': '빠른 전개와 강렬한 임팩트를 위한 간결한 구조',
+      '대화중심': '행동보다는 대화 중심으로 인물들의 내면과 관계에 집중',
+      '감정몰입': '감정의 변화와 깊이에 집중한 몰입감 있는 구조',
+      '반전': '마지막에 예상치 못한 반전이나 깨달음이 있는 구조',
+      '회상': '과거를 회상하거나 플래시백을 통한 구조'
+    };
+
+    const settingText = setting ? settingMap[setting] || setting : '이야기에 가장 적합한 배경';
+    const structureText = structure ? structureMap[structure] || structure : '자연스러운 구조';
 
     // 캐릭터별 지시사항 생성
     let characterDirectives = '';
@@ -323,11 +352,141 @@ router.post('/generate', authenticateToken, async (req, res) => {
         const charAge = ageMap[char.age] || char.age;
         const charPercentage = char.percentage || 25; // 기본값 25%
         const roleType = char.roleType || '조연'; // 역할 유형 추가 (기본값: 조연)
-        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 역할: ${roleType}, 대사 분량: 전체의 ${charPercentage}%`;
+        const relationship = char.relationship ? `, 주연과의 관계: ${char.relationship}` : '';
+        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 역할: ${roleType}${relationship}, 대사 분량: 전체의 ${charPercentage}%`;
       }).join('\n');
     }
 
-    // OpenAI에 보낼 프롬프트 생성
+    // 커스텀 프롬프트가 있다면 우선 적용
+    if (customPrompt && customPrompt.trim()) {
+      const prompt = `당신은 한국 드라마, 영화, 연극의 대본을 전문적으로 쓰는 작가입니다.
+다음 사용자의 요청에 따라 실제로 한국의 드라마, 영화, 연기 입시에 쓰일 수 있는 퀄리티 높은 대본을 완성하세요.
+
+**사용자 요청:**
+${customPrompt}
+
+**대본 생성 기본 조건:**
+ - 분량: ${lengthText}
+ - 인원: ${characterCount}명
+ - 등장인물별 지시사항: ${characterDirectives}
+
+**대본 생성 형식:**
+다음 형식을 정확히 따라 작성하세요.
+
+감정이나 상황을 압축한 제목
+
+===상황 설명===
+어떤 상황에서 누구에게 하는 말인지, 왜 이런 감정 상태인지 3-4줄로 설명
+
+===등장인물===
+${parseInt(characterCount) === 1 ? 
+  ` 이름: [실제 한국 이름]
+ 나이: [해당 연령대]
+ 역할: 주연 (이야기의 핵심 주인공)
+ 성격: [간략한 성격과 현재 상황]` :
+  `${characters && characters.map((char, index) => 
+    ` 인물 ${index + 1}: ${char.name}
+ 나이: ${ageMap[char.age] || char.age}
+ 역할: ${char.roleType || '조연'}
+ 성격: [간략한 성격과 현재 상황, 역할 유형에 맞는 특성 반영]`
+  ).join('\n\n')}`
+}
+
+===대본===
+${parseInt(characterCount) === 1 ? 
+  `인물명: [사용자 요청에 맞춰 ${lengthText} 분량 작성]
+같은 인물의 대사라면 인물명 작성은 생략한다.` :
+  `각 인물별로 지정된 분량 비율과 역할 유형에 맞춰 대화 형식으로 작성
+${characters && characters.map((char, index) => 
+  `${char.name}: [${char.roleType || '조연'}, 전체 대사의 ${char.percentage || 25}% 담당]`
+).join('\n')}`
+}
+
+===연기 팁===
+[감정 흐름과 호흡 지침]
+
+**중요**: 사용자의 요청을 최우선으로 하되, 자연스럽고 연기하기 좋은 대본으로 작성하세요.`;
+
+      // OpenAI API 호출
+      console.log('🚀 OpenAI API 호출 시작 (커스텀 프롬프트 모드)');
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional Korean scriptwriter who creates high-quality acting scripts. Always write in Korean and follow proper script formatting."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.7
+      });
+
+      const generatedScript = completion.choices[0].message.content;
+      const extractedTitle = extractTitleFromScript(generatedScript);
+      const title = extractedTitle || `${genre || '사용자 지정'} 대본`;
+
+      // Supabase에 저장
+      const aiScriptData = {
+        user_id: req.user.id,
+        title: title,
+        content: generatedScript,
+        character_count: parseInt(characterCount) || 1,
+        situation: '연기 연습용 독백',
+        emotions: [genre || '사용자 지정'],
+        gender: gender === 'male' ? '남자' : gender === 'female' ? '여자' : '전체',
+        mood: genre || '사용자 지정',
+        duration: length === 'short' ? '1~3분' : length === 'medium' ? '3~5분' : '5분 이상',
+        age_group: age === 'teens' ? '10대' : age === '20s' ? '20대' : age === '30s-40s' ? '30~40대' : age === '50s' ? '50대' : '전체',
+        purpose: '오디션',
+        script_type: '독백',
+        generation_params: {
+          customPrompt: true,
+          originalCustomPrompt: customPrompt,
+          originalLength: length,
+          model: "gpt-4o",
+          generateTime: new Date(),
+          promptTokens: completion.usage?.prompt_tokens,
+          completionTokens: completion.usage?.completion_tokens
+        },
+        is_public: false,
+        created_at: new Date().toISOString()
+      };
+
+      const saveResult = await safeQuery(async () => {
+        return await supabaseAdmin
+          .from('ai_scripts')
+          .insert(aiScriptData)
+          .select()
+          .single();
+      }, 'AI 스크립트 저장');
+
+      res.json({
+        success: true,
+        script: {
+          id: saveResult.success ? saveResult.data.id : null,
+          title: title,
+          content: generatedScript,
+          characterCount: parseInt(characterCount),
+          genre: genre || '사용자 지정',
+          length: length,
+          gender: gender,
+          age: age,
+          createdAt: new Date().toISOString()
+        },
+        metadata: {
+          customPrompt: true,
+          generatedAt: new Date().toISOString()
+        }
+      });
+
+      return;
+    }
+
+    // 일반 모드 프롬프트 생성
     const prompt = `당신은 한국 드라마, 영화, 연극의 대본을 전문적으로 쓰는 작가입니다.  
 다음 조건에 맞춰 실제로 한국의 드라마, 영화, 연기 입시에 쓰일 수 있는 퀄리티 높은 대본을 완성하세요.
 
@@ -337,6 +496,8 @@ router.post('/generate', authenticateToken, async (req, res) => {
  - 성별: ${genderText}
  - 연령대: ${ageText}
  - 인원: ${characterCount}명
+ - 배경/장소: ${settingText}
+ - 전개 구조: ${structureText}${theme ? `\n - 주제/메시지: ${theme}` : ''}${triggerEvent ? `\n - 특별한 사건/트리거: ${triggerEvent}` : ''}
  - 등장인물별 지시사항: ${characterDirectives}
 
 **1. 서사 구조**
@@ -346,44 +507,24 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
 **2. 연령대별 특성 반영**
  - 언어 스타일: ${ageDirective.language}
- - 심리적 특성: ${ageDirective.psychology}
- - 현실적 상황: ${ageDirective.situations}
  - 나이별 이름 참고: ${ageDirective.names}
 
-**3. 대본 작성 지침**
- - 문어체, 시적 표현, 과장된 멜로 어투 금지. 
- - 100% 구어체, 실제 대화에서 들을 수 있는 말투 사용.
- - 비유·추상 표현 최소화, 생활어 중심.
- - 상대방을 직접 지칭하는 2인칭 대사 활용 (“너”, “당신”).
- - 감정은 ‘점진적으로’ 쌓이며 후반에 폭발 또는 체념.
- - 중간에 감정을 급격히 변화시키는 촉발 장면이나 대사 배치.
- - 감정이 무거운 장면에서는 가볍거나 유행어 같은 표현은 피하고, 상황에 맞게 진지하고 일관된 톤을 유지하기.
- - 인물이 현실에서 한국어로 말할 때 쓰는 자연스러운 말투만 사용하기.
- - 마지막 대사는 감정이 남도록 구성.
- - 대본과 상황을 정확하게 일치할 것. 예: 누군가에게 고백하는 장면이라면 그 대상 앞에서 말하는 대사, 지시문, 상황을 일치시킬 것.
- - 대사는 자연스럽고 간결하게, 너무 ‘대본틱’하지 않게.
- - 짧은 문장과 긴 문장을 섞어 리듬을 만든다.
 
-**4. 서사 구조**
+
+**3. 서사 구조**
  1. 초반: 현재 상황 또는 사건에 대한 불만·분노·억울함 직설적으로 제시  
  2. 중반: 구체적 상황·사건 묘사 (회상, 대화, 행동)  
  3. 후반: 감정 정리 → 폭발 or 체념 → 짧고 강한 마무리  
 
-**5. 대본 대사 줄바꿈 및 분량 규칙** (100% 지킬 것.)
+**4. 대본 대사 줄바꿈 및 분량 규칙** (100% 지킬 것.)
  1. 한 호흡의 대사가 끝나면 그 다음줄에 대사를 작성한다.
  2. 대사를 작성할 때, 같은 화자라도 감정, 주제, 분위기가 전환되면 한 줄을 공백으로 띄우고 그 다음 줄에 작성한다.
  3. 한 인물의 대사와 그 안의 지시문은 한 문단으로 유지
  4. **대사 분량 정확성**: 각 인물의 대사 줄 수를 정확히 지정된 퍼센트에 맞춰 작성할 것. 
     - 대사 줄 수만 카운트 (지시문, 인물명, 빈 줄 제외)
     - 예: 총 대사 20줄, 인물A 60% → 인물A는 정확히 12줄의 대사 담당
-          
-**6. 지시문 규칙(100% 지킬 것.)**
- - 행동, 톤, 감정 등을 적절히 사용한다.
- - 지시문은 대사의 20~30% 이내로 제한. 예) 대본의 총 대사가 10줄이라면 2~3개로 제한.
- - 지시문은 대사 분량 계산에서 제외됨.
- 
 
-**7. 대본 생성 형식:**
+**5. 대본 생성 형식:**
  다음 형식을 정확히 따라 작성하세요. 각 섹션 헤더는 정확히 한 번만 사용하세요.
 
 감정이나 상황을 압축한 제목
@@ -424,16 +565,16 @@ ${characters && characters.map((char, index) =>
 [감정 흐름과 호흡 지침]
 
 
-**8. 장르 지시사항:**  
+**6. 장르 지시사항:**  
  ${genreDirective}
 
-**9. 역할 유형별 대사 특성:**
+**7. 역할 유형별 대사 특성:**
 주연 (Main role): 이야기의 핵심 인물로서 감정 변화가 가장 크고 깊이 있는 대사를 담당. 갈등의 중심에 있으며 가장 많은 대사 분량과 감정적 몰입도를 가짐.
 조연 (Supporting role): 주연을 보조하거나 갈등을 촉발시키는 역할. 주연과의 관계 속에서 이야기를 풍부하게 만드는 대사 구성.
 단역 (Minor role): 특정 상황을 설명하거나 분위기를 조성하는 역할. 간결하지만 임팩트 있는 대사로 장면을 완성.
 주조연 (Main supporting role): 주연과 함께 극을 끌어가는 강한 조연. 주연과 대등한 감정 깊이를 가지며 독립적인 서사 라인을 가질 수 있음.
 
-**10. 대사 분량 검증 요구사항:**
+**8. 대사 분량 검증 요구사항:**
 - 대본 완성 전에 각 인물의 실제 대사 줄 수를 카운트하여 지정된 퍼센트와 일치하는지 확인할 것
 - 만약 분량이 맞지 않으면 대사를 추가하거나 삭제하여 정확히 맞출 것
 - 총 대사 줄 수에서 각 인물이 차지하는 비율이 요청된 퍼센트와 정확히 일치해야 함

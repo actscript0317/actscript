@@ -1417,25 +1417,35 @@ const AIScript = () => {
                             borderRadius: '12px'
                           }}
                         >
-                          {formData.customPrompt.split(/(\b\w+\b)/).map((part, index) => {
-                            // 완성된 태그인지 확인 (등장인물 이름과 정확히 일치하는 경우)
-                            const isTaggedCharacter = formData.characters.some(char => 
-                              char.name === part.trim()
-                            );
+                          {(() => {
+                            let highlightedText = formData.customPrompt;
                             
-                            if (isTaggedCharacter) {
-                              return (
-                                <span 
-                                  key={index}
-                                  className="bg-green-200 text-green-800 px-1 rounded font-medium"
-                                >
-                                  {part}
-                                </span>
-                              );
-                            }
+                            // 각 인물 이름을 하이라이트로 감싸기
+                            formData.characters.forEach(char => {
+                              const charName = char.name;
+                              // 정확한 단어 매칭을 위한 정규식 (앞뒤로 공백이나 문장부호가 있는 경우)
+                              const regex = new RegExp(`(^|\\s|[^\\w가-힣])${charName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|[^\\w가-힣]|$)`, 'g');
+                              highlightedText = highlightedText.replace(regex, (match, before) => {
+                                return `${before}<HIGHLIGHT_START>${charName}<HIGHLIGHT_END>`;
+                              });
+                            });
                             
-                            return <span key={index}>{part}</span>;
-                          })}
+                            // 하이라이트 마커를 실제 JSX로 변환
+                            return highlightedText.split(/(<HIGHLIGHT_START>.*?<HIGHLIGHT_END>)/).map((part, index) => {
+                              if (part.startsWith('<HIGHLIGHT_START>') && part.endsWith('<HIGHLIGHT_END>')) {
+                                const content = part.replace('<HIGHLIGHT_START>', '').replace('<HIGHLIGHT_END>', '');
+                                return (
+                                  <span 
+                                    key={index}
+                                    className="bg-green-200 text-green-800 px-1 rounded font-medium"
+                                  >
+                                    {content}
+                                  </span>
+                                );
+                              }
+                              return <span key={index}>{part}</span>;
+                            });
+                          })()}
                         </div>
                       </div>
                       

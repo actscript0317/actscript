@@ -441,15 +441,26 @@ ${characters && characters.map((char, index) =>
         messages: [
           {
             role: "system",
-            content: "You are a professional Korean scriptwriter who creates high-quality acting scripts. Always write in Korean and follow proper script formatting."
+            content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
+
+1. **자연스러운 대화**: 실제 사람이 말하는 것처럼 자연스럽고 현실적인 대사 작성
+2. **감정의 깊이**: 각 인물의 내적 감정과 갈등을 대사와 행동으로 표현
+3. **연기 가능성**: 배우가 실제로 연기하기 좋은 구체적이고 명확한 지시문 포함
+4. **몰입감**: 읽는 사람이 상황에 몰입할 수 있도록 생생한 묘사
+5. **개성 있는 캐릭터**: 각 인물만의 고유한 말투와 성격 반영
+6. **갈등과 긴장감**: 이야기에 긴장감과 흥미를 더하는 갈등 요소 포함
+7. **완성도**: 처음부터 끝까지 일관된 스토리 라인과 감정 흐름
+8. **사용자 요구사항 준수**: 사용자의 커스텀 프롬프트 요구사항을 정확히 반영
+
+대본은 반드시 한국어로 작성하며, 표준 대본 형식을 따르세요.`
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        max_tokens: 2000,
-        temperature: 0.7
+        max_tokens: 3500,
+        temperature: 0.8
       });
 
       const generatedScript = completion.choices[0].message.content;
@@ -615,15 +626,25 @@ ${characters && characters.map((char, index) =>
       messages: [
         {
           role: "system",
-          content: "You are a professional scriptwriter who creates high-quality Korean acting scripts for practice. Always write in Korean and follow proper script formatting."
+          content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
+
+1. **자연스러운 대화**: 실제 사람이 말하는 것처럼 자연스럽고 현실적인 대사 작성
+2. **감정의 깊이**: 각 인물의 내적 감정과 갈등을 대사와 행동으로 표현
+3. **연기 가능성**: 배우가 실제로 연기하기 좋은 구체적이고 명확한 지시문 포함
+4. **몰입감**: 읽는 사람이 상황에 몰입할 수 있도록 생생한 묘사
+5. **개성 있는 캐릭터**: 각 인물만의 고유한 말투와 성격 반영
+6. **갈등과 긴장감**: 이야기에 긴장감과 흥미를 더하는 갈등 요소 포함
+7. **완성도**: 처음부터 끝까지 일관된 스토리 라인과 감정 흐름
+
+대본은 반드시 한국어로 작성하며, 표준 대본 형식을 따르세요.`
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      max_tokens: 2000,
-      temperature: 0.7
+      max_tokens: 3500,
+      temperature: 0.8
     });
     
     console.log('✅ OpenAI API 응답 완료');

@@ -1375,34 +1375,69 @@ const AIScript = () => {
                     )}
                     
                     <div className={`relative ${parseInt(formData.characterCount) > 1 ? 'pr-32' : ''}`}>
-                      <textarea
-                        ref={(el) => setTextareaRef(el)}
-                        value={formData.customPrompt}
-                        onChange={handleCustomPromptChange}
-                        onKeyDown={(e) => {
-                          // 자동완성 패널에서 엔터키로 선택
-                          if (showCharacterPanel && e.key === 'Enter') {
-                            e.preventDefault();
-                            const currentValue = formData.customPrompt;
-                            const currentCursor = e.target.selectionStart;
-                            const beforeCursor = currentValue.slice(0, currentCursor);
-                            const lastSlash = beforeCursor.lastIndexOf('/');
-                            
-                            if (lastSlash !== -1) {
-                              const searchTerm = beforeCursor.slice(lastSlash + 1).toLowerCase();
-                              const availableCharacters = formData.characters.filter(char => 
-                                char.name.toLowerCase().includes(searchTerm)
-                              );
-                              if (availableCharacters.length > 0) {
-                                selectCharacterFromAutocomplete(availableCharacters[0].name);
+                      <div className="relative">
+                        <textarea
+                          ref={(el) => setTextareaRef(el)}
+                          value={formData.customPrompt}
+                          onChange={handleCustomPromptChange}
+                          onKeyDown={(e) => {
+                            // 자동완성 패널에서 엔터키로 선택
+                            if (showCharacterPanel && e.key === 'Enter') {
+                              e.preventDefault();
+                              const currentValue = formData.customPrompt;
+                              const currentCursor = e.target.selectionStart;
+                              const beforeCursor = currentValue.slice(0, currentCursor);
+                              const lastSlash = beforeCursor.lastIndexOf('/');
+                              
+                              if (lastSlash !== -1) {
+                                const searchTerm = beforeCursor.slice(lastSlash + 1).toLowerCase();
+                                const availableCharacters = formData.characters.filter(char => 
+                                  char.name.toLowerCase().includes(searchTerm)
+                                );
+                                if (availableCharacters.length > 0) {
+                                  selectCharacterFromAutocomplete(availableCharacters[0].name);
+                                }
                               }
                             }
-                          }
-                        }}
-                        placeholder="AI에게 원하는 대본의 구체적인 지시사항을 작성하세요. 예) '병원에서 의사와 환자가 나누는 마지막 대화. 환자는 시한부 선고를 받았고, 의사는 희망을 잃지 말라고 격려한다. 감동적이면서도 현실적인 대화로 구성해줘.'"
-                        className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
-                        rows="4"
-                      />
+                          }}
+                          placeholder="AI에게 원하는 대본의 구체적인 지시사항을 작성하세요. 예) '병원에서 의사와 환자가 나누는 마지막 대화. 환자는 시한부 선고를 받았고, 의사는 희망을 잃지 말라고 격려한다. 감동적이면서도 현실적인 대화로 구성해줘.'"
+                          className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none bg-transparent relative z-10"
+                          rows="4"
+                          style={{ color: 'transparent', caretColor: 'black' }}
+                        />
+                        
+                        {/* 하이라이트된 텍스트 오버레이 */}
+                        <div 
+                          className="absolute inset-0 px-4 py-3 pointer-events-none whitespace-pre-wrap break-words text-gray-900 z-0"
+                          style={{ 
+                            fontSize: '14px', 
+                            lineHeight: '1.5', 
+                            fontFamily: 'inherit',
+                            border: '1px solid transparent',
+                            borderRadius: '12px'
+                          }}
+                        >
+                          {formData.customPrompt.split(/(\b\w+\b)/).map((part, index) => {
+                            // 완성된 태그인지 확인 (등장인물 이름과 정확히 일치하는 경우)
+                            const isTaggedCharacter = formData.characters.some(char => 
+                              char.name === part.trim()
+                            );
+                            
+                            if (isTaggedCharacter) {
+                              return (
+                                <span 
+                                  key={index}
+                                  className="bg-green-200 text-green-800 px-1 rounded font-medium"
+                                >
+                                  {part}
+                                </span>
+                              );
+                            }
+                            
+                            return <span key={index}>{part}</span>;
+                          })}
+                        </div>
+                      </div>
                       
                       {/* 태그 하이라이트 표시 (textarea 아래) */}
                       {parseInt(formData.characterCount) > 1 && formData.customPrompt && (

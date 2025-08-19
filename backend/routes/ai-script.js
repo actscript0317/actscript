@@ -359,11 +359,20 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     // 커스텀 프롬프트가 있다면 우선 적용
     if (customPrompt && customPrompt.trim()) {
+      // 인물 태그 처리 (예: /김철수 -> 김철수)
+      let processedPrompt = customPrompt;
+      if (characters && Array.isArray(characters)) {
+        characters.forEach(char => {
+          const tagRegex = new RegExp(`\\/${char.name}(?=\\s|$)`, 'g');
+          processedPrompt = processedPrompt.replace(tagRegex, char.name);
+        });
+      }
+      
       const prompt = `당신은 한국 드라마, 영화, 연극의 대본을 전문적으로 쓰는 작가입니다.
 다음 사용자의 요청에 따라 실제로 한국의 드라마, 영화, 연기 입시에 쓰일 수 있는 퀄리티 높은 대본을 완성하세요.
 
 **사용자 요청:**
-${customPrompt}
+${processedPrompt}
 
 **대본 생성 기본 조건:**
  - 분량: ${lengthText}

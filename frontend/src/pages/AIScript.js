@@ -80,6 +80,11 @@ const AIScript = () => {
   
   // 사용량 정보 로딩 상태
   const [loadingUsage, setLoadingUsage] = useState(true);
+  
+  // 커스텀 프롬프트 태그 관련 상태
+  const [showCharacterPanel, setShowCharacterPanel] = useState(false);
+  const [textareaRef, setTextareaRef] = useState(null);
+  const [cursorPosition, setCursorPosition] = useState(0);
 
   // 사용량 정보 가져오기
   const fetchUsageInfo = async () => {
@@ -241,6 +246,99 @@ const AIScript = () => {
         i === index ? { ...char, [field]: value } : char
       )
     }));
+  };
+
+  // 커스텀 프롬프트에서 / 태그 처리
+  const handleCustomPromptChange = (e) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    
+    setCursorPosition(cursorPos);
+    handleInputChange('customPrompt', value);
+    
+    // / 문자 뒤에 인물 이름 자동완성 체크
+    const beforeCursor = value.slice(0, cursorPos);
+    const lastSlash = beforeCursor.lastIndexOf('/');
+    
+    if (lastSlash !== -1) {
+      const afterSlash = beforeCursor.slice(lastSlash + 1);
+      // /문자 바로 뒤이고 공백이 없으면 자동완성 패널 표시
+      if (afterSlash.length >= 0 && !afterSlash.includes(' ')) {
+        setShowCharacterPanel(true);
+      } else {
+        setShowCharacterPanel(false);
+      }
+    } else {
+      setShowCharacterPanel(false);
+    }
+  };
+
+  // 사이드 패널에서 인물 선택 시 프롬프트에 삽입
+  const insertCharacterTag = (characterName) => {
+    if (!textareaRef) return;
+    
+    const currentValue = formData.customPrompt;
+    const cursorPos = textareaRef.selectionStart || cursorPosition;
+    
+    // 커서 위치에 태그 삽입
+    const beforeCursor = currentValue.slice(0, cursorPos);
+    const afterCursor = currentValue.slice(cursorPos);
+    
+    const newValue = beforeCursor + `/${characterName} ` + afterCursor;
+    handleInputChange('customPrompt', newValue);
+    
+    // 커서 위치 업데이트
+    setTimeout(() => {
+      const newCursorPos = cursorPos + characterName.length + 2;
+      textareaRef.setSelectionRange(newCursorPos, newCursorPos);
+      textareaRef.focus();
+    }, 0);
+  };
+
+  // / 태그 자동완성에서 인물 선택
+  const selectCharacterFromAutocomplete = (characterName) => {
+    if (!textareaRef) return;
+    
+    const currentValue = formData.customPrompt;
+    const cursorPos = textareaRef.selectionStart || cursorPosition;
+    
+    // 마지막 / 위치 찾기
+    const beforeCursor = currentValue.slice(0, cursorPos);
+    const lastSlash = beforeCursor.lastIndexOf('/');
+    
+    if (lastSlash !== -1) {
+      const beforeSlash = currentValue.slice(0, lastSlash);
+      const afterCursor = currentValue.slice(cursorPos);
+      
+      const newValue = beforeSlash + `/${characterName} ` + afterCursor;
+      handleInputChange('customPrompt', newValue);
+      
+      // 커서 위치 업데이트
+      setTimeout(() => {
+        const newCursorPos = lastSlash + characterName.length + 2;
+        textareaRef.setSelectionRange(newCursorPos, newCursorPos);
+        textareaRef.focus();
+      }, 0);
+    }
+    
+    setShowCharacterPanel(false);
+  };
+
+  // 프롬프트에서 태그된 인물들을 하이라이트하여 표시
+  const renderCustomPromptWithHighlight = (text) => {
+    if (!text) return '';
+    
+    // /인물이름 패턴 찾기
+    const tagPattern = /\/([가-힣a-zA-Z0-9\s]+?)(?=\s|$|\/)/g;
+    const characterNames = formData.characters.map(char => char.name);
+    
+    return text.replace(tagPattern, (match, name) => {
+      const trimmedName = name.trim();
+      if (characterNames.includes(trimmedName)) {
+        return `**${match}**`; // 태그된 인물 강조
+      }
+      return match;
+    });
   };
 
 
@@ -1223,18 +1321,139 @@ const AIScript = () => {
                     <div className="text-sm text-amber-800">
                       <p className="font-medium mb-1">💡 고급 사용자를 위한 옵션</p>
                       <p>위의 옵션들 대신 AI에게 직접 지시사항을 작성할 수 있습니다. 이 필드를 작성하면 위의 다른 설정들을 덮어씁니다.</p>
+                      {parseInt(formData.characterCount) > 1 && (
+                        <p className="mt-2 text-amber-700">
+                          <span className="font-medium">✨ 인물 태그 기능:</span> /{' '}뒤에 인물 이름을 입력하거나 오른쪽 패널에서 인물을 클릭해보세요!
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <textarea
-                    value={formData.customPrompt}
-                    onChange={(e) => handleInputChange('customPrompt', e.target.value)}
-                    placeholder="AI에게 원하는 대본의 구체적인 지시사항을 작성하세요. 예) '병원에서 의사와 환자가 나누는 마지막 대화. 환자는 시한부 선고를 받았고, 의사는 희망을 잃지 말라고 격려한다. 감동적이면서도 현실적인 대화로 구성해줘.'"
-                    className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
-                    rows="4"
-                  />
+                  
+                  <div className="relative">
+                    {/* 인물 선택 사이드바 */}
+                    {parseInt(formData.characterCount) > 1 && (
+                      <div className="absolute right-0 top-0 bottom-0 w-32 bg-white border-l border-amber-200 rounded-r-lg overflow-hidden">
+                        <div className="bg-amber-100 px-2 py-2 text-xs font-medium text-amber-800 text-center">
+                          인물 선택
+                        </div>
+                        <div className="p-1 space-y-1 max-h-28 overflow-y-auto">
+                          {formData.characters.map((char, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => insertCharacterTag(char.name)}
+                              className="w-full text-left px-2 py-1 text-xs bg-amber-50 hover:bg-amber-100 rounded border border-amber-200 hover:border-amber-300 transition-colors"
+                              title={`/${char.name} 태그 삽입`}
+                            >
+                              <div className="font-medium text-amber-900 truncate">{char.name}</div>
+                              <div className="text-amber-700 text-xs">{char.roleType}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className={`relative ${parseInt(formData.characterCount) > 1 ? 'pr-32' : ''}`}>
+                      <textarea
+                        ref={(el) => setTextareaRef(el)}
+                        value={formData.customPrompt}
+                        onChange={handleCustomPromptChange}
+                        onKeyDown={(e) => {
+                          // 자동완성 패널에서 엔터키로 선택
+                          if (showCharacterPanel && e.key === 'Enter') {
+                            e.preventDefault();
+                            const availableCharacters = formData.characters.filter(char => 
+                              char.name.toLowerCase().includes(
+                                formData.customPrompt.slice(
+                                  formData.customPrompt.lastIndexOf('/', cursorPosition) + 1, 
+                                  cursorPosition
+                                ).toLowerCase()
+                              )
+                            );
+                            if (availableCharacters.length > 0) {
+                              selectCharacterFromAutocomplete(availableCharacters[0].name);
+                            }
+                          }
+                        }}
+                        placeholder="AI에게 원하는 대본의 구체적인 지시사항을 작성하세요. 예) '병원에서 의사와 환자가 나누는 마지막 대화. 환자는 시한부 선고를 받았고, 의사는 희망을 잃지 말라고 격려한다. 감동적이면서도 현실적인 대화로 구성해줘.'"
+                        className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                        rows="4"
+                      />
+                      
+                      {/* 자동완성 패널 */}
+                      {showCharacterPanel && parseInt(formData.characterCount) > 1 && (
+                        <div className="absolute z-10 bg-white border border-amber-300 rounded-lg shadow-lg max-h-32 overflow-y-auto" 
+                             style={{
+                               left: '16px',
+                               top: `${Math.min(120, (formData.customPrompt.slice(0, cursorPosition).split('\n').length - 1) * 20 + 40)}px`
+                             }}>
+                          {formData.characters
+                            .filter(char => {
+                              const searchTerm = formData.customPrompt.slice(
+                                formData.customPrompt.lastIndexOf('/', cursorPosition) + 1, 
+                                cursorPosition
+                              ).toLowerCase();
+                              return char.name.toLowerCase().includes(searchTerm);
+                            })
+                            .map((char, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => selectCharacterFromAutocomplete(char.name)}
+                                className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b border-amber-100 last:border-b-0 transition-colors"
+                              >
+                                <div className="font-medium text-amber-900">{char.name}</div>
+                                <div className="text-xs text-amber-700">{char.roleType}</div>
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
                   <div className="text-xs text-amber-600 mt-2">
                     이 필드를 작성하면 위의 모든 설정 옵션들이 무시되고 이 프롬프트가 우선 적용됩니다.
+                    {parseInt(formData.characterCount) > 1 && (
+                      <div className="mt-1">
+                        <span className="font-medium">인물 태그 사용법:</span> /{' '}뒤에 인물 이름을 입력하면 자동완성이 나타납니다.
+                      </div>
+                    )}
                   </div>
+                  
+                  {/* 태그 미리보기 */}
+                  {formData.customPrompt && parseInt(formData.characterCount) > 1 && (
+                    <div className="mt-3 p-3 bg-white border border-amber-200 rounded-lg">
+                      <div className="text-xs font-medium text-amber-800 mb-2">🔍 태그 미리보기:</div>
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {formData.customPrompt.split(/(\/.+?(?=\s|$|\/))/).map((part, index) => {
+                          if (part.startsWith('/')) {
+                            const tagName = part.substring(1).trim();
+                            const isValidTag = formData.characters.some(char => char.name === tagName);
+                            return (
+                              <span
+                                key={index}
+                                className={`inline-block px-1 rounded ${
+                                  isValidTag 
+                                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                                    : 'bg-red-100 text-red-800 border border-red-200'
+                                }`}
+                                title={isValidTag ? `유효한 인물 태그: ${tagName}` : `알 수 없는 인물: ${tagName}`}
+                              >
+                                {part}
+                              </span>
+                            );
+                          }
+                          return <span key={index}>{part}</span>;
+                        })}
+                      </div>
+                      <div className="mt-2 text-xs text-amber-700">
+                        <span className="inline-block w-3 h-3 bg-green-100 border border-green-200 rounded mr-1"></span>
+                        유효한 인물 태그
+                        <span className="inline-block w-3 h-3 bg-red-100 border border-red-200 rounded mr-1 ml-3"></span>
+                        알 수 없는 인물
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

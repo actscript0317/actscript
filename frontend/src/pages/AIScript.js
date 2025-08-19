@@ -126,9 +126,9 @@ const AIScript = () => {
   const genres = [...freeGenres, ...premiumGenres];
 
   const lengths = [
-    { value: 'short', label: '짧게', time: '1~2분', icon: '⚡', available: true },
-    { value: 'medium', label: '중간', time: '3~5분', icon: '⏱️', available: true, premium: false },
-    { value: 'long', label: '길게', time: '5~10분', icon: '📝', available: true, premium: false }
+    { value: 'short', label: '짧게', time: '1~2분 (약 12~16줄)', icon: '⚡', available: true },
+    { value: 'medium', label: '중간', time: '3~5분 (약 25~35줄)', icon: '⏱️', available: true, premium: false },
+    { value: 'long', label: '길게', time: '5~10분 (약 50~70줄)', icon: '📝', available: true, premium: false }
   ];
 
 
@@ -145,6 +145,13 @@ const AIScript = () => {
     { value: '50s', label: '50대', description: '중년의 깊이 있는 성찰', icon: '🎯' },
     { value: '70s+', label: '70대 이상', description: '인생 경험과 지혜', icon: '🎋' },
     { value: 'random', label: '랜덤', description: '10대, 20대, 30대, 40대, 50대, 70+대 중 랜덤', icon: '🎲' }
+  ];
+
+  const roleTypes = [
+    { value: '주연', label: '주연', description: '이야기의 중심 인물', icon: '⭐' },
+    { value: '조연', label: '조연', description: '주연을 보조하는 역할', icon: '🎭' },
+    { value: '단역', label: '단역', description: '특정 장면에서만 등장', icon: '🎪' },
+    { value: '주조연', label: '주조연', description: '주연급 조연 역할', icon: '🌟' }
   ];
 
   // 폼 데이터 변경 핸들러
@@ -171,6 +178,7 @@ const AIScript = () => {
               name: `인물 ${i + 1}`,
               gender: '',
               age: '',
+              roleType: i === 0 ? '주연' : '조연', // 첫 번째 인물은 주연, 나머지는 조연
               percentage: i === 0 ? equalPercentage + remainder : equalPercentage // 첫 번째 인물에게 나머지 퍼센트 추가
             });
           }
@@ -515,10 +523,10 @@ const AIScript = () => {
     // 멀티 캐릭터 모드일 때 추가 검증
     if (parseInt(formData.characterCount) > 1) {
       const hasEmptyFields = formData.characters.some(char => 
-        !char.name.trim() || !char.gender || !char.age || typeof char.percentage !== 'number'
+        !char.name.trim() || !char.gender || !char.age || !char.roleType || typeof char.percentage !== 'number'
       );
       if (hasEmptyFields) {
-        setError('모든 인물의 설정을 완료해주세요. (이름, 성별, 연령대, 분량)');
+        setError('모든 인물의 설정을 완료해주세요. (이름, 성별, 연령대, 역할, 분량)');
         return;
       }
       
@@ -836,7 +844,7 @@ const AIScript = () => {
                             />
                           </div>
                           
-                          {/* 인물 성별과 연령대를 한 줄로 */}
+                          {/* 인물 성별, 연령대, 역할을 2x2 그리드로 */}
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2">성별</label>
@@ -865,12 +873,27 @@ const AIScript = () => {
                                 ))}
                               </select>
                             </div>
+                            
+                            <div className="col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">역할</label>
+                              <select
+                                value={character.roleType || '조연'}
+                                onChange={(e) => handleCharacterChange(index, 'roleType', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              >
+                                {roleTypes.map((role) => (
+                                  <option key={role.value} value={role.value}>
+                                    {role.icon} {role.label} - {role.description}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                           
                           {/* 인물 분량 (퍼센트 슬라이더) */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              대사 분량: {character.percentage || 0}%
+                              대사 분량 (전체 대사 중 비중): {character.percentage || 0}%
                             </label>
                             <div className="relative">
                               <input
@@ -896,7 +919,7 @@ const AIScript = () => {
                               </div>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              5% 단위로 조절 가능
+                              5% 단위로 조절 가능 (대사 줄 수 기준)
                             </p>
                           </div>
                         </div>

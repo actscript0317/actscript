@@ -177,9 +177,9 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     // 길이 변환
     const lengthMap = {
-      short: "짧은 대본. 지시문을 제외하고 배우의 대사 줄 수가 정확히 12~16줄이어야 한다. 반드시 이 범위를 벗어나지 말 것.",
-      medium: "중간 길이 대본. 지시문을 제외하고 배우의 대사 줄 수가 정확히 20~30줄이어야 한다. 반드시 이 범위를 벗어나지 말 것.",
-      long: "긴 대본. 지시문을 제외하고 배우의 대사 줄 수가 정확히 40~50줄이어야 한다. 반드시 이 범위를 벗어나지 말 것."
+      short: "짧은 대본. 지시문을 제외하고 순수 대사 줄 수만 정확히 12~16줄이어야 한다. 대사를 줄 바꿈으로 카운트하여 정확하게 이 범위를 맞출 것. 지시문과 빈 줄은 카운트하지 않는다.",
+      medium: "중간 길이 대본. 지시문을 제외하고 순수 대사 줄 수만 정확히 20~30줄이어야 한다. 대사를 줄 바꿈으로 카운트하여 정확하게 이 범위를 맞출 것. 지시문과 빈 줄은 카운트하지 않는다.",
+      long: "긴 대본. 지시문을 제외하고 순수 대사 줄 수만 정확히 40~50줄이어야 한다. 대사를 줄 바꿈으로 카운트하여 정확하게 이 범위를 맞출 것. 지시문과 빈 줄은 카운트하지 않는다."
     };
 
     const lengthText = lengthMap[length] || length;
@@ -316,13 +316,14 @@ router.post('/generate', authenticateToken, async (req, res) => {
     // 캐릭터별 지시사항 생성
     let characterDirectives = '';
     if (parseInt(characterCount) === 1) {
-      characterDirectives = `1인 독백: ${genderText}, ${ageText}`;
+      characterDirectives = `1인 독백: ${genderText}, ${ageText}, 역할: 주연 (이야기의 핵심 주인공)`;
     } else if (characters && Array.isArray(characters)) {
       characterDirectives = characters.map((char, index) => {
         const charGender = char.gender === 'male' ? '남성' : char.gender === 'female' ? '여성' : '성별 자유롭게';
         const charAge = ageMap[char.age] || char.age;
         const charPercentage = char.percentage || 25; // 기본값 25%
-        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 대사 분량: 전체의 ${charPercentage}%`;
+        const roleType = char.roleType || '조연'; // 역할 유형 추가 (기본값: 조연)
+        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 역할: ${roleType}, 대사 분량: 전체의 ${charPercentage}%`;
       }).join('\n');
     }
 
@@ -395,11 +396,13 @@ router.post('/generate', authenticateToken, async (req, res) => {
 ${parseInt(characterCount) === 1 ? 
   ` 이름: [실제 한국 이름]
  나이: [해당 연령대]
+ 역할: 주연 (이야기의 핵심 주인공)
  성격: [간략한 성격과 현재 상황]` :
   `${characters && characters.map((char, index) => 
     ` 인물 ${index + 1}: ${char.name}
  나이: ${ageMap[char.age] || char.age}
- 성격: [간략한 성격과 현재 상황]`
+ 역할: ${char.roleType || '조연'}
+ 성격: [간략한 성격과 현재 상황, 역할 유형에 맞는 특성 반영]`
   ).join('\n\n')}`
 }
 
@@ -407,13 +410,14 @@ ${parseInt(characterCount) === 1 ?
 ${parseInt(characterCount) === 1 ? 
   `인물명: [위 스타일 지침에 맞춰 ${lengthText} 분량 작성]
 같은 인물의 대사라면 인물명 작성은 생략한다.` :
-  `각 인물별로 지정된 분량 비율에 맞춰 대화 형식으로 작성
+  `각 인물별로 지정된 분량 비율과 역할 유형에 맞춰 대화 형식으로 작성
 ${characters && characters.map((char, index) => 
-  `${char.name}: [전체 대사의 ${char.percentage || 25}% 담당]`
+  `${char.name}: [${char.roleType || '조연'}, 전체 대사의 ${char.percentage || 25}% 담당]`
 ).join('\n')}
 
 **중요**: 각 인물의 대사 분량을 정확히 지정된 퍼센트에 맞춰 작성하세요. 
-전체 대본에서 각 인물이 차지하는 대사의 비중을 퍼센트로 계산하여 배분하세요.`
+전체 대본에서 각 인물이 차지하는 대사의 비중을 퍼센트로 계산하여 배분하세요.
+각 인물별 순수 대사 줄 수를 계산하여: (전체 대사 줄 수 × 인물의 퍼센트 ÷ 100) = 해당 인물 대사 줄 수로 정확히 맞춰주세요.`
 }
 
 ===연기 팁===
@@ -422,6 +426,12 @@ ${characters && characters.map((char, index) =>
 
 **8. 장르 지시사항:**  
  ${genreDirective}
+
+**9. 역할 유형별 대사 특성:**
+주연 (Main role): 이야기의 핵심 인물로서 감정 변화가 가장 크고 깊이 있는 대사를 담당. 갈등의 중심에 있으며 가장 많은 대사 분량과 감정적 몰입도를 가짐.
+조연 (Supporting role): 주연을 보조하거나 갈등을 촉발시키는 역할. 주연과의 관계 속에서 이야기를 풍부하게 만드는 대사 구성.
+단역 (Minor role): 특정 상황을 설명하거나 분위기를 조성하는 역할. 간결하지만 임팩트 있는 대사로 장면을 완성.
+주조연 (Main supporting role): 주연과 함께 극을 끌어가는 강한 조연. 주연과 대등한 감정 깊이를 가지며 독립적인 서사 라인을 가질 수 있음.
 
 `;
 

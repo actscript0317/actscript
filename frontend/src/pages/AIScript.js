@@ -227,7 +227,8 @@ const AIScript = () => {
               age: '',
               roleType: i === 0 ? '주연' : '조연', // 첫 번째 인물은 주연, 나머지는 조연
               percentage: i === 0 ? equalPercentage + remainder : equalPercentage, // 첫 번째 인물에게 나머지 퍼센트 추가
-              relationship: i === 0 ? '' : '친구' // 첫 번째 인물(주연)은 관계 없음, 나머지는 기본값 '친구'
+              relationshipWith: i === 0 ? '' : '인물 1', // 관계를 맺을 상대방 인물
+              relationshipType: i === 0 ? '' : '친구' // 관계 유형
             });
           }
           newData.characters = newCharacters;
@@ -324,21 +325,16 @@ const AIScript = () => {
     setShowCharacterPanel(false);
   };
 
-  // 프롬프트에서 태그된 인물들을 하이라이트하여 표시
-  const renderCustomPromptWithHighlight = (text) => {
-    if (!text) return '';
+  // 태그된 인물을 클릭했을 때 실제 이름으로 변경
+  const selectTaggedCharacter = (tag, index) => {
+    const tagName = tag.substring(1).trim(); // /를 제거한 이름
+    const isValidTag = formData.characters.some(char => char.name === tagName);
     
-    // /인물이름 패턴 찾기
-    const tagPattern = /\/([가-힣a-zA-Z0-9\s]+?)(?=\s|$|\/)/g;
-    const characterNames = formData.characters.map(char => char.name);
-    
-    return text.replace(tagPattern, (match, name) => {
-      const trimmedName = name.trim();
-      if (characterNames.includes(trimmedName)) {
-        return `**${match}**`; // 태그된 인물 강조
-      }
-      return match;
-    });
+    if (isValidTag) {
+      // /인물이름을 실제 인물이름으로 바꿈
+      const newValue = formData.customPrompt.replace(tag, tagName);
+      handleInputChange('customPrompt', newValue);
+    }
   };
 
 
@@ -665,7 +661,7 @@ const AIScript = () => {
     if (parseInt(formData.characterCount) > 1) {
       const hasEmptyFields = formData.characters.some((char, index) => 
         !char.name.trim() || !char.gender || !char.age || !char.roleType || typeof char.percentage !== 'number' || 
-        (index > 0 && !char.relationship) // 첫 번째 인물(주연)이 아닐 때만 관계 필수
+        (index > 0 && (!char.relationshipWith || !char.relationshipType)) // 첫 번째 인물이 아닐 때만 관계 필수
       );
       if (hasEmptyFields) {
         setError('모든 인물의 설정을 완료해주세요. (이름, 성별, 연령대, 역할, 관계, 분량)');
@@ -1037,22 +1033,45 @@ const AIScript = () => {
                               </select>
                             </div>
                             
-                            {index > 0 && ( // 첫 번째 인물(주연)이 아닐 때만 관계 선택 표시
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  주연과의 관계
-                                </label>
-                                <select
-                                  value={character.relationship || '친구'}
-                                  onChange={(e) => handleCharacterChange(index, 'relationship', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                >
-                                  {relationshipTypes.map((rel) => (
-                                    <option key={rel.value} value={rel.value}>
-                                      {rel.icon} {rel.label} - {rel.description}
-                                    </option>
-                                  ))}
-                                </select>
+                            {index > 0 && ( // 첫 번째 인물이 아닐 때만 관계 선택 표시
+                              <div className="col-span-2 space-y-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                      관계 상대
+                                    </label>
+                                    <select
+                                      value={character.relationshipWith || '인물 1'}
+                                      onChange={(e) => handleCharacterChange(index, 'relationshipWith', e.target.value)}
+                                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    >
+                                      {formData.characters.slice(0, index).map((otherChar, otherIndex) => (
+                                        <option key={otherIndex} value={otherChar.name}>
+                                          {otherChar.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                      관계 유형
+                                    </label>
+                                    <select
+                                      value={character.relationshipType || '친구'}
+                                      onChange={(e) => handleCharacterChange(index, 'relationshipType', e.target.value)}
+                                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    >
+                                      {relationshipTypes.map((rel) => (
+                                        <option key={rel.value} value={rel.value}>
+                                          {rel.icon} {rel.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {character.relationshipWith}와(과) {character.relationshipType || '친구'} 관계
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1354,6 +1373,40 @@ const AIScript = () => {
                     )}
                     
                     <div className={`relative ${parseInt(formData.characterCount) > 1 ? 'pr-32' : ''}`}>
+                      {/* 하이라이트된 텍스트를 보여주는 오버레이 */}
+                      {parseInt(formData.characterCount) > 1 && (
+                        <div 
+                          className="absolute inset-0 px-4 py-3 pointer-events-none whitespace-pre-wrap break-words text-transparent rounded-xl z-10"
+                          style={{ 
+                            font: 'inherit',
+                            lineHeight: 'inherit',
+                            fontSize: 'inherit'
+                          }}
+                        >
+                          {formData.customPrompt.split(/(\/.+?(?=\s|$|\/))/).map((part, index) => {
+                            if (part.startsWith('/')) {
+                              const tagName = part.substring(1).trim();
+                              const isValidTag = formData.characters.some(char => char.name === tagName);
+                              return (
+                                <span
+                                  key={index}
+                                  className={`${
+                                    isValidTag 
+                                      ? 'bg-green-200 text-green-900 cursor-pointer' 
+                                      : 'bg-red-200 text-red-900'
+                                  } px-1 rounded pointer-events-auto`}
+                                  onClick={isValidTag ? () => selectTaggedCharacter(part, index) : undefined}
+                                  title={isValidTag ? `클릭하여 "${tagName}" 태그 완료` : `알 수 없는 인물: ${tagName}`}
+                                >
+                                  {part}
+                                </span>
+                              );
+                            }
+                            return <span key={index} className="text-transparent">{part}</span>;
+                          })}
+                        </div>
+                      )}
+                      
                       <textarea
                         ref={(el) => setTextareaRef(el)}
                         value={formData.customPrompt}
@@ -1376,8 +1429,9 @@ const AIScript = () => {
                           }
                         }}
                         placeholder="AI에게 원하는 대본의 구체적인 지시사항을 작성하세요. 예) '병원에서 의사와 환자가 나누는 마지막 대화. 환자는 시한부 선고를 받았고, 의사는 희망을 잃지 말라고 격려한다. 감동적이면서도 현실적인 대화로 구성해줘.'"
-                        className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                        className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none relative z-20 bg-transparent"
                         rows="4"
+                        style={{ caretColor: 'black' }}
                       />
                       
                       {/* 자동완성 패널 */}
@@ -1420,40 +1474,6 @@ const AIScript = () => {
                     )}
                   </div>
                   
-                  {/* 태그 미리보기 */}
-                  {formData.customPrompt && parseInt(formData.characterCount) > 1 && (
-                    <div className="mt-3 p-3 bg-white border border-amber-200 rounded-lg">
-                      <div className="text-xs font-medium text-amber-800 mb-2">🔍 태그 미리보기:</div>
-                      <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                        {formData.customPrompt.split(/(\/.+?(?=\s|$|\/))/).map((part, index) => {
-                          if (part.startsWith('/')) {
-                            const tagName = part.substring(1).trim();
-                            const isValidTag = formData.characters.some(char => char.name === tagName);
-                            return (
-                              <span
-                                key={index}
-                                className={`inline-block px-1 rounded ${
-                                  isValidTag 
-                                    ? 'bg-green-100 text-green-800 border border-green-200' 
-                                    : 'bg-red-100 text-red-800 border border-red-200'
-                                }`}
-                                title={isValidTag ? `유효한 인물 태그: ${tagName}` : `알 수 없는 인물: ${tagName}`}
-                              >
-                                {part}
-                              </span>
-                            );
-                          }
-                          return <span key={index}>{part}</span>;
-                        })}
-                      </div>
-                      <div className="mt-2 text-xs text-amber-700">
-                        <span className="inline-block w-3 h-3 bg-green-100 border border-green-200 rounded mr-1"></span>
-                        유효한 인물 태그
-                        <span className="inline-block w-3 h-3 bg-red-100 border border-red-200 rounded mr-1 ml-3"></span>
-                        알 수 없는 인물
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 

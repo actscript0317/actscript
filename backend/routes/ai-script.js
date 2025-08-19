@@ -352,7 +352,8 @@ router.post('/generate', authenticateToken, async (req, res) => {
         const charAge = ageMap[char.age] || char.age;
         const charPercentage = char.percentage || 25; // 기본값 25%
         const roleType = char.roleType || '조연'; // 역할 유형 추가 (기본값: 조연)
-        const relationship = char.relationship ? `, 주연과의 관계: ${char.relationship}` : '';
+        const relationship = (char.relationshipWith && char.relationshipType) ? 
+          `, ${char.relationshipWith}와(과) ${char.relationshipType} 관계` : '';
         return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 역할: ${roleType}${relationship}, 대사 분량: 전체의 ${charPercentage}%`;
       }).join('\n');
     }

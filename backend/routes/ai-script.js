@@ -3,6 +3,9 @@ const OpenAI = require('openai');
 const config = require('../config/env');
 const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
+const { reserveUsage, commitUsage, rollbackUsage } = require('../helpers/usage');
+const { getGenreDirective, parseOpenAIError, callOpenAIWithRetry, logRequestData, MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_TOKENS } = require('../helpers/aiHelpers');
+const { extractTitleFromScript, saveScript } = require('../helpers/scriptHelpers');
 
 const router = express.Router();
 
@@ -17,113 +20,7 @@ if (config.OPENAI_API_KEY) {
   console.warn('⚠️ OPENAI_API_KEY가 설정되지 않았습니다. AI 기능이 비활성화됩니다.');
 }
 
-// 스크립트에서 제목 추출하는 함수
-const extractTitleFromScript = (scriptContent) => {
-  if (!scriptContent) return null;
-  
-  const lines = scriptContent.split('\n');
-  
-  // **제목:** 패턴 찾기
-  for (let line of lines) {
-    const titleMatch = line.match(/\*\*제목:\*\*\s*(.+)/);
-    if (titleMatch) {
-      return titleMatch[1].trim();
-    }
-  }
-  
-  // [제목] 패턴 찾기  
-  for (let line of lines) {
-    const titleMatch = line.match(/\[(.+)\]/);
-    if (titleMatch && line.includes('제목')) {
-      return titleMatch[1].trim();
-    }
-  }
-  
-  // 첫 번째 줄이 제목일 가능성
-  const firstLine = lines[0]?.trim();
-  if (firstLine && firstLine.length < 50 && !firstLine.includes('[') && !firstLine.includes('상황')) {
-    return firstLine;
-  }
-  
-  return null;
-};
 
-// 사용자 사용량 확인 및 업데이트
-const checkAndUpdateUsage = async (userId) => {
-  console.log('🔍 사용자 조회 시작:', userId);
-  
-  // 사용자 정보 조회 (Admin 클라이언트 사용하여 RLS 우회)
-  const userResult = await safeQuery(async () => {
-    return await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-  }, 'Supabase 사용자 정보 조회');
-
-  if (!userResult.success) {
-    throw new Error('사용자를 찾을 수 없습니다.');
-  }
-
-  const user = userResult.data;
-  const usage = user.usage || { currentMonth: 0, lastResetDate: null, totalGenerated: 0 };
-  const subscription = user.subscription || { plan: 'test' };
-
-  // 월이 바뀌었으면 사용량 리셋
-  const now = new Date();
-  const lastReset = usage.lastResetDate ? new Date(usage.lastResetDate) : new Date();
-  
-  if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
-    usage.currentMonth = 0;
-    usage.lastResetDate = now.toISOString();
-  }
-
-  // 사용자별 월간 제한 확인 (기본 10회)
-  const userLimit = user.usage?.monthly_limit || 10;
-  let canGenerate = false;
-  let limit = userLimit;
-
-  if (userLimit === 999999) {
-    // 무제한 사용자 (관리자가 설정)
-    canGenerate = true;
-    limit = '무제한';
-  } else {
-    // 일반 사용자 - 월간 제한 확인
-    canGenerate = usage.currentMonth < userLimit;
-  }
-
-  if (!canGenerate) {
-    const error = new Error('사용량을 초과했습니다.');
-    error.statusCode = 429;
-    error.details = {
-      currentUsage: usage.currentMonth,
-      limit: limit,
-      planType: subscription.plan,
-      nextResetDate: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
-    };
-    throw error;
-  }
-
-  // 사용량 증가
-  usage.currentMonth += 1;
-  usage.totalGenerated += 1;
-
-  // 사용량 업데이트 (Admin 클라이언트 사용)
-  const updateResult = await safeQuery(async () => {
-    return await supabaseAdmin
-      .from('users')
-      .update({ usage: usage })
-      .eq('id', userId);
-  }, '사용량 업데이트');
-  
-  if (!updateResult.success) {
-    console.error('❌ 사용량 업데이트 실패:', updateResult.error);
-  } else {
-    console.log('✅ 사용량 업데이트 완료:', usage);
-  }
-
-  return { user, usage };
-};
 
 
 
@@ -131,7 +28,7 @@ const checkAndUpdateUsage = async (userId) => {
 router.post('/generate', authenticateToken, async (req, res) => {
   try {
     console.log('🎭 AI 대본 생성 요청 시작');
-    console.log('📝 요청 데이터:', req.body);
+    logRequestData(req);
     
     // OpenAI API 키 확인
     if (!openai) {
@@ -144,10 +41,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
     
     console.log('✅ OpenAI 클라이언트 초기화 완료');
     
-    // 사용량 확인 및 업데이트
-    let userInfo;
+    // 사용량 예약 (생성 실패 시 롤백)
+    let usageInfo;
     try {
-      userInfo = await checkAndUpdateUsage(req.user.id);
+      usageInfo = await reserveUsage(req.user.id);
     } catch (error) {
       if (error.statusCode === 429) {
         return res.status(429).json({
@@ -221,75 +118,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
     const ageText = ageMap[age] || age;
     
     // 장르별 지시사항
-    const genreDirectives = {
-     
-      '로맨스': `
-      1. 따뜻하고 설레는 한국 드라마 스타일의 감정과 상황이 담긴 로맨스 대본을 써줘.  
-      2. 사랑에 빠진 인물이 상대방 앞에서 진심 어린 감정을 표현하는 장면을 중심으로,  
-      3. 설렘과 긴장, 조심스러운 고백까지 감정의 흐름을 세밀하게 담아내고,  
-      4. 결말은 희망적이고 따뜻하게 마무리해줘.  
-       
-      `,
-        '비극': `
-      1. 깊고 무거운 비극적 감정과 상황을 담아 대본을 써줘.  
-      2. 주인공이 절망과 상실감, 분노 등을 점진적으로 쌓아가다 감정이 폭발하는 장면에 집중해.  
-      3. 침묵, 고독, 체념 같은 분위기가 잘 느껴지도록 행동 지시문을 포함하고,  
-      4. 결말은 씁쓸하고 여운이 남게 마무리해줘.  
-      5. 대사는 짧고 강렬하며 현실적인 말투로 작성해줘.  
-      `,
-        '코미디': `
-      1. 재미있고 웃긴 상황과 대사를 중심으로 코미디 스타일 대본을 써줘.  
-      2. 과장되거나 어색하지 않은 자연스러운 유머, 말장난, 타이밍 좋은 대사들이 포함되게 해줘. 
-      3. 분위기는 밝고 경쾌하며, 감정 변화는 빠르고 리듬감 있게.  
-      4. 결말은 가볍고 웃음을 남기는 식으로 마무리해줘.  
-      `,
-        '스릴러': `
-      1. 긴장감 넘치고 불안한 분위기와 상황을 조성하는 스릴러 스타일 대본을 써줘.  
-      2. 등장인물의 의심, 공포, 불신이 점점 커지면서 극한 상황에 몰리는 장면에 집중해.  
-      3. 긴장감 있는 대사와 숨소리, 시선 처리 같은 행동 지시문을 포함하고,  
-      4. 대사는 짧고 강렬하며 분위기를 유지할 수 있게 써줘.  
-      5. 결말은 충격적이거나 반전이 있으면 좋고, 여운을 남겨줘.  
-      `,
-        '액션': `
-      1. 빠른 호흡과 긴박감 넘치는 장면 위주로 액션 스타일 대본을 써줘.  
-      2. 싸움, 추격, 위기 상황에서 등장인물들이 긴장감 있게 소통하는 장면에 집중해.  
-      3. 대사는 명령형이나 도발적, 단호한 톤으로 쓰고,  
-      4. 행동 지시문은 역동적이고 구체적으로 표현해줘.  
-      5. 결말은 긴장감 유지 혹은 강렬한 클라이맥스로 마무리해줘.  
-      `,
-        '공포': `
-      1. 섬뜩하고 무서운 분위기와 상황을 조성하는 공포 스타일 대본을 써줘.  
-      2. 등장인물의 불안, 공포, 긴장감이 극대화되는 장면에 집중하고,  
-      3. 소리, 움직임, 주변 환경 묘사를 행동 지시문으로 섬세하게 넣어줘.  
-      4. 대사는 긴장감을 유지할 수 있도록 간결하고 사실적으로 써줘.  
-      5. 결말은 미스터리하거나 소름 돋는 여운을 남기는 방식으로.  
-      `,
-        '판타지': `
-      1. 환상적이고 신비로운 분위기와 상황을 담은 판타지 스타일 대본을 써줘.  
-      2. 마법, 신화적 존재, 이세계 등 장면 설정과 대사를 구체적으로 표현하고,  
-      3. 등장인물의 특별한 능력이나 사명을 중심으로 이야기를 전개해줘.  
-      4. 대사는 운율감 있거나 신비롭게 쓰되 자연스러운 톤 유지,  
-      5. 행동 지시문으로 환상적인 분위기를 살려줘.  
-      6. 결말은 희망적이거나 미스터리한 여운을 남겨줘.  
-      `,
-        'SF': `
-      1. 논리적이고 미래적인 배경과 상황을 담은 SF 스타일 대본을 써줘.  
-      2. 과학적 개념이나 첨단 기술을 자연스럽게 녹여내고,  
-      3. 등장인물 간의 논쟁, 문제 해결 과정 등을 중심으로 감정과 긴장을 표현해줘.  
-      4. 대사는 명확하고 간결하며 전문용어 사용은 최소화,  
-      5. 행동 지시문은 상황의 긴박함과 인물 심리를 섬세히 반영해줘.  
-      6. 결말은 열린 결말이나 충격적 반전 가능.  
-      `,
-        '시대극': `
-      1. 역사적 배경과 시대상에 맞는 언어와 태도를 사용한 시대극 스타일 대본을 써줘.  
-      2. 권력, 의리, 배신, 명예 같은 주제를 중심으로 감정이 깊게 쌓이는 장면을 묘사해줘.  
-      3. 대사는 고어체는 피하되 시대에 어울리는 격식 있고 무게감 있는 말투,  
-      4. 행동 지시문은 절제되고 품위 있게 작성해줘.  
-      5. 결말은 운명을 받아들이는 체념이나 강렬한 감정 폭발 중 하나로 마무리해줘.  
-      `
-    }[genre] || '선택한 장르에 맞게 톤과 분위기를 유지해줘.';
-
-    const genreDirective = genreDirectives;
+    const genreDirective = getGenreDirective(genre);
 
 
     // 나이별 세부 지시사항
@@ -434,165 +263,47 @@ ${characters && characters.map((char, index) =>
 
 **중요**: 사용자의 요청을 최우선으로 하되, 자연스럽고 연기하기 좋은 대본으로 작성하세요.`;
 
-      // OpenAI API 호출
+      // OpenAI API 호출 with 재시도 및 타임아웃
       console.log('🚀 OpenAI API 호출 시작 (커스텀 프롬프트 모드)');
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const completion = await callOpenAIWithRetry(openai, {
+        model: MODEL_FINAL,
         messages: [
           {
             role: "system",
             content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
 
-1. **자연스러운 대화**: 실제 사람이 말하는 것처럼 자연스럽고 현실적인 대사 작성
-2. **감정의 깊이**: 각 인물의 내적 감정과 갈등을 대사와 행동으로 표현
-3. **연기 가능성**: 배우가 실제로 연기하기 좋은 구체적이고 명확한 지시문 포함
-4. **몰입감**: 읽는 사람이 상황에 몰입할 수 있도록 생생한 묘사
-5. **개성 있는 캐릭터**: 각 인물만의 고유한 말투와 성격 반영
-6. **갈등과 긴장감**: 이야기에 긴장감과 흥미를 더하는 갈등 요소 포함
-7. **완성도**: 처음부터 끝까지 일관된 스토리 라인과 감정 흐름
-8. **사용자 요구사항 준수**: 사용자의 커스텀 프롬프트 요구사항을 정확히 반영
-
-**0.작성 조건:**
- - 장르: ${genre}  
- - 분량: ${lengthText}
- - 성별: ${genderText}
- - 연령대: ${ageText}
- - 인원: ${characterCount}명
- - 배경/장소: ${settingText}
- - 전개 구조: ${structureText}${theme ? `\n - 주제/메시지: ${theme}` : ''}${triggerEvent ? `\n - 특별한 사건/트리거: ${triggerEvent}` : ''}
- - 등장인물별 지시사항: ${characterDirectives}
-
-**1. 서사 구조**
- - 점진적 감정 축적 → 마지막 폭발
- - 갑작스러운 고조보다 자연스러운 쌓임 중시
- - 감정의 흐름과 변화가 뚜렷하게 드러나도록 구성 (예: 침착→불안→분노 / 밝음→흔들림→무너짐)
-
-**2. 연령대별 특성 반영**
- - 언어 스타일: ${ageDirective.language}
- - 나이별 이름 참고: ${ageDirective.names}
-
-
-
-**3. 서사 구조**
- 1. 초반: 현재 상황 또는 사건에 대한 불만·분노·억울함 직설적으로 제시  
- 2. 중반: 구체적 상황·사건 묘사 (회상, 대화, 행동)  
- 3. 후반: 감정 정리 → 폭발 or 체념 → 짧고 강한 마무리  
-
-**4. 대본 대사 줄바꿈 및 분량 규칙** (100% 지킬 것.)
- 1. 한 호흡의 대사가 끝나면 그 다음줄에 대사를 작성한다.
- 2. 대사를 작성할 때, 같은 화자라도 감정, 주제, 분위기가 전환되면 한 줄을 공백으로 띄우고 그 다음 줄에 작성한다.
- 3. 한 인물의 대사와 그 안의 지시문은 한 문단으로 유지
- 4. **대사 분량 정확성**: 각 인물의 대사 줄 수를 정확히 지정된 퍼센트에 맞춰 작성할 것. 
-    - 대사 줄 수만 카운트 (지시문, 인물명, 빈 줄 제외)
-    - 예: 총 대사 20줄, 인물A 60% → 인물A는 정확히 12줄의 대사 담당
-
-**5. 대본 생성 형식:**
- 다음 형식을 정확히 따라 작성하세요. 각 섹션 헤더는 정확히 한 번만 사용하세요.
-
-감정이나 상황을 압축한 제목
-
-===상황 설명===
-어떤 상황에서 누구에게 하는 말인지, 왜 이런 감정 상태인지 3-4줄로 설명
-
-===등장인물===
-${parseInt(characterCount) === 1 ? 
-  ` 이름: [실제 한국 이름]
- 나이: [해당 연령대]
- 역할: 주연 (이야기의 핵심 주인공)
- 성격: [간략한 성격과 현재 상황]` :
-  `${characters && characters.map((char, index) => 
-    ` 인물 ${index + 1}: ${char.name}
- 나이: ${ageMap[char.age] || char.age}
- 역할: ${char.roleType || '조연'}
- 성격: [간략한 성격과 현재 상황, 역할 유형에 맞는 특성 반영]`
-  ).join('\n\n')}`
-}
-
-===대본===
-${parseInt(characterCount) === 1 ? 
-  `인물명: [위 스타일 지침에 맞춰 ${lengthText} 분량 작성]
-같은 인물의 대사라면 인물명 작성은 생략한다.` :
-  `각 인물별로 지정된 분량 비율과 역할 유형에 맞춰 대화 형식으로 작성
-${characters && characters.map((char, index) => 
-  `${char.name}: [${char.roleType || '조연'}, 전체 대사의 ${char.percentage || 25}% 담당]`
-).join('\n')}
-
-**중요**: 각 인물의 대사 분량을 정확히 지정된 퍼센트에 맞춰 작성하세요. 
-전체 대본에서 각 인물이 차지하는 대사의 비중을 퍼센트로 계산하여 배분하세요.
-대사 분량 계산: 지시문과 빈 줄을 제외하고 오직 대사 줄 수만 계산합니다.
-예) 전체 대사 줄 수가 20줄이고 인물A가 60%라면, 인물A는 12줄의 대사를 담당해야 합니다.`
-}
-
-===연기 팁===
-[감정 흐름과 호흡 지침]
-
-
-**6. 장르 지시사항:**  
- ${genreDirective}
-
-**7. 역할 유형별 대사 특성:**
-주연 (Main role): 이야기의 핵심 인물로서 감정 변화가 가장 크고 깊이 있는 대사를 담당. 갈등의 중심에 있으며 가장 많은 대사 분량과 감정적 몰입도를 가짐.
-조연 (Supporting role): 주연을 보조하거나 갈등을 촉발시키는 역할. 주연과의 관계 속에서 이야기를 풍부하게 만드는 대사 구성.
-단역 (Minor role): 특정 상황을 설명하거나 분위기를 조성하는 역할. 간결하지만 임팩트 있는 대사로 장면을 완성.
-주조연 (Main supporting role): 주연과 함께 극을 끌어가는 강한 조연. 주연과 대등한 감정 깊이를 가지며 독립적인 서사 라인을 가질 수 있음.
-
-**8. 대사 분량 검증 요구사항:**
-- 대본 완성 전에 각 인물의 실제 대사 줄 수를 카운트하여 지정된 퍼센트와 일치하는지 확인할 것
-- 만약 분량이 맞지 않으면 대사를 추가하거나 삭제하여 정확히 맞출 것
-- 총 대사 줄 수에서 각 인물이 차지하는 비율이 요청된 퍼센트와 정확히 일치해야 함.`
+대본은 반드시 한국어로 작성하며, 표준 대본 형식을 따르세요.`
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        max_tokens: 3500,
-        temperature: 0.8
+        max_tokens: MAX_TOKENS,
+        temperature: TEMPERATURE_FINAL
       });
 
       const generatedScript = completion.choices[0].message.content;
       const extractedTitle = extractTitleFromScript(generatedScript);
       const title = extractedTitle || `${genre || '사용자 지정'} 대본`;
 
-      // Supabase에 저장
-      const aiScriptData = {
-        user_id: req.user.id,
+      // 스크립트 저장 (공통 함수 사용)
+      const savedScript = await saveScript(req.user.id, generatedScript, {
         title: title,
-        content: generatedScript,
-        character_count: parseInt(characterCount) || 1,
-        situation: '연기 연습용 독백',
-        emotions: [genre || '사용자 지정'],
-        gender: gender === 'male' ? '남자' : gender === 'female' ? '여자' : '전체',
-        mood: genre || '사용자 지정',
-        duration: length === 'short' ? '1~3분' : length === 'medium' ? '3~5분' : '5분 이상',
-        age_group: age === 'teens' ? '10대' : age === '20s' ? '20대' : age === '30s-40s' ? '30~40대' : age === '50s' ? '50대' : '전체',
-        purpose: '오디션',
-        script_type: '독백',
-        generation_params: {
-          customPrompt: true,
-          originalCustomPrompt: customPrompt,
-          originalLength: length,
-          model: "gpt-4o",
-          generateTime: new Date(),
-          promptTokens: completion.usage?.prompt_tokens,
-          completionTokens: completion.usage?.completion_tokens
-        },
-        is_public: false,
-        created_at: new Date().toISOString()
-      };
+        genre: genre || '사용자 지정',
+        characterCount: parseInt(characterCount) || 1,
+        length: length,
+        isCustom: true,
+        prompt: customPrompt
+      });
 
-      const saveResult = await safeQuery(async () => {
-        return await supabaseAdmin
-          .from('ai_scripts')
-          .insert(aiScriptData)
-          .select()
-          .single();
-      }, 'AI 스크립트 저장');
+      // 생성 성공 시 사용량 커밋
+      await commitUsage(req.user.id);
 
       res.json({
         success: true,
         script: {
-          id: saveResult.success ? saveResult.data.id : null,
+          id: savedScript.id,
           title: title,
           content: generatedScript,
           characterCount: parseInt(characterCount),
@@ -634,14 +345,26 @@ ${characters && characters.map((char, index) =>
  - 언어 스타일: ${ageDirective.language}
  - 나이별 이름 참고: ${ageDirective.names}
 
+**3. 대본 작성 지침**
+ - 문어체, 시적 표현, 과장된 멜로 어투 금지. 
+ - 100% 구어체, 실제 대화에서 들을 수 있는 말투 사용.
+ - 비유·추상 표현 최소화, 생활어 중심.
+ - 상대방을 직접 지칭하는 2인칭 대사 활용 (“너”, “당신”).
+ - 감정은 ‘점진적으로’ 쌓이며 후반에 폭발 또는 체념.
+ - 중간에 감정을 급격히 변화시키는 촉발 장면이나 대사 배치.
+ - 감정이 무거운 장면에서는 가볍거나 유행어 같은 표현은 피하고, 상황에 맞게 진지하고 일관된 톤을 유지하기.
+ - 인물이 현실에서 한국어로 말할 때 쓰는 자연스러운 말투만 사용하기.
+ - 마지막 대사는 감정이 남도록 구성.
+ - 대본과 상황을 정확하게 일치할 것. 예: 누군가에게 고백하는 장면이라면 그 대상 앞에서 말하는 대사, 지시문, 상황을 일치시킬 것.
+ - 대사는 자연스럽고 간결하게, 너무 ‘대본틱’하지 않게.
+ - 짧은 문장과 긴 문장을 섞어 리듬을 만든다.
 
-
-**3. 서사 구조**
+**4. 서사 구조**
  1. 초반: 현재 상황 또는 사건에 대한 불만·분노·억울함 직설적으로 제시  
  2. 중반: 구체적 상황·사건 묘사 (회상, 대화, 행동)  
  3. 후반: 감정 정리 → 폭발 or 체념 → 짧고 강한 마무리  
 
-**4. 대본 대사 줄바꿈 및 분량 규칙** (100% 지킬 것.)
+**5. 대본 대사 줄바꿈 및 분량 규칙** (100% 지킬 것.)
  1. 한 호흡의 대사가 끝나면 그 다음줄에 대사를 작성한다.
  2. 대사를 작성할 때, 같은 화자라도 감정, 주제, 분위기가 전환되면 한 줄을 공백으로 띄우고 그 다음 줄에 작성한다.
  3. 한 인물의 대사와 그 안의 지시문은 한 문단으로 유지
@@ -649,7 +372,7 @@ ${characters && characters.map((char, index) =>
     - 대사 줄 수만 카운트 (지시문, 인물명, 빈 줄 제외)
     - 예: 총 대사 20줄, 인물A 60% → 인물A는 정확히 12줄의 대사 담당
 
-**5. 대본 생성 형식:**
+**6. 대본 생성 형식:**
  다음 형식을 정확히 따라 작성하세요. 각 섹션 헤더는 정확히 한 번만 사용하세요.
 
 감정이나 상황을 압축한 제목
@@ -690,48 +413,39 @@ ${characters && characters.map((char, index) =>
 [감정 흐름과 호흡 지침]
 
 
-**6. 장르 지시사항:**  
+**7. 장르 지시사항:**  
  ${genreDirective}
 
-**7. 역할 유형별 대사 특성:**
+**8. 역할 유형별 대사 특성:**
 주연 (Main role): 이야기의 핵심 인물로서 감정 변화가 가장 크고 깊이 있는 대사를 담당. 갈등의 중심에 있으며 가장 많은 대사 분량과 감정적 몰입도를 가짐.
 조연 (Supporting role): 주연을 보조하거나 갈등을 촉발시키는 역할. 주연과의 관계 속에서 이야기를 풍부하게 만드는 대사 구성.
 단역 (Minor role): 특정 상황을 설명하거나 분위기를 조성하는 역할. 간결하지만 임팩트 있는 대사로 장면을 완성.
 주조연 (Main supporting role): 주연과 함께 극을 끌어가는 강한 조연. 주연과 대등한 감정 깊이를 가지며 독립적인 서사 라인을 가질 수 있음.
 
-**8. 대사 분량 검증 요구사항:**
+**9. 대사 분량 검증 요구사항:**
 - 대본 완성 전에 각 인물의 실제 대사 줄 수를 카운트하여 지정된 퍼센트와 일치하는지 확인할 것
 - 만약 분량이 맞지 않으면 대사를 추가하거나 삭제하여 정확히 맞출 것
 - 총 대사 줄 수에서 각 인물이 차지하는 비율이 요청된 퍼센트와 정확히 일치해야 함
 
 `;
 
-    // OpenAI API 호출
+    // OpenAI API 호출 with 재시도 및 타임아웃
     console.log('🚀 OpenAI API 호출 시작');
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const completion = await callOpenAIWithRetry(openai, {
+      model: MODEL_FINAL,
       messages: [
         {
           role: "system",
-          content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
+          content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:`
 
-1. **자연스러운 대화**: 실제 사람이 말하는 것처럼 자연스럽고 현실적인 대사 작성
-2. **감정의 깊이**: 각 인물의 내적 감정과 갈등을 대사와 행동으로 표현
-3. **연기 가능성**: 배우가 실제로 연기하기 좋은 구체적이고 명확한 지시문 포함
-4. **몰입감**: 읽는 사람이 상황에 몰입할 수 있도록 생생한 묘사
-5. **개성 있는 캐릭터**: 각 인물만의 고유한 말투와 성격 반영
-6. **갈등과 긴장감**: 이야기에 긴장감과 흥미를 더하는 갈등 요소 포함
-7. **완성도**: 처음부터 끝까지 일관된 스토리 라인과 감정 흐름
-
-대본은 반드시 한국어로 작성하며, 표준 대본 형식을 따르세요.`
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      max_tokens: 3500,
-      temperature: 0.8
+      max_tokens: MAX_TOKENS,
+      temperature: TEMPERATURE_FINAL
     });
     
     console.log('✅ OpenAI API 응답 완료');
@@ -742,54 +456,25 @@ ${characters && characters.map((char, index) =>
     const extractedTitle = extractTitleFromScript(generatedScript);
     const title = extractedTitle || `${genre} ${genderText} 독백`;
 
-    // Supabase에 저장 (현재 스키마에 맞게)
+    // 스크립트 저장 (공통 함수 사용)
     console.log('💾 Supabase에 대본 저장 시작');
-    const aiScriptData = {
-      user_id: req.user.id,
+    const savedScript = await saveScript(req.user.id, generatedScript, {
       title: title,
-      content: generatedScript,
-      character_count: parseInt(characterCount) || 1,
-      situation: '연기 연습용 독백', // 기본값 설정
-      emotions: [genre], // 장르를 emotions 배열에 포함
-      gender: gender === 'male' ? '남자' : gender === 'female' ? '여자' : '전체',
-      mood: genre,
-      duration: length === 'short' ? '1~3분' : length === 'medium' ? '3~5분' : '5분 이상',
-      age_group: age === 'teens' ? '10대' : age === '20s' ? '20대' : age === '30s-40s' ? '30~40대' : age === '50s' ? '50대' : '전체',
-      purpose: '오디션',
-      script_type: '독백',
-      generation_params: {
-        originalGenre: genre,
-        originalLength: length,
-        originalAge: age,
-        originalGender: gender,
-        model: "gpt-4o",
-        generateTime: new Date(),
-        promptTokens: completion.usage?.prompt_tokens,
-        completionTokens: completion.usage?.completion_tokens
-      },
-      is_public: false,
-      created_at: new Date().toISOString()
-    };
+      genre: genre,
+      characterCount: parseInt(characterCount) || 1,
+      length: length,
+      isCustom: false
+    });
 
-    const saveResult = await safeQuery(async () => {
-      return await supabaseAdmin
-        .from('ai_scripts')
-        .insert(aiScriptData)
-        .select()
-        .single();
-    }, 'AI 스크립트 저장');
+    // 생성 성공 시 사용량 커밋
+    await commitUsage(req.user.id);
 
-    if (!saveResult.success) {
-      console.error('❌ AI 스크립트 저장 실패:', saveResult.error);
-      // 저장 실패해도 생성된 스크립트는 반환
-    }
-
-    console.log('✅ Supabase 저장 완료, ID:', saveResult.success ? saveResult.data.id : 'N/A');
+    console.log('✅ Supabase 저장 완료, ID:', savedScript.id);
 
     res.json({
       success: true,
       script: {
-        id: saveResult.success ? saveResult.data.id : null,
+        id: savedScript.id,
         title: title,
         content: generatedScript,
         characterCount: parseInt(characterCount),
@@ -819,31 +504,14 @@ ${characters && characters.map((char, index) =>
       response: error.response?.data
     });
     
-    // OpenAI API 오류 처리
-    if (error.code === 'insufficient_quota') {
-      return res.status(402).json({
-        error: 'OpenAI API 할당량이 부족합니다.',
-        message: 'API 키의 크레딧을 확인해주세요.'
-      });
-    }
-
-    if (error.code === 'invalid_api_key') {
-      return res.status(401).json({
-        error: 'OpenAI API 키가 유효하지 않습니다.',
-        message: 'API 키를 확인해주세요.'
-      });
-    }
-
-    if (error.code === 'rate_limit_exceeded') {
-      return res.status(429).json({
-        error: 'API 요청 한도를 초과했습니다.',
-        message: '잠시 후 다시 시도해주세요.'
-      });
-    }
-
-    res.status(500).json({
-      error: '대본 생성 중 오류가 발생했습니다.',
-      message: '잠시 후 다시 시도해주세요.',
+    // 에러 발생 시 사용량 롤백 (예약만 했으므로 실제로는 배방 없음)
+    await rollbackUsage();
+    
+    // 공통 에러 핸들러 사용
+    const parsed = parseOpenAIError(error);
+    return res.status(parsed.http).json({
+      error: parsed.code,
+      message: parsed.msg,
       ...(process.env.NODE_ENV !== 'production' && { 
         debug: error.message 
       })
@@ -933,9 +601,9 @@ ${selectedIntensity.instruction}
 **결과 형식:**
 리라이팅된 대사만 출력하세요. 추가 설명이나 해석은 포함하지 마세요.`;
 
-    // OpenAI API 호출
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+    // OpenAI API 호출 with 재시도 및 타임아웃
+    const completion = await callOpenAIWithRetry(openai, {
+      model: MODEL_FINAL,
       messages: [
         {
           role: "system",
@@ -947,7 +615,7 @@ ${selectedIntensity.instruction}
         }
       ],
       max_tokens: 1000,
-      temperature: 0.8
+      temperature: TEMPERATURE_FINAL
     });
 
     const rewrittenText = completion.choices[0].message.content;
@@ -968,31 +636,11 @@ ${selectedIntensity.instruction}
   } catch (error) {
     console.error('대본 리라이팅 오류:', error);
     
-    // OpenAI API 오류 처리
-    if (error.code === 'insufficient_quota') {
-      return res.status(402).json({
-        error: 'OpenAI API 할당량이 부족합니다.',
-        message: 'API 키의 크레딧을 확인해주세요.'
-      });
-    }
-
-    if (error.code === 'invalid_api_key') {
-      return res.status(401).json({
-        error: 'OpenAI API 키가 유효하지 않습니다.',
-        message: 'API 키를 확인해주세요.'
-      });
-    }
-
-    if (error.code === 'rate_limit_exceeded') {
-      return res.status(429).json({
-        error: 'API 요청 한도를 초과했습니다.',
-        message: '잠시 후 다시 시도해주세요.'
-      });
-    }
-
-    res.status(500).json({
-      error: '리라이팅 중 오류가 발생했습니다.',
-      message: '잠시 후 다시 시도해주세요.'
+    // 공통 에러 핸들러 사용
+    const parsed = parseOpenAIError(error);
+    return res.status(parsed.http).json({
+      error: parsed.code,
+      message: parsed.msg
     });
   }
 });

@@ -293,6 +293,8 @@ ${characters && characters.map((char, index) =>
         genre: genre || '사용자 지정',
         characterCount: parseInt(characterCount) || 1,
         length: length,
+        gender: gender,
+        age: age,
         isCustom: true,
         prompt: customPrompt
       });
@@ -463,6 +465,8 @@ ${characters && characters.map((char, index) =>
       genre: genre,
       characterCount: parseInt(characterCount) || 1,
       length: length,
+      gender: gender,
+      age: age,
       isCustom: false
     });
 

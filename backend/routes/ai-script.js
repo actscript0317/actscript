@@ -4,7 +4,7 @@ const config = require('../config/env');
 const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
 const { reserveUsage, commitUsage, rollbackUsage } = require('../helpers/usage');
-const { getGenreDirective, parseOpenAIError, callOpenAIWithRetry, logRequestData, MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_TOKENS } = require('../helpers/aiHelpers');
+const { getGenreDirective, parseOpenAIError, callOpenAIWithRetry, logRequestData, MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../helpers/aiHelpers');
 const { extractTitleFromScript, saveScript } = require('../helpers/scriptHelpers');
 
 const router = express.Router();
@@ -279,7 +279,7 @@ ${characters && characters.map((char, index) =>
             content: prompt
           }
         ],
-        max_tokens: MAX_TOKENS,
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
         temperature: TEMPERATURE_FINAL
       });
 
@@ -444,7 +444,7 @@ ${characters && characters.map((char, index) =>
           content: prompt
         }
       ],
-      max_tokens: MAX_TOKENS,
+      max_completion_tokens: MAX_COMPLETION_TOKENS,
       temperature: TEMPERATURE_FINAL
     });
     
@@ -614,7 +614,7 @@ ${selectedIntensity.instruction}
           content: rewritePrompt
         }
       ],
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
       temperature: TEMPERATURE_FINAL
     });
 

@@ -1,4 +1,4 @@
-const { MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_TOKENS } = require('../config/ai');
+const { MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../config/ai');
 
 function getGenreDirective(genre) {
   return ({
@@ -28,6 +28,9 @@ function parseOpenAIError(err) {
   if (status === 429 || type === 'rate_limit_exceeded') {
     return { http: 429, code: 'rate_limit_exceeded', msg: 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.' };
   }
+  if (type === 'unsupported_parameter' || type === 'invalid_request_error') {
+    return { http: 400, code: 'invalid_request', msg: 'API 요청 형식에 오류가 있습니다. 잠시 후 다시 시도해주세요.' };
+  }
   return { http: 500, code: 'server_error', msg: '대본 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' };
 }
 
@@ -48,7 +51,13 @@ async function callOpenAIWithRetry(openai, payload, { tries = 3, base = 30000 } 
       if (i === tries - 1) throw e;
       
       const status = e.status || e.response?.status;
+      const type = e.type || e.response?.data?.error?.type || e.code;
       const isRetriable = [429, 500, 502, 503, 504].includes(status) || e.message === 'Request timeout';
+      
+      // 파라미터 오류나 요청 형식 오류는 재시도하지 않음
+      if (type === 'unsupported_parameter' || type === 'invalid_request_error' || status === 400) {
+        throw e;
+      }
       
       if (!isRetriable) throw e;
       
@@ -78,5 +87,5 @@ module.exports = {
   MODEL_FINAL,
   TEMPERATURE_DRAFT,
   TEMPERATURE_FINAL,
-  MAX_TOKENS
+  MAX_COMPLETION_TOKENS
 };

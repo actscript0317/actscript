@@ -31,20 +31,31 @@ function parseOpenAIError(err) {
   return { http: 500, code: 'server_error', msg: '대본 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' };
 }
 
-async function callOpenAIWithRetry(openai, payload, { tries = 3, base = 5000 } = {}) {
+async function callOpenAIWithRetry(openai, payload, { tries = 3, base = 30000 } = {}) {
   for (let i = 0; i < tries; i++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), base + i * 5000); // 5s, 10s, 15s
-
     try {
-      return await openai.chat.completions.create({ ...payload, signal: controller.signal });
+      // Promise.race를 사용한 타임아웃 구현
+      const timeoutMs = base + i * 10000; // 30s, 40s, 50s
+      const apiCall = openai.chat.completions.create(payload);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+      );
+      
+      return await Promise.race([apiCall, timeoutPromise]);
     } catch (e) {
+      console.log(`API 호출 시도 ${i + 1}/${tries} 실패:`, e.message);
+      
       if (i === tries - 1) throw e;
+      
       const status = e.status || e.response?.status;
-      if (![429, 500, 502, 503, 504].includes(status)) throw e; // 재시도 가치 없으면 즉시 throw
-      await new Promise(r => setTimeout(r, (i + 1) * 1000));
-    } finally {
-      clearTimeout(timeout);
+      const isRetriable = [429, 500, 502, 503, 504].includes(status) || e.message === 'Request timeout';
+      
+      if (!isRetriable) throw e;
+      
+      // 지수 백오프로 대기
+      const delay = Math.min(1000 * Math.pow(2, i), 10000);
+      console.log(`${delay}ms 후 재시도...`);
+      await new Promise(r => setTimeout(r, delay));
     }
   }
 }

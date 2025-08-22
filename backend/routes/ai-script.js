@@ -64,9 +64,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
       age, 
       characters,
       // 새로운 옵션들
-      setting,
       theme,
-      structure,
       triggerEvent,
       customPrompt
     } = req.body;
@@ -218,31 +216,6 @@ router.post('/generate', authenticateToken, async (req, res) => {
     
     const ageDirective = ageDirectives[age] || ageDirectives['20s'];
 
-    // 배경/시대/장소 설정
-    const settingMap = {
-      '현대도시': '현대 한국의 도시 환경 (서울, 부산 등 대도시)',
-      '현대시골': '현재 한국의 시골이나 소도시 환경',
-      '학교': '학교 환경 (교실, 복도, 운동장, 도서관 등)',
-      '직장': '회사나 사무실 환경 (회의실, 사무실, 휴게실 등)',
-      '카페': '카페나 식당 같은 일상적인 만남의 공간',
-      '병원': '병원이나 의료시설 (병실, 진료실, 대기실 등)',
-      '조선시대': '조선시대 한국의 전통적 배경',
-      '미래': '미래 시대의 상상적 배경',
-      '자유': '배경은 상황과 이야기에 가장 어울리는 곳으로 자유롭게 설정'
-    };
-
-    // 전개 구조 설정
-    const structureMap = {
-      '3막구조': '발단-전개-절정-결말의 전통적 3막 구조로 체계적인 스토리텔링',
-      '숏폼': '빠른 전개와 강렬한 임팩트를 위한 간결한 구조',
-      '대화중심': '행동보다는 대화 중심으로 인물들의 내면과 관계에 집중',
-      '감정몰입': '감정의 변화와 깊이에 집중한 몰입감 있는 구조',
-      '반전': '마지막에 예상치 못한 반전이나 깨달음이 있는 구조',
-      '회상': '과거를 회상하거나 플래시백을 통한 구조'
-    };
-
-    const settingText = setting ? settingMap[setting] || setting : '이야기에 가장 적합한 배경';
-    const structureText = structure ? structureMap[structure] || structure : '자연스러운 구조';
 
     // 캐릭터별 지시사항 생성
     let characterDirectives = '';
@@ -405,8 +378,7 @@ ${characters && characters.map((char, index) =>
  - 성별: ${genderText}
  - 연령대: ${ageText}
  - 인원: ${characterCount}명
- - 배경/장소: ${settingText}
- - 전개 구조: ${structureText}${theme ? `\n - 주제/메시지: ${theme}` : ''}${triggerEvent ? `\n - 특별한 사건/트리거: ${triggerEvent}` : ''}
+${theme ? `\n - 주제/메시지: ${theme}` : ''}${triggerEvent ? `\n - 특별한 사건/트리거: ${triggerEvent}` : ''}
  - 등장인물별 지시사항: ${characterDirectives}
 
 **1. 서사 구조**

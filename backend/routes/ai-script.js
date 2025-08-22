@@ -64,8 +64,6 @@ router.post('/generate', authenticateToken, async (req, res) => {
       age, 
       characters,
       // 새로운 옵션들
-      theme,
-      triggerEvent,
       customPrompt
     } = req.body;
 
@@ -378,7 +376,6 @@ ${characters && characters.map((char, index) =>
  - 성별: ${genderText}
  - 연령대: ${ageText}
  - 인원: ${characterCount}명
-${theme ? `\n - 주제/메시지: ${theme}` : ''}${triggerEvent ? `\n - 특별한 사건/트리거: ${triggerEvent}` : ''}
  - 등장인물별 지시사항: ${characterDirectives}
 
 **1. 서사 구조**

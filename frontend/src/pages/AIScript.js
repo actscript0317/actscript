@@ -50,8 +50,6 @@ const AIScript = () => {
     characters: [],
     // 새로운 옵션들
     characterRelationships: '', // 인물 간 이해관계
-    theme: '', // 주제 또는 메시지
-    triggerEvent: '', // 특별한 사건(트리거)
     customPrompt: '' // 프롬프트 작성란
   });
 
@@ -667,8 +665,6 @@ const AIScript = () => {
         gender: parseInt(formData.characterCount) === 1 ? formData.gender : 'random',
         age: parseInt(formData.characterCount) === 1 ? formData.age : 'random',
         // 새로운 옵션들 추가
-        theme: formData.theme || '',
-        triggerEvent: formData.triggerEvent || '',
         customPrompt: formData.customPrompt || ''
       };
 
@@ -1197,49 +1193,7 @@ const AIScript = () => {
 
 
 
-              {/* 주제/메시지 입력 */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <svg className="w-6 h-6 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                  </svg>
-                  주제 또는 메시지 (선택사항)
-                </label>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <textarea
-                    value={formData.theme}
-                    onChange={(e) => handleInputChange('theme', e.target.value)}
-                    placeholder="대본에서 전달하고 싶은 주제나 메시지를 입력하세요. 예) '진정한 우정의 의미', '포기하지 않는 도전 정신', '가족의 소중함' 등"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                    rows="3"
-                  />
-                  <div className="text-xs text-gray-500 mt-2">
-                    비워두면 선택한 장르와 설정에 맞는 자연스러운 주제가 자동으로 생성됩니다.
-                  </div>
-                </div>
-              </div>
 
-              {/* 특별한 사건/트리거 입력 */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <svg className="w-6 h-6 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  특별한 사건/트리거 (선택사항)
-                </label>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <textarea
-                    value={formData.triggerEvent}
-                    onChange={(e) => handleInputChange('triggerEvent', e.target.value)}
-                    placeholder="이야기의 전환점이 되는 특별한 사건이나 상황을 입력하세요. 예) '갑작스런 전화', '예상치 못한 만남', '중요한 소식을 듣게 됨', '과거의 비밀이 드러남' 등"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                    rows="3"
-                  />
-                  <div className="text-xs text-gray-500 mt-2">
-                    비워두면 선택한 장르와 구조에 맞는 자연스러운 사건이 자동으로 생성됩니다.
-                  </div>
-                </div>
-              </div>
 
               {/* 커스텀 프롬프트 입력 */}
               <div className="space-y-4">

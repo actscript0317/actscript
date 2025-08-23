@@ -9,6 +9,72 @@ const { extractTitleFromScript, saveScript } = require('../helpers/scriptHelpers
 
 const router = express.Router();
 
+// 대본 대사 줄 수 검증 함수
+function validateScriptDialogueLines(script, expectedLines) {
+  try {
+    // "===대본===" 섹션 추출
+    const scriptSection = script.split('===대본===')[1];
+    if (!scriptSection) {
+      return { isValid: false, actualLines: {}, error: '대본 섹션을 찾을 수 없습니다.' };
+    }
+
+    // 각 인물별 대사 줄 수 계산
+    const actualLines = {};
+    const lines = scriptSection.split('\n');
+    
+    let currentCharacter = null;
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // 빈 줄이나 지시문 스킵
+      if (!trimmedLine || 
+          trimmedLine.startsWith('===') || 
+          trimmedLine.startsWith('**') ||
+          trimmedLine.startsWith('[') ||
+          trimmedLine.startsWith('(')) {
+        continue;
+      }
+      
+      // 인물명: 대사 형태인지 확인
+      const characterMatch = trimmedLine.match(/^([^:]+):\s*(.+)$/);
+      if (characterMatch) {
+        currentCharacter = characterMatch[1].trim();
+        const dialogue = characterMatch[2].trim();
+        
+        if (dialogue && !dialogue.startsWith('[') && !dialogue.startsWith('(')) {
+          actualLines[currentCharacter] = (actualLines[currentCharacter] || 0) + 1;
+        }
+      } else if (currentCharacter && trimmedLine && 
+                !trimmedLine.startsWith('[') && 
+                !trimmedLine.startsWith('(') &&
+                !trimmedLine.includes('===')) {
+        // 같은 인물의 연속 대사
+        actualLines[currentCharacter] = (actualLines[currentCharacter] || 0) + 1;
+      }
+    }
+    
+    // 예상 줄 수와 실제 줄 수 비교
+    let isValid = true;
+    for (const [character, expected] of Object.entries(expectedLines)) {
+      const actual = actualLines[character] || 0;
+      if (actual !== expected) {
+        isValid = false;
+      }
+    }
+    
+    return {
+      isValid,
+      actualLines,
+      expectedLines
+    };
+    
+  } catch (error) {
+    console.error('대본 검증 중 오류:', error);
+    return { isValid: false, actualLines: {}, error: error.message };
+  }
+}
+
 // OpenAI 클라이언트 초기화
 let openai = null;
 
@@ -83,14 +149,63 @@ router.post('/generate', authenticateToken, async (req, res) => {
       });
     }
 
-    // 대본 길이 변환 (전체 대본 분량)
-    const lengthMap = {
-      short: "짧은 대본 (1~2분). 전체 대본이 약 25~35줄 분량이어야 한다. 이는 대사와 지시문을 모두 포함한 총 분량이다. 실제 대사는 약 15~20줄 정도가 되어야 한다.",
-      medium: "중간 길이 대본 (3~5분). 전체 대본이 약 45~60줄 분량이어야 한다. 이는 대사와 지시문을 모두 포함한 총 분량이다. 실제 대사는 약 30~40줄 정도가 되어야 한다.",  
-      long: "긴 대본 (5~10분). 전체 대본이 약 80~120줄 분량이어야 한다. 이는 대사와 지시문을 모두 포함한 총 분량이다. 실제 대사는 약 60~80줄 정도가 되어야 한다."
+    // 대본 길이별 총 대사 줄 수 정의
+    const totalDialogueLines = {
+      short: 18,   // 실제 대사 18줄 (약 1~2분)
+      medium: 35,  // 실제 대사 35줄 (약 3~5분)
+      long: 70     // 실제 대사 70줄 (약 5~10분)
     };
 
-    const lengthText = lengthMap[length] || length;
+    const totalLines = totalDialogueLines[length] || totalDialogueLines.medium;
+
+    // 등장인물별 대사 분량 계산 (정확한 줄 수로 변환)
+    let characterDialogueLines = {};
+    
+    if (parseInt(characterCount) === 1) {
+      // 1인 대본: 모든 대사를 해당 캐릭터가
+      const mainCharacter = characters && characters[0] ? characters[0].name : `${genderMap[gender] || gender} 주인공`;
+      characterDialogueLines[mainCharacter] = totalLines;
+    } else {
+      // 다중 인물 대본: 분량 비율에 따라 정확한 줄 수 계산
+      let remainingLines = totalLines;
+      const sortedCharacters = [...characters].sort((a, b) => (b.dialogueRatio || 0) - (a.dialogueRatio || 0));
+      
+      for (let i = 0; i < sortedCharacters.length; i++) {
+        const character = sortedCharacters[i];
+        const ratio = character.dialogueRatio || (100 / characters.length); // 기본값: 균등 분배
+        
+        let assignedLines;
+        if (i === sortedCharacters.length - 1) {
+          // 마지막 캐릭터: 남은 줄 수 모두 할당
+          assignedLines = remainingLines;
+        } else {
+          // 비율에 따른 줄 수 계산 (반올림)
+          assignedLines = Math.round(totalLines * (ratio / 100));
+          // 최소 1줄은 보장
+          assignedLines = Math.max(1, assignedLines);
+        }
+        
+        characterDialogueLines[character.name] = assignedLines;
+        remainingLines -= assignedLines;
+      }
+      
+      // 남은 줄이 있으면 첫 번째 캐릭터에게 추가
+      if (remainingLines > 0) {
+        const firstCharacter = sortedCharacters[0].name;
+        characterDialogueLines[firstCharacter] += remainingLines;
+      }
+    }
+
+    // 검증: 총 줄 수 확인
+    const calculatedTotal = Object.values(characterDialogueLines).reduce((sum, lines) => sum + lines, 0);
+    if (calculatedTotal !== totalLines) {
+      console.log(`⚠️  줄 수 계산 오차: 예상 ${totalLines}, 계산 ${calculatedTotal}`);
+    }
+
+    console.log('📊 등장인물별 대사 분량:', characterDialogueLines);
+
+    // 대본 길이 설명 텍스트
+    const lengthText = `${length} 대본 (총 ${totalLines}줄의 대사 분량)`;
 
     // 성별 처리
     const genderMap = {
@@ -215,20 +330,23 @@ router.post('/generate', authenticateToken, async (req, res) => {
     const ageDirective = ageDirectives[age] || ageDirectives['20s'];
 
 
-    // 캐릭터별 지시사항 생성
+    // 캐릭터별 지시사항 생성 (정확한 줄 수로 명시)
     let characterDirectives = '';
     if (parseInt(characterCount) === 1) {
-      characterDirectives = `1인 독백: ${genderText}, ${ageText}, 역할: 주연 (이야기의 핵심 주인공)`;
+      const mainCharacterName = Object.keys(characterDialogueLines)[0];
+      characterDirectives = `1인 독백: ${genderText}, ${ageText}, 역할: 주연 (이야기의 핵심 주인공)
+- 대사 분량: 정확히 ${characterDialogueLines[mainCharacterName]}줄의 대사`;
     } else if (characters && Array.isArray(characters)) {
       characterDirectives = characters.map((char, index) => {
         const charGender = char.gender === 'male' ? '남성' : char.gender === 'female' ? '여성' : '성별 자유롭게';
         const charAge = ageMap[char.age] || char.age;
-        const charPercentage = char.percentage || 25; // 기본값 25%
-        const roleType = char.roleType || '조연'; // 역할 유형 추가 (기본값: 조연)
+        const roleType = char.roleType || '조연';
+        const assignedLines = characterDialogueLines[char.name] || 0;
         const relationship = (char.relationshipWith && char.relationshipType) ? 
           `, ${char.relationshipWith}와(과) ${char.relationshipType} 관계` : '';
-        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 역할: ${roleType}${relationship}, 대사 분량: 전체의 ${charPercentage}%`;
-      }).join('\n');
+        return `인물 ${index + 1}: 이름 "${char.name}", ${charGender}, ${charAge}, 역할: ${roleType}${relationship}
+- 대사 분량: 정확히 ${assignedLines}줄의 대사 (다른 인물과 교대로 대화하되 총 ${assignedLines}줄을 담당)`;
+      }).join('\n\n');
     }
 
     // 커스텀 프롬프트가 있다면 우선 적용
@@ -249,9 +367,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
 ${processedPrompt}
 
 **대본 생성 기본 조건:**
- - 분량: ${lengthText}
+ - 총 대사 분량: ${totalLines}줄 (지시문 제외, 순수 대사만)
  - 인원: ${characterCount}명
- - 등장인물별 지시사항: ${characterDirectives}
+ - 등장인물별 정확한 분량:
+${characterDirectives}
 
 **3. 대본 작성 지침**
  - 문어체, 시적 표현, 과장된 멜로 어투 금지. 
@@ -292,11 +411,11 @@ ${parseInt(characterCount) === 1 ?
 
 ===대본===
 ${parseInt(characterCount) === 1 ? 
-  `인물명: [사용자 요청에 맞춰 ${lengthText} 분량 작성]
+  `${Object.keys(characterDialogueLines)[0]}: [정확히 ${Object.values(characterDialogueLines)[0]}줄의 대사 작성]
 같은 인물의 대사라면 인물명 작성은 생략한다.` :
-  `각 인물별로 지정된 분량 비율과 역할 유형에 맞춰 대화 형식으로 작성
+  `각 인물별로 정확히 지정된 대사 줄 수에 맞춰 작성:
 ${characters && characters.map((char, index) => 
-  `${char.name}: [${char.roleType || '조연'}, 전체 대사의 ${char.percentage || 25}% 담당]`
+  `${char.name}: [정확히 ${characterDialogueLines[char.name] || 0}줄의 대사 담당]`
 ).join('\n')}`
 }
 
@@ -372,11 +491,12 @@ ${characters && characters.map((char, index) =>
 
 **0.작성 조건:**
  - 장르: ${genre}  
- - 분량: ${lengthText}
+ - 총 대사 분량: ${totalLines}줄 (지시문 제외, 순수 대사만)
  - 성별: ${genderText}
  - 연령대: ${ageText}
  - 인원: ${characterCount}명
- - 등장인물별 지시사항: ${characterDirectives}
+ - 등장인물별 정확한 대사 분량:
+${characterDirectives}
 
 **1. 서사 구조**
  - 점진적 감정 축적 → 마지막 폭발
@@ -410,10 +530,13 @@ ${characters && characters.map((char, index) =>
  1. 한 호흡의 대사가 끝나면 그 다음줄에 대사를 작성한다.
  2. 대사를 작성할 때, 같은 화자라도 감정, 주제, 분위기가 전환되면 한 줄을 공백으로 띄우고 그 다음 줄에 작성한다.
  3. 한 인물의 대사와 그 안의 지시문은 한 문단으로 유지
- 4. **절대적 분량 준수**: ${lengthText} 분량을 반드시 준수할 것. 이는 협상 불가능한 필수 조건이다.
- 5. **대사 분량 정확성**: 각 인물의 대사 줄 수를 정확히 지정된 퍼센트에 맞춰 작성할 것. 
+ 4. **절대적 분량 준수**: 총 ${totalLines}줄의 대사 분량을 반드시 준수할 것. 이는 협상 불가능한 필수 조건이다.
+ 5. **인물별 정확한 대사 줄 수 준수**: 
+${Object.entries(characterDialogueLines).map(([name, lines]) => 
+    `    - ${name}: 정확히 ${lines}줄의 대사`
+  ).join('\n')}
     - 대사 줄 수만 카운트 (지시문, 인물명, 빈 줄 제외)
-    - 예: 총 대사 30줄, 인물A 60% → 인물A는 정확히 18줄의 대사 담당
+    - 각 인물의 할당된 줄 수를 절대 초과하거나 부족하게 하지 말 것
  6. **분량 부족 시 대처**: 만약 대사가 부족하다면 캐릭터의 감정 표현, 내적 갈등, 상황에 대한 반응을 더 자세히 묘사하여 분량을 채워야 한다.
 
 **6. 대본 생성 형식:**
@@ -440,17 +563,18 @@ ${parseInt(characterCount) === 1 ?
 
 ===대본===
 ${parseInt(characterCount) === 1 ? 
-  `인물명: [위 스타일 지침에 맞춰 ${lengthText} 분량 작성]
+  `${Object.keys(characterDialogueLines)[0]}: [정확히 ${Object.values(characterDialogueLines)[0]}줄의 대사 작성]
 같은 인물의 대사라면 인물명 작성은 생략한다.` :
-  `각 인물별로 지정된 분량 비율과 역할 유형에 맞춰 대화 형식으로 작성
+  `각 인물별로 정확히 지정된 대사 줄 수에 맞춰 대화 형식으로 작성:
 ${characters && characters.map((char, index) => 
-  `${char.name}: [${char.roleType || '조연'}, 전체 대사의 ${char.percentage || 25}% 담당]`
+  `${char.name}: [정확히 ${characterDialogueLines[char.name] || 0}줄의 대사 담당]`
 ).join('\n')}
 
-**중요**: 각 인물의 대사 분량을 정확히 지정된 퍼센트에 맞춰 작성하세요. 
-전체 대본에서 각 인물이 차지하는 대사의 비중을 퍼센트로 계산하여 배분하세요.
-대사 분량 계산: 지시문과 빈 줄을 제외하고 오직 대사 줄 수만 계산합니다.
-예) 전체 대사 줄 수가 20줄이고 인물A가 60%라면, 인물A는 12줄의 대사를 담당해야 합니다.`
+**절대 규칙**: 
+- 총 대사 줄 수: 정확히 ${totalLines}줄
+- 각 인물별 할당 줄 수를 1줄도 틀리지 않고 정확히 맞춰야 함
+- 지시문, 인물명, 빈 줄은 줄 수에 포함되지 않음 (순수 대사만 카운트)
+- 대사가 부족하면 감정 표현을 더 세밀하게 추가하여 정확한 분량 달성`
 }
 
 ===연기 팁===
@@ -467,44 +591,77 @@ ${characters && characters.map((char, index) =>
 주조연 (Main supporting role): 주연과 함께 극을 끌어가는 강한 조연. 주연과 대등한 감정 깊이를 가지며 독립적인 서사 라인을 가질 수 있음.
 
 **9. 대사 분량 검증 요구사항 (필수):**
-- **1단계**: 대본 완성 후 전체 분량이 ${lengthText} 요구사항에 맞는지 확인
-- **2단계**: 각 인물의 실제 대사 줄 수를 카운트하여 지정된 퍼센트와 일치하는지 확인
+- **1단계**: 대본 완성 후 총 대사 줄 수가 정확히 ${totalLines}줄인지 확인
+- **2단계**: 각 인물의 실제 대사 줄 수를 카운트하여 할당된 줄 수와 정확히 일치하는지 확인
+${Object.entries(characterDialogueLines).map(([name, lines]) => 
+    `  * ${name}: 반드시 정확히 ${lines}줄`
+  ).join('\n')}
 - **3단계**: 분량이 부족하면 감정 표현과 상황 반응을 추가하여 반드시 목표 분량을 달성
 - **4단계**: 분량이 초과하면 불필요한 대사를 제거하여 정확한 분량으로 조정
-- **최종 검증**: 총 대사 줄 수에서 각 인물이 차지하는 비율이 요청된 퍼센트와 정확히 일치해야 함
+- **최종 검증**: 각 인물의 대사 줄 수 합계 = ${totalLines}줄 (1줄도 틀리면 안 됨)
 
-**❗ 중요**: 분량이 맞지 않는 대본은 절대 제출하지 말 것. 반드시 요구된 분량에 정확히 맞춰서 완성해야 한다.
+**❗ 절대 규칙**: 
+- 총합이 ${totalLines}줄이 아니면 절대 제출하지 말 것
+- 각 인물의 할당 줄 수에서 1줄이라도 틀리면 절대 제출하지 말 것
+- 지시문과 인물명은 줄 수에 포함되지 않음 (순수 대사만)
 
 `;
 
-    // OpenAI API 호출 with 재시도 및 타임아웃
+    // OpenAI API 호출 with 재시도 및 대본 검증 루프
     console.log('🚀 OpenAI API 호출 시작');
-    const completion = await callOpenAIWithRetry(openai, {
-      model: MODEL_FINAL,
-      messages: [
-        {
-          role: "system",
-          content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
+    let generatedScript;
+    let attempts = 0;
+    const maxAttempts = 3;
 
-1. **분량 준수 최우선**: 요청된 대본 길이를 정확히 지켜야 합니다. 이는 가장 중요한 요구사항입니다.
-2. **품질과 분량의 균형**: 짧게 써도 좋으니 반드시 지정된 분량에 맞춰 작성하세요.
-3. **검증 필수**: 대본 완성 후 줄 수를 세어 분량이 정확한지 반드시 확인하세요.
+    while (attempts < maxAttempts) {
+      attempts++;
+      console.log(`📝 대본 생성 시도 ${attempts}/${maxAttempts}`);
+
+      const completion = await callOpenAIWithRetry(openai, {
+        model: MODEL_FINAL,
+        messages: [
+          {
+            role: "system",
+            content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
+
+1. **분량 준수 최우선**: 정확한 대사 줄 수를 지켜야 합니다. 이는 가장 중요한 요구사항입니다.
+2. **인물별 정확한 분량**: 각 인물의 할당된 대사 줄 수를 1줄도 틀리지 말고 정확히 맞춰야 합니다.
+3. **검증 필수**: 대본 완성 후 각 인물의 대사 줄 수를 세어 할당량과 정확히 일치하는지 반드시 확인하세요.
+4. **재시도 가능**: 분량이 맞지 않으면 다시 작성을 요청받을 수 있습니다.
 
 대본은 반드시 한국어로 작성하며, 표준 대본 형식을 따르세요.`
-
-        },
-        {
-          role: "user",
-          content: prompt
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
+        temperature: TEMPERATURE_FINAL
+      });
+      
+      generatedScript = completion.choices[0].message.content;
+      
+      // 대본 검증: 각 인물의 대사 줄 수 확인
+      const validation = validateScriptDialogueLines(generatedScript, characterDialogueLines);
+      
+      if (validation.isValid) {
+        console.log(`✅ 대본 검증 성공 (시도 ${attempts}/${maxAttempts})`);
+        console.log('📊 검증 결과:', validation.actualLines);
+        break;
+      } else {
+        console.log(`⚠️  대본 검증 실패 (시도 ${attempts}/${maxAttempts})`);
+        console.log('📊 예상 줄 수:', characterDialogueLines);
+        console.log('📊 실제 줄 수:', validation.actualLines);
+        console.log('🔄 재생성 중...');
+        
+        if (attempts === maxAttempts) {
+          console.log('❌ 최대 재시도 횟수 초과, 현재 대본으로 진행');
         }
-      ],
-      max_completion_tokens: MAX_COMPLETION_TOKENS,
-      temperature: TEMPERATURE_FINAL
-    });
-    
-    console.log('✅ OpenAI API 응답 완료');
+      }
+    }
 
-    const generatedScript = completion.choices[0].message.content;
+    console.log('✅ OpenAI API 응답 완료');
 
     // 제목 추출 (없으면 기본 제목 생성)
     const extractedTitle = extractTitleFromScript(generatedScript);

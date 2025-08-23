@@ -158,21 +158,30 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     const totalLines = totalDialogueLines[length] || totalDialogueLines.medium;
 
+    // 성별 처리 (characterDialogueLines 계산 전에 필요)
+    const genderMap = {
+      'male': '남성',
+      'female': '여성',
+      'random': '성별 자유롭게'
+    };
+    
+    const genderText = genderMap[gender] || gender;
+
     // 등장인물별 대사 분량 계산 (정확한 줄 수로 변환)
     let characterDialogueLines = {};
     
     if (parseInt(characterCount) === 1) {
       // 1인 대본: 모든 대사를 해당 캐릭터가
-      const mainCharacter = characters && characters[0] ? characters[0].name : `${genderMap[gender] || gender} 주인공`;
+      const mainCharacter = characters && characters[0] ? characters[0].name : `${genderText} 주인공`;
       characterDialogueLines[mainCharacter] = totalLines;
     } else {
       // 다중 인물 대본: 분량 비율에 따라 정확한 줄 수 계산
       let remainingLines = totalLines;
-      const sortedCharacters = [...characters].sort((a, b) => (b.dialogueRatio || 0) - (a.dialogueRatio || 0));
+      const sortedCharacters = [...characters].sort((a, b) => (b.percentage || 0) - (a.percentage || 0));
       
       for (let i = 0; i < sortedCharacters.length; i++) {
         const character = sortedCharacters[i];
-        const ratio = character.dialogueRatio || (100 / characters.length); // 기본값: 균등 분배
+        const ratio = character.percentage || (100 / characters.length); // 기본값: 균등 분배
         
         let assignedLines;
         if (i === sortedCharacters.length - 1) {
@@ -203,18 +212,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
     }
 
     console.log('📊 등장인물별 대사 분량:', characterDialogueLines);
+    console.log('🔍 받은 캐릭터 데이터:', characters);
 
     // 대본 길이 설명 텍스트
     const lengthText = `${length} 대본 (총 ${totalLines}줄의 대사 분량)`;
-
-    // 성별 처리
-    const genderMap = {
-      'male': '남성',
-      'female': '여성',
-      'random': '성별 자유롭게'
-    };
-    
-    const genderText = genderMap[gender] || gender;
     
     // 나이별 설정
     const ageMap = {

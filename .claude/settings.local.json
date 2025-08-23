@@ -40,6 +40,10 @@
       "Bash(do echo \"상태 확인 $i:\")",
       "Bash(git push:*)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "d:\\carcor\\actscript",
+      "D:\\d\\carcor\\actscript"
+    ]
   }
 }

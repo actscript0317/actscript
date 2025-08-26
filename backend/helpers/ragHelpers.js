@@ -10,12 +10,13 @@ const { supabaseAdmin } = require('../config/supabase');
  * @param {string} criteria.mood - 분위기
  * @param {string} criteria.ageGroup - 연령대
  * @param {string} criteria.gender - 성별
+ * @param {number} criteria.characterCount - 등장인물 수
  * @param {number} limit - 반환할 청크 개수
  * @returns {Array} 관련 청크들
  */
 async function getRelevantChunks(criteria, limit = 3) {
   try {
-    console.log('🔍 RAG 청크 검색 시작:', criteria);
+    console.log('🔍 RAG 청크 검색 시작:', JSON.stringify(criteria, null, 2));
     
     let query = supabaseAdmin
       .from('script_chunks')
@@ -70,6 +71,12 @@ async function getRelevantChunks(criteria, limit = 3) {
       );
     }
     
+    // 등장인물 수는 현재로서는 직접적인 필터링보다는 로그로만 확인
+    // (PostgreSQL 배열 길이 검색이 복잡하므로 향후 개선 예정)
+    if (criteria.characterCount) {
+      console.log(`👥 요청된 인물 수: ${criteria.characterCount}명`);
+    }
+    
     // 결과 제한 및 정렬
     query = query
       .order('created_at', { ascending: false })
@@ -83,6 +90,14 @@ async function getRelevantChunks(criteria, limit = 3) {
     }
     
     console.log(`✅ ${chunks?.length || 0}개의 관련 청크 발견`);
+    if (chunks && chunks.length > 0) {
+      console.log('📋 발견된 청크 정보:');
+      chunks.forEach((chunk, index) => {
+        console.log(`  ${index + 1}. ${chunk.genre} - ${chunk.tone} (${chunk.characters?.join(', ') || '캐릭터 정보 없음'})`);
+      });
+    } else {
+      console.log('⚠️ 검색 조건에 맞는 청크를 찾지 못했습니다:', criteria);
+    }
     return chunks || [];
     
   } catch (error) {
@@ -179,8 +194,10 @@ function buildRAGReference(chunks, patterns) {
     ragSection += `**참고 청크 ${index + 1}:**\n`;
     ragSection += `- 장르/톤: ${chunk.genre} / ${chunk.tone}\n`;
     ragSection += `- 감정 변화: ${chunk.emotion_curve}\n`;
-    ragSection += `- 캐릭터: ${chunk.characters?.join(', ') || '정보 없음'}\n`;
+    ragSection += `- 캐릭터: ${chunk.characters?.join(', ') || '정보 없음'} (${chunk.characters?.length || 0}명)\n`;
     ragSection += `- 장면 목적: ${chunk.scene_purpose}\n`;
+    ragSection += `- 관계: ${chunk.relationship_type || '일반'}\n`;
+    ragSection += `- 분위기: ${chunk.mood || '일반'}\n`;
     
     // 대사 샘플 추출
     const content = chunk.content || '';

@@ -440,6 +440,7 @@ ${characters && characters.map((char, index) =>
         genre: genre || '드라마',
         ageGroup: age,
         gender: gender,
+        characterCount: parseInt(characterCount),
         mood: '일반' // 커스텀 모드는 일반적인 mood 사용
       };
       
@@ -652,6 +653,7 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
       genre: genre,
       ageGroup: age,
       gender: gender,
+      characterCount: parseInt(characterCount),
       mood: genre // 장르를 기본 mood로 사용
     };
     

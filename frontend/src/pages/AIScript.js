@@ -56,6 +56,7 @@ const AIScript = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedScript, setGeneratedScript] = useState('');
   const [generatedScriptId, setGeneratedScriptId] = useState(null); // MongoDB에 저장된 스크립트 ID
+  const [finalPrompt, setFinalPrompt] = useState(''); // AI에게 전송된 최종 프롬프트
   const [error, setError] = useState('');
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   
@@ -656,6 +657,7 @@ const AIScript = () => {
     setIsGenerating(true);
     setError('');
     setGeneratedScript('');
+    setFinalPrompt('');
 
     try {
       const requestData = {
@@ -683,6 +685,7 @@ const AIScript = () => {
 
       setGeneratedScript(data.script.content || data.script);
       setGeneratedScriptId(data.script.id); // 백엔드에서 반환된 스크립트 ID 저장
+      setFinalPrompt(data.finalPrompt || ''); // AI에게 전송된 최종 프롬프트 저장
       
       // 사용량 정보 업데이트
       await fetchUsageInfo();
@@ -1531,6 +1534,30 @@ const AIScript = () => {
                   </div>
                 </div>
 
+                {/* 입력된 최종 프롬프트 섹션 */}
+                {finalPrompt && (
+                  <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-800">입력된 최종 프롬프트</h3>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(finalPrompt);
+                          toast.success('프롬프트가 클립보드에 복사되었습니다!');
+                        }}
+                        className="flex items-center px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm transition-colors"
+                      >
+                        <Copy className="w-4 h-4 mr-1" />
+                        복사
+                      </button>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 max-h-80 overflow-y-auto">
+                      <pre className="whitespace-pre-wrap text-xs sm:text-sm text-gray-700 font-mono leading-relaxed">
+                        {finalPrompt}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                   <button
                     onClick={() => {
@@ -1561,6 +1588,7 @@ const AIScript = () => {
                   <button
                     onClick={() => {
                       setGeneratedScript('');
+                      setFinalPrompt('');
                       setError('');
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}

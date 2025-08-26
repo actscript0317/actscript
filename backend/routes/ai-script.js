@@ -500,7 +500,8 @@ ${characters && characters.map((char, index) =>
         metadata: {
           customPrompt: true,
           generatedAt: new Date().toISOString()
-        }
+        },
+        finalPrompt: enhancedCustomPrompt
       });
 
       return;
@@ -744,7 +745,8 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
         age: ageText,
         length: lengthText,
         generatedAt: new Date().toISOString()
-      }
+      },
+      finalPrompt: enhancedPrompt
     });
 
   } catch (error) {

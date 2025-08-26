@@ -38,7 +38,18 @@
       "Bash(do echo \"요청 $i:\")",
       "Bash(do echo \"깨우기 시도 $i:\")",
       "Bash(do echo \"상태 확인 $i:\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(powershell:*)",
+      "WebSearch",
+      "Bash(claude doctor)",
+      "Bash(where bash)",
+      "Bash(set CLAUDE_CODE_GIT_BASH_PATH=D:Gitusrbinbash.exe)",
+      "Bash(where git)",
+      "Bash(set CLAUDE_CODE_GIT_BASH_PATH=D:Gitbinbash.exe)",
+      "Read(/D:\\Git/**)",
+      "Read(/D:\\Git\\bin/**)",
+      "Bash(setx:*)",
+      "Bash(del nul)"
     ],
     "deny": [],
     "additionalDirectories": [

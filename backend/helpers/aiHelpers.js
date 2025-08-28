@@ -34,11 +34,15 @@ function parseOpenAIError(err) {
   return { http: 500, code: 'server_error', msg: '대본 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' };
 }
 
-async function callOpenAIWithRetry(openai, payload, { tries = 3, base = 30000 } = {}) {
+async function callOpenAIWithRetry(openai, messages, options, { tries = 3, base = 30000 } = {}) {
   for (let i = 0; i < tries; i++) {
     try {
       // Promise.race를 사용한 타임아웃 구현
       const timeoutMs = base + i * 10000; // 30s, 40s, 50s
+      const payload = {
+        messages: messages,
+        ...options
+      };
       const apiCall = openai.chat.completions.create(payload);
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Request timeout')), timeoutMs)

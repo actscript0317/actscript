@@ -92,6 +92,7 @@ const AIScript = () => {
   const [showAnimalSelection, setShowAnimalSelection] = useState(false);
   const [selectedAnimals, setSelectedAnimals] = useState([]);
   const [selectedScriptLength, setSelectedScriptLength] = useState('medium');
+  const [progress, setProgress] = useState(0);
 
   // 사용량 정보 가져오기
   const fetchUsageInfo = async () => {

@@ -13,9 +13,6 @@ const visitorTracker = require('./middleware/visitorTracker');
 // Supabase 라우트 임포트
 console.log('📂 [server.js] 라우트 파일들 임포트 시작...');
 
-console.log('📂 [server.js] supabase-scripts 임포트 중...');
-const scriptRoutes = require('./routes/supabase-scripts');
-console.log('✅ [server.js] supabase-scripts 임포트 완료');
 
 console.log('📂 [server.js] supabase-emotions 임포트 중...');
 const emotionRoutes = require('./routes/supabase-emotions');
@@ -422,7 +419,6 @@ app.use('/api/v2/auth', supabaseAuthRoutes); // Mailgun 인증 코드 방식
 console.log('✅ [server.js] /api/v2/auth 라우트 등록 완료');
 
 console.log('📝 [server.js] 기타 라우트들 등록 중...');
-app.use('/api/scripts', scriptRoutes);
 app.use('/api/emotions', emotionRoutes);
 app.use('/api/ai-script', aiScriptRoutes);
 
@@ -448,7 +444,6 @@ app.get('/', (req, res) => {
           endpoints: {
         health: '/health',
         auth: '/api/auth/*',
-        scripts: '/api/scripts/*',
         emotions: '/api/emotions/*',
         aiScript: '/api/ai-script/*',
         actorProfiles: '/api/actor-profiles/*',
@@ -468,7 +463,6 @@ app.get('/api', (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: {
       auth: '/api/auth/*',
-      scripts: '/api/scripts/*',
       emotions: '/api/emotions/*',
       aiScript: '/api/ai-script/*',
       actorProfiles: '/api/actor-profiles/*',

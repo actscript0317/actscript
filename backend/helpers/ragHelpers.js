@@ -22,6 +22,29 @@ async function getRelevantChunks(criteria, limit = 3) {
       .from('script_chunks')
       .select('*');
     
+    // 일단 필터링 조건 없이 모든 청크를 가져온 다음, 
+    // JavaScript에서 필터링하는 방식으로 변경 (더 확실함)
+    console.log('📊 필터링 조건 없이 모든 청크 조회 후 JavaScript 필터링 적용');
+    
+    // 등장인물 수는 현재로서는 직접적인 필터링보다는 로그로만 확인
+    // (PostgreSQL 배열 길이 검색이 복잡하므로 향후 개선 예정)
+    if (criteria.characterCount) {
+      console.log(`👥 요청된 인물 수: ${criteria.characterCount}명`);
+    }
+    
+    // 모든 청크 조회
+    const { data: allChunks, error } = await query.order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('❌ 청크 검색 오류:', error);
+      return [];
+    }
+    
+    console.log(`📋 총 ${allChunks?.length || 0}개 청크 조회됨, 필터링 시작...`);
+    
+    // JavaScript로 필터링 수행
+    let filteredChunks = allChunks || [];
+    
     // 장르 필터링
     if (criteria.genre) {
       const genreMap = {
@@ -37,9 +60,11 @@ async function getRelevantChunks(criteria, limit = 3) {
       };
       
       const searchGenres = genreMap[criteria.genre] || [criteria.genre];
-      query = query.or(
-        searchGenres.map(g => `genre.ilike.%${g}%`).join(',')
-      );
+      filteredChunks = filteredChunks.filter(chunk => {
+        const genre = chunk.genre || '';
+        return searchGenres.some(g => genre.toLowerCase().includes(g.toLowerCase()));
+      });
+      console.log(`🎭 장르 필터링 후: ${filteredChunks.length}개 (조건: ${searchGenres.join(', ')})`);
     }
     
     // 연령대 필터링
@@ -53,9 +78,11 @@ async function getRelevantChunks(criteria, limit = 3) {
       };
       
       const searchAges = ageMap[criteria.ageGroup] || [criteria.ageGroup];
-      query = query.or(
-        searchAges.map(a => `age_group.ilike.%${a}%`).join(',')
-      );
+      filteredChunks = filteredChunks.filter(chunk => {
+        const ageGroup = chunk.age_group || '';
+        return searchAges.some(a => ageGroup.toLowerCase().includes(a.toLowerCase()));
+      });
+      console.log(`👶 연령대 필터링 후: ${filteredChunks.length}개 (조건: ${searchAges.join(', ')})`);
     }
     
     // 성별 필터링
@@ -66,28 +93,21 @@ async function getRelevantChunks(criteria, limit = 3) {
       };
       
       const searchGenders = genderMap[criteria.gender] || [criteria.gender];
-      query = query.or(
-        searchGenders.map(g => `gender.ilike.%${g}%`).join(',')
-      );
+      filteredChunks = filteredChunks.filter(chunk => {
+        const gender = chunk.gender || '';
+        return searchGenders.some(g => gender.toLowerCase().includes(g.toLowerCase()));
+      });
+      console.log(`👫 성별 필터링 후: ${filteredChunks.length}개 (조건: ${searchGenders.join(', ')})`);
     }
     
-    // 등장인물 수는 현재로서는 직접적인 필터링보다는 로그로만 확인
-    // (PostgreSQL 배열 길이 검색이 복잡하므로 향후 개선 예정)
-    if (criteria.characterCount) {
-      console.log(`👥 요청된 인물 수: ${criteria.characterCount}명`);
+    // 필터링 결과가 없으면 전체 청크에서 랜덤 선택 (폴백)
+    if (filteredChunks.length === 0 && allChunks && allChunks.length > 0) {
+      console.log('🔄 필터링된 청크가 없어서 전체 청크에서 랜덤 선택');
+      filteredChunks = allChunks;
     }
     
-    // 결과 제한 및 정렬
-    query = query
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    
-    const { data: chunks, error } = await query;
-    
-    if (error) {
-      console.error('❌ 청크 검색 오류:', error);
-      return [];
-    }
+    // 결과 제한
+    const chunks = filteredChunks.slice(0, limit);
     
     console.log(`✅ ${chunks?.length || 0}개의 관련 청크 발견`);
     if (chunks && chunks.length > 0) {

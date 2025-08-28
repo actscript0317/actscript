@@ -30,12 +30,6 @@ const Navbar = () => {
                 홈
               </Link>
               <Link
-                to="/scripts"
-                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-primary"
-              >
-                대본 목록
-              </Link>
-              <Link
                 to="/pricing"
                 className="inline-flex items-center px-1 pt-1 text-sm font-semibold text-blue-600 hover:text-blue-800"
               >
@@ -88,12 +82,6 @@ const Navbar = () => {
               </div>
               {!loading && isAuthenticated && (
                 <>
-                  <Link
-                    to="/add-script"
-                    className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-primary"
-                  >
-                    대본 등록
-                  </Link>
                   <Link
                     to="/ai-script"
                     className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-primary"
@@ -176,13 +164,6 @@ const Navbar = () => {
             홈
           </Link>
           <Link
-            to="/scripts"
-            className="block pl-3 pr-4 py-2 border-l-4 text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300"
-            onClick={() => setIsOpen(false)}
-          >
-            대본 목록
-          </Link>
-          <Link
             to="/pricing"
             className="block pl-3 pr-4 py-2 border-l-4 text-base font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 hover:border-blue-300"
             onClick={() => setIsOpen(false)}
@@ -236,13 +217,6 @@ const Navbar = () => {
 
           {!loading && isAuthenticated && (
             <>
-              <Link
-                to="/add-script"
-                className="block pl-3 pr-4 py-2 border-l-4 text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300"
-                onClick={() => setIsOpen(false)}
-              >
-                대본 등록
-              </Link>
               <Link
                 to="/ai-script"
                 className="block pl-3 pr-4 py-2 border-l-4 text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300"

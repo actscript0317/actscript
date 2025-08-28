@@ -6,9 +6,6 @@ import Footer from './components/Footer';
 import PrivateRoute from './components/PrivateRoute';
 import PublicRoute from './components/PublicRoute';
 import Home from './pages/Home';
-import Scripts from './pages/Scripts';
-import ScriptDetail from './pages/ScriptDetail';
-import AddScript from './pages/AddScript';
 import AIScript from './pages/AIScript';
 import ScriptVault from './pages/ScriptVault';
 import Login from './pages/Login';
@@ -63,8 +60,6 @@ function App() {
             <Routes>
               {/* 공개 라우트 */}
               <Route path="/" element={<Home />} />
-              <Route path="/scripts" element={<Scripts />} />
-              <Route path="/scripts/:id" element={<ScriptDetail />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/supabase-test" element={<SupabaseTest />} />
               <Route path="/file-upload-demo" element={<FileUploadDemo />} />
@@ -79,11 +74,6 @@ function App() {
               <Route path="/posts/:id" element={<PostDetail />} />
               
               {/* 인증이 필요한 사용자만 접근 가능한 라우트 */}
-              <Route path="/add-script" element={
-                <PrivateRoute>
-                  <AddScript />
-                </PrivateRoute>
-              } />
               <Route path="/ai-script" element={
                 <PrivateRoute>
                   <AIScript />

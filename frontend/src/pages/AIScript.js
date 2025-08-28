@@ -370,7 +370,8 @@ const AIScript = () => {
         const newAnimal = {
           ...animal,
           name: animal.label,
-          percentage: Math.floor(100 / (prev.length + 1)) // 균등 분배
+          percentage: Math.floor(100 / (prev.length + 1)), // 균등 분배
+          roleType: prev.length === 0 ? '주연' : '조연' // 첫 번째는 주연, 나머지는 조연
         };
         // 기존 동물들 비율 재계산
         const updatedAnimals = prev.map(a => ({
@@ -388,6 +389,17 @@ const AIScript = () => {
       prev.map(animal => 
         animal.value === animalValue 
           ? { ...animal, percentage: parseInt(percentage) }
+          : animal
+      )
+    );
+  };
+
+  // 동물 역할 변경 핸들러
+  const handleAnimalRoleChange = (animalValue, roleType) => {
+    setSelectedAnimals(prev => 
+      prev.map(animal => 
+        animal.value === animalValue 
+          ? { ...animal, roleType }
           : animal
       )
     );
@@ -411,7 +423,7 @@ const AIScript = () => {
       name: animal.name,
       gender: 'random',
       age: 'children',
-      roleType: index === 0 ? '주인공' : '조연',
+      roleType: animal.roleType || (index === 0 ? '주연' : '조연'),
       percentage: animal.percentage,
       relationshipWith: index > 0 ? selectedAnimals[0].name : '',
       relationshipType: index > 0 ? '친구' : '',
@@ -1139,8 +1151,8 @@ const AIScript = () => {
             </p>
           </motion.div>
 
-          {/* 동물 선택 그리드 */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+          {/* 동물 선택 그리드 - 한 줄에 5마리 */}
+          <div className="grid grid-cols-5 gap-3 mb-8 max-w-4xl mx-auto">
             {availableAnimals.map((animal, index) => {
               const isSelected = selectedAnimals.some(a => a.value === animal.value);
               return (
@@ -1150,19 +1162,19 @@ const AIScript = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
                   onClick={() => handleAnimalToggle(animal)}
-                  className={`bg-white rounded-xl shadow-md border-2 p-4 cursor-pointer transition-all duration-300 hover:scale-105 ${
+                  className={`bg-white rounded-lg shadow-md border-2 p-3 cursor-pointer transition-all duration-300 hover:scale-105 ${
                     isSelected 
                       ? 'border-green-400 bg-green-50 shadow-lg' 
                       : 'border-gray-200 hover:border-green-300'
                   }`}
                 >
-                  <div className="text-center space-y-2">
-                    <div className="text-4xl mb-2">{animal.icon}</div>
-                    <div className="font-semibold text-gray-900 text-sm">{animal.label}</div>
-                    <div className="text-xs text-gray-500">{animal.personality}</div>
+                  <div className="text-center space-y-1">
+                    <div className="text-3xl mb-1">{animal.icon}</div>
+                    <div className="font-semibold text-gray-900 text-xs">{animal.label}</div>
+                    <div className="text-xs text-gray-500 leading-tight">{animal.personality}</div>
                     {isSelected && (
                       <div className="flex items-center justify-center">
-                        <Check className="w-5 h-5 text-green-600" />
+                        <Check className="w-4 h-4 text-green-600" />
                       </div>
                     )}
                   </div>
@@ -1211,28 +1223,60 @@ const AIScript = () => {
               </div>
 
               {/* 동물별 설정 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {selectedAnimals.map((animal, index) => (
-                  <div key={animal.value} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <span className="text-2xl">{animal.icon}</span>
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{animal.label}</h4>
-                        <p className="text-xs text-gray-500">{animal.personality}</p>
+                  <div key={animal.value} className="border border-gray-200 rounded-xl p-5 bg-gradient-to-br from-white to-gray-50 shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-2xl">{animal.icon}</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900 text-lg">{animal.label}</h4>
+                        <p className="text-sm text-gray-600">{animal.personality}</p>
                       </div>
                     </div>
                     
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          역할: {index === 0 ? '🌟 주인공' : '👥 조연'}
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                          <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                          역할
                         </label>
+                        <select
+                          value={animal.roleType || (index === 0 ? '주연' : '조연')}
+                          onChange={(e) => handleAnimalRoleChange(animal.value, e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white shadow-sm"
+                        >
+                          {roleTypes.map((role) => (
+                            <option key={role.value} value={role.value}>
+                              {role.icon} {role.label} - {role.description}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                          <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                           대사 분량: {animal.percentage}%
                         </label>
+                        
+                        {/* 시각적 게이지 바 */}
+                        <div className="relative mb-4">
+                          <div className="w-full bg-gray-200 rounded-full h-5 overflow-hidden shadow-inner">
+                            <div 
+                              className="h-full bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-600 rounded-full transition-all duration-500 flex items-center justify-end pr-3 shadow-sm"
+                              style={{ width: `${animal.percentage}%` }}
+                            >
+                              <span className="text-white text-xs font-bold drop-shadow-sm">
+                                {animal.percentage}%
+                              </span>
+                            </div>
+                          </div>
+                          {/* 게이지 배경 그라데이션 */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-emerald-100 to-purple-100 rounded-full opacity-30 pointer-events-none"></div>
+                        </div>
+                        
                         <input
                           type="range"
                           min="5"
@@ -1240,12 +1284,15 @@ const AIScript = () => {
                           step="5"
                           value={animal.percentage || 0}
                           onChange={(e) => handleAnimalPercentageChange(animal.value, e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer slider hover:bg-gray-300 transition-colors duration-200"
+                          style={{
+                            background: `linear-gradient(to right, #10b981 0%, #3b82f6 ${animal.percentage/2}%, #8b5cf6 ${animal.percentage}%, #e5e7eb ${animal.percentage}%, #e5e7eb 100%)`
+                          }}
                         />
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                          <span>5%</span>
-                          <span className="text-purple-600 font-medium">{animal.percentage}%</span>
-                          <span>90%</span>
+                        <div className="flex justify-between text-xs text-gray-500 mt-2">
+                          <span className="font-medium">5%</span>
+                          <span className="text-blue-600 font-semibold">👆 드래그</span>
+                          <span className="font-medium">90%</span>
                         </div>
                       </div>
                     </div>

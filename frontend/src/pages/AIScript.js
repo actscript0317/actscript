@@ -42,6 +42,7 @@ const AIScript = () => {
   
   // 폼 상태 관리
   const [formData, setFormData] = useState({
+    template: '', // 템플릿 선택
     characterCount: '1',
     genre: '',
     length: '',
@@ -132,7 +133,8 @@ const AIScript = () => {
 
   const freeGenres = ['로맨스','비극', '코미디', '드라마'];
   const premiumGenres = ['스릴러', '액션', '공포', '판타지', 'SF', '미스터리', '시대극'];
-  const genres = [...freeGenres, ...premiumGenres];
+  const childrenGenres = ['동물 친구들', '마법의 세계', '우정과 모험', '학교 생활', '가족 이야기', '꿈과 상상'];
+  const genres = [...freeGenres, ...premiumGenres, ...childrenGenres];
 
   const lengths = [
     { value: 'short', label: '짧게', time: '1~2분 (약 12~16줄)', icon: '⚡', available: true },
@@ -148,6 +150,8 @@ const AIScript = () => {
   ];
 
   const ages = [
+    { value: 'children', label: '어린이 (5~9세)', description: '순수하고 상상력 넘치는 어린이', icon: '🧒' },
+    { value: 'kids', label: '초등학생 (10~12세)', description: '호기심 많고 활발한 초등학생', icon: '🎒' },
     { value: 'teens', label: '10대', description: '청소년기 고민과 생동감', icon: '🎓' },
     { value: '20s', label: '20대', description: '사회 초년생의 열정과 방황', icon: '🌟' },
     { value: '30s-40s', label: '30~40대', description: '성숙한 어른의 현실적 고민', icon: '💼' },
@@ -175,6 +179,70 @@ const AIScript = () => {
     { value: '모르는사이', label: '모르는 사이', description: '처음 만나는 관계', icon: '❓' }
   ];
 
+  // 템플릿 옵션들
+  const templates = [
+    { 
+      value: 'general', 
+      label: '일반 대본', 
+      description: '모든 연령대를 위한 범용 대본', 
+      icon: '🎭',
+      defaultSettings: {} 
+    },
+    { 
+      value: 'children', 
+      label: '어린이 연극', 
+      description: '5~12세 어린이를 위한 교육적이고 재미있는 연극', 
+      icon: '🧒',
+      defaultSettings: {
+        age: 'children',
+        genre: '동물 친구들',
+        length: 'short',
+        characterCount: '2'
+      }
+    },
+    { 
+      value: 'school', 
+      label: '학교 연극', 
+      description: '학교 발표회나 연극제를 위한 교육적 대본', 
+      icon: '🎒',
+      defaultSettings: {
+        age: 'kids',
+        genre: '학교 생활',
+        length: 'medium',
+        characterCount: '3'
+      }
+    },
+    { 
+      value: 'family', 
+      label: '가족 연극', 
+      description: '온 가족이 함께 즐길 수 있는 따뜻한 이야기', 
+      icon: '👨‍👩‍👧‍👦',
+      defaultSettings: {
+        age: 'random',
+        genre: '가족 이야기',
+        length: 'medium',
+        characterCount: '4'
+      }
+    }
+  ];
+
+
+  // 템플릿 변경 핸들러
+  const handleTemplateChange = (templateValue) => {
+    const selectedTemplate = templates.find(t => t.value === templateValue);
+    if (selectedTemplate && selectedTemplate.defaultSettings) {
+      setFormData(prev => ({
+        ...prev,
+        template: templateValue,
+        ...selectedTemplate.defaultSettings
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        template: templateValue
+      }));
+    }
+  };
 
   // 폼 데이터 변경 핸들러
   const handleInputChange = (field, value) => {
@@ -854,6 +922,44 @@ const AIScript = () => {
             className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 mb-8"
           >
             <form onSubmit={handleGenerate} className="space-y-8">
+              
+              {/* 템플릿 선택 */}
+              <div className="space-y-4">
+                <label className="flex items-center text-lg font-semibold text-gray-800">
+                  <Sparkles className="w-6 h-6 mr-3 text-purple-500" />
+                  대본 템플릿
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {templates.map((template) => (
+                    <label key={template.value} className="relative">
+                      <input
+                        type="radio"
+                        name="template"
+                        value={template.value}
+                        checked={formData.template === template.value}
+                        onChange={(e) => handleTemplateChange(e.target.value)}
+                        className="sr-only"
+                      />
+                      <div className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                        formData.template === template.value
+                          ? 'border-purple-500 bg-purple-50 shadow-md'
+                          : 'border-gray-200 hover:border-purple-300 hover:bg-purple-25'
+                      }`}>
+                        <div className="flex flex-col items-center text-center space-y-2">
+                          <span className="text-2xl">{template.icon}</span>
+                          <span className="font-semibold text-gray-900">{template.label}</span>
+                          <span className="text-xs text-gray-600 leading-tight">{template.description}</span>
+                        </div>
+                        {formData.template === template.value && (
+                          <div className="absolute top-2 right-2">
+                            <Check className="w-5 h-5 text-purple-500" />
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
               
               {/* 등장인물 수 */}
               <div className="space-y-4">

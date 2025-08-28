@@ -64,14 +64,18 @@ function App() {
               <Route path="/supabase-test" element={<SupabaseTest />} />
               <Route path="/file-upload-demo" element={<FileUploadDemo />} />
               
-              {/* 배우 관련 페이지 - 공개 접근 */}
+              {/* 배우 관련 페이지 - 임시 비활성화 */}
+              {/*
               <Route path="/actor-profile" element={<ActorProfile />} />
               <Route path="/actor-recruitment" element={<ActorRecruitment />} />
               <Route path="/model-recruitment" element={<ModelRecruitment />} />
               <Route path="/actor-info" element={<ActorInfo />} />
+              */}
               
-              {/* 게시글 관련 페이지 */}
+              {/* 게시글 관련 페이지 - 임시 비활성화 */}
+              {/*
               <Route path="/posts/:id" element={<PostDetail />} />
+              */}
               
               {/* 인증이 필요한 사용자만 접근 가능한 라우트 */}
               <Route path="/ai-script" element={
@@ -89,11 +93,13 @@ function App() {
                   <MyPage />
                 </PrivateRoute>
               } />
+              {/* 
               <Route path="/posts/new" element={
                 <PrivateRoute>
                   <CreatePost />
                 </PrivateRoute>
               } />
+              */}
               
               {/* 결제 관련 라우트 */}
               <Route path="/payment" element={

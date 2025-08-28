@@ -36,7 +36,8 @@ const Navbar = () => {
                 💎 프리미엄 플랜
               </Link>
               
-              {/* 저는 배우입니다 드롭다운 메뉴 */}
+              {/* 저는 배우입니다 드롭다운 메뉴 - 임시 비활성화 */}
+              {/* 
               <div className="relative">
                 <button
                   onClick={() => setIsActorMenuOpen(!isActorMenuOpen)}
@@ -80,6 +81,7 @@ const Navbar = () => {
                   </div>
                 )}
               </div>
+              */}
               {!loading && isAuthenticated && (
                 <>
                   <Link
@@ -171,7 +173,8 @@ const Navbar = () => {
             💎 프리미엄 플랜
           </Link>
           
-          {/* 저는 배우입니다 모바일 메뉴 */}
+          {/* 저는 배우입니다 모바일 메뉴 - 임시 비활성화 */}
+          {/*
           <div className="pl-3 pr-4 py-2">
             <div className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
               저는 배우입니다
@@ -214,6 +217,7 @@ const Navbar = () => {
               </Link>
             </div>
           </div>
+          */}
 
           {!loading && isAuthenticated && (
             <>

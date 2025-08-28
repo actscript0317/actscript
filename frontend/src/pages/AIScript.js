@@ -83,6 +83,10 @@ const AIScript = () => {
   const [showCharacterPanel, setShowCharacterPanel] = useState(false);
   const [textareaRef, setTextareaRef] = useState(null);
   const [cursorPosition, setCursorPosition] = useState(0);
+  
+  // 템플릿 선택 상태 관리
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showTemplateSelection, setShowTemplateSelection] = useState(true);
 
   // 사용량 정보 가져오기
   const fetchUsageInfo = async () => {
@@ -226,15 +230,28 @@ const AIScript = () => {
     }
   ];
 
+  // 연령대 매핑 (템플릿에서 사용)
+  const ageMap = {
+    'children': '어린이 (5~9세)',
+    'kids': '초등학생 (10~12세)',
+    'teens': '10대',
+    '20s': '20대', 
+    '30s-40s': '30~40대',
+    '50s': '50대',
+    '70s+': '70대 이상',
+    'random': '랜덤'
+  };
 
-  // 템플릿 변경 핸들러
-  const handleTemplateChange = (templateValue) => {
-    const selectedTemplate = templates.find(t => t.value === templateValue);
-    if (selectedTemplate && selectedTemplate.defaultSettings) {
+  // 템플릿 선택 핸들러
+  const handleTemplateSelect = (templateValue) => {
+    const template = templates.find(t => t.value === templateValue);
+    setSelectedTemplate(template);
+    
+    if (template && template.defaultSettings) {
       setFormData(prev => ({
         ...prev,
         template: templateValue,
-        ...selectedTemplate.defaultSettings
+        ...template.defaultSettings
       }));
     } else {
       setFormData(prev => ({
@@ -242,6 +259,26 @@ const AIScript = () => {
         template: templateValue
       }));
     }
+    
+    // 템플릿 선택 후 옵션 설정 페이지로 이동
+    setShowTemplateSelection(false);
+  };
+
+  // 템플릿 선택 페이지로 돌아가기
+  const handleBackToTemplates = () => {
+    setShowTemplateSelection(true);
+    setSelectedTemplate(null);
+    setFormData({
+      template: '',
+      characterCount: '1',
+      genre: '',
+      length: '',
+      gender: '',
+      age: '',
+      characters: [],
+      characterRelationships: '',
+      customPrompt: ''
+    });
   };
 
   // 폼 데이터 변경 핸들러
@@ -834,7 +871,112 @@ const AIScript = () => {
     </div>
   );
 
-  return (
+  // 템플릿 선택 페이지 렌더링
+  const renderTemplateSelection = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-4 sm:py-8 md:py-12">
+      <div className="container mx-auto px-2 sm:px-4">
+        <div className="max-w-6xl mx-auto">
+          
+          {/* 헤더 */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-12"
+          >
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              🎭 AI 대본 생성기
+            </h1>
+            <p className="text-lg text-gray-600 mb-8">
+              원하는 템플릿을 선택해서 완벽한 대본을 만들어보세요
+            </p>
+          </motion.div>
+
+          {/* 템플릿 카드들 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {templates.map((template, index) => (
+              <motion.div
+                key={template.value}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                onClick={() => handleTemplateSelect(template.value)}
+                className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-300 group"
+              >
+                <div className="text-center space-y-4">
+                  <div className="text-6xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                    {template.icon}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
+                    {template.label}
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    {template.description}
+                  </p>
+                  
+                  {/* 미리보기 설정 */}
+                  {template.defaultSettings && Object.keys(template.defaultSettings).length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-3 mt-4">
+                      <div className="text-xs text-gray-500 mb-2">기본 설정:</div>
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {template.defaultSettings.age && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                            {ageMap[template.defaultSettings.age] || template.defaultSettings.age}
+                          </span>
+                        )}
+                        {template.defaultSettings.genre && (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                            {template.defaultSettings.genre}
+                          </span>
+                        )}
+                        {template.defaultSettings.characterCount && (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+                            {template.defaultSettings.characterCount}명
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="pt-4">
+                    <div className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-semibold group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                      선택하기
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* 안내 메시지 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="mt-12 text-center"
+          >
+            <div className="bg-white rounded-xl shadow-md p-6 mx-auto max-w-2xl">
+              <div className="flex items-center justify-center space-x-2 mb-3">
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                <span className="font-semibold text-gray-900">템플릿별 특징</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                <div className="space-y-1">
+                  <div>🧒 <strong>어린이 연극:</strong> 5~12세 교육적 내용</div>
+                  <div>🎒 <strong>학교 연극:</strong> 학교 발표회 최적화</div>
+                </div>
+                <div className="space-y-1">
+                  <div>👨‍👩‍👧‍👦 <strong>가족 연극:</strong> 모든 연령 함께</div>
+                  <div>🎭 <strong>일반 대본:</strong> 자유로운 설정</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return showTemplateSelection ? renderTemplateSelection() : (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-4 sm:py-8 md:py-12">
       <div className="container mx-auto px-2 sm:px-4">
         <div className="max-w-4xl mx-auto">
@@ -903,14 +1045,28 @@ const AIScript = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
+            {/* 템플릿으로 돌아가기 버튼 */}
+            <div className="flex justify-center mb-6">
+              <button
+                onClick={handleBackToTemplates}
+                className="flex items-center space-x-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
+              >
+                <ArrowRight className="w-4 h-4 rotate-180" />
+                <span>템플릿 다시 선택</span>
+              </button>
+            </div>
+            
             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-6 shadow-lg">
-              <Sparkles className="w-10 h-10 text-white" />
+              {selectedTemplate?.icon && (
+                <span className="text-3xl">{selectedTemplate.icon}</span>
+              )}
+              {!selectedTemplate?.icon && <Sparkles className="w-10 h-10 text-white" />}
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              AI 대본 생성기
+              {selectedTemplate?.label || 'AI 대본 생성기'}
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              1인 독백부터 멀티 캐릭터 대화까지, 맞춤형 대본을 생성합니다.
+              {selectedTemplate?.description || '1인 독백부터 멀티 캐릭터 대화까지, 맞춤형 대본을 생성합니다.'}
             </p>
           </motion.div>
 
@@ -923,43 +1079,18 @@ const AIScript = () => {
           >
             <form onSubmit={handleGenerate} className="space-y-8">
               
-              {/* 템플릿 선택 */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <Sparkles className="w-6 h-6 mr-3 text-purple-500" />
-                  대본 템플릿
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {templates.map((template) => (
-                    <label key={template.value} className="relative">
-                      <input
-                        type="radio"
-                        name="template"
-                        value={template.value}
-                        checked={formData.template === template.value}
-                        onChange={(e) => handleTemplateChange(e.target.value)}
-                        className="sr-only"
-                      />
-                      <div className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                        formData.template === template.value
-                          ? 'border-purple-500 bg-purple-50 shadow-md'
-                          : 'border-gray-200 hover:border-purple-300 hover:bg-purple-25'
-                      }`}>
-                        <div className="flex flex-col items-center text-center space-y-2">
-                          <span className="text-2xl">{template.icon}</span>
-                          <span className="font-semibold text-gray-900">{template.label}</span>
-                          <span className="text-xs text-gray-600 leading-tight">{template.description}</span>
-                        </div>
-                        {formData.template === template.value && (
-                          <div className="absolute top-2 right-2">
-                            <Check className="w-5 h-5 text-purple-500" />
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  ))}
+              {/* 선택된 템플릿 표시 */}
+              {selectedTemplate && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-2xl">{selectedTemplate.icon}</span>
+                    <div>
+                      <h3 className="font-semibold text-purple-900">선택된 템플릿: {selectedTemplate.label}</h3>
+                      <p className="text-sm text-purple-700">{selectedTemplate.description}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
               
               {/* 등장인물 수 */}
               <div className="space-y-4">

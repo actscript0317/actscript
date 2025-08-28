@@ -91,6 +91,7 @@ const AIScript = () => {
   const [selectedChildrenTheme, setSelectedChildrenTheme] = useState(null);
   const [showAnimalSelection, setShowAnimalSelection] = useState(false);
   const [selectedAnimals, setSelectedAnimals] = useState([]);
+  const [selectedScriptLength, setSelectedScriptLength] = useState('medium');
 
   // 사용량 정보 가져오기
   const fetchUsageInfo = async () => {
@@ -267,6 +268,173 @@ const AIScript = () => {
     { value: 'penguin', label: '펭귄', icon: '🐧', personality: '사교적이고 협동적인', voiceStyle: '재미있고 친근한' }
   ];
 
+  // 테마별 전용 프롬프트
+  const getThemePrompt = (theme, animals, scriptLength) => {
+    const animalList = animals.map(a => `${a.name}(${a.label})`).join(', ');
+    const animalDetails = animals.map(a => 
+      `- ${a.name}(${a.label}): ${a.personality}, ${a.voiceStyle}, 역할: ${a.roleType}, 대사분량: ${a.percentage}%`
+    ).join('\n');
+    
+    const prompts = {
+      'animal-friends': `
+🎭 어린이 연극 "동물 친구들" 테마 대본 생성
+
+📝 기본 설정:
+- 등장 동물: ${animalList}
+- 대본 길이: ${scriptLength}
+- 연령대: 5-12세 어린이 대상
+
+🐾 동물 캐릭터 상세 정보:
+${animalDetails}
+
+🎨 테마별 특성:
+- 따뜻하고 우호적인 동물 공동체
+- 서로 도우며 문제를 해결하는 협력적 스토리
+- 각 동물의 특성을 살린 개성 있는 대화
+- 자연 속에서의 평화로운 일상
+- 교훈: 다름을 인정하고 서로 도우며 살아가는 지혜
+
+💫 스토리 요소:
+- 동물들 간의 갈등과 화해
+- 각자의 특기를 살려 문제 해결
+- 계절이나 자연 변화를 배경으로 한 모험
+- 새로운 친구를 받아들이는 과정
+- 함께 협력해서 이루는 작은 성취
+
+🗣️ 대화 스타일:
+- 각 동물의 성격에 맞는 말투와 어조
+- 어린이가 이해하기 쉬운 단순하고 명확한 언어
+- 의성어, 의태어를 활용한 생동감 있는 표현
+- 긍정적이고 밝은 톤의 대화`,
+
+      'magic-adventure': `
+🎭 어린이 연극 "마법의 모험" 테마 대본 생성
+
+📝 기본 설정:
+- 등장인물 수: ${animals.length}명
+- 대본 길이: ${scriptLength}
+- 연령대: 5-12세 어린이 대상
+
+✨ 마법 세계 캐릭터들:
+${animalDetails.replace(/동물/g, '마법 생물')}
+
+🔮 테마별 특성:
+- 환상적이고 신비로운 마법 세계
+- 선악이 명확하게 구분되는 모험담
+- 마법 도구와 주문을 활용한 문제 해결
+- 용기와 지혜를 통한 성장 스토리
+- 교훈: 진정한 마법은 사랑과 우정에서 나온다
+
+🌟 스토리 요소:
+- 마법사, 요정, 용, 마법 동물들의 등장
+- 마법의 숲, 성, 비밀 동굴 등 신비로운 배경
+- 악의 세력에 맞서는 정의로운 모험
+- 마법 아이템을 찾거나 저주를 풀어내는 퀘스트
+- 마법 주문과 변신, 순간이동 등 환상적 요소
+
+🗣️ 대화 스타일:
+- 고풍스럽고 격조 있는 판타지 어조
+- "그대", "~하시라" 같은 정중한 존댓말 사용
+- 마법 주문과 신비로운 단어들 포함
+- 웅장하고 모험적인 분위기의 대사`,
+
+      'friendship': `
+🎭 어린이 연극 "우정 이야기" 테마 대본 생성
+
+📝 기본 설정:
+- 등장인물 수: ${animals.length}명
+- 대본 길이: ${scriptLength}
+- 연령대: 5-12세 어린이 대상
+
+👫 친구들 캐릭터 정보:
+${animalDetails}
+
+❤️ 테마별 특성:
+- 진실한 우정의 소중함을 다루는 이야기
+- 친구 간의 갈등과 화해 과정
+- 서로 다른 개성을 인정하고 받아들이는 과정
+- 어려움을 함께 극복하며 더욱 깊어지는 우정
+- 교훈: 진정한 친구는 서로의 차이를 이해하고 도와준다
+
+🌈 스토리 요소:
+- 새 학기, 이사, 전학 등 새로운 환경에서의 만남
+- 오해와 질투로 인한 갈등 상황
+- 친구의 어려움을 함께 해결해나가는 과정
+- 각자의 장점으로 서로를 도와주는 협력
+- 축제, 경연대회 등을 함께 준비하며 쌓는 추억
+
+🗣️ 대화 스타일:
+- 솔직하고 진솔한 감정 표현
+- 또래 아이들의 자연스러운 말투
+- 고민을 털어놓고 위로하는 따뜻한 대화
+- 때로는 투덜거리지만 결국 서로를 아끼는 마음이 드러나는 대사`,
+
+      'school-life': `
+🎭 어린이 연극 "학교 생활" 테마 대본 생성
+
+📝 기본 설정:
+- 등장인물 수: ${animals.length}명
+- 대본 길이: ${scriptLength}
+- 연령대: 5-12세 어린이 대상
+
+🎒 학교 친구들 캐릭터 정보:
+${animalDetails}
+
+📚 테마별 특성:
+- 학교에서 벌어지는 일상적이고 친근한 에피소드
+- 공부, 놀이, 급식, 청소 등 학교생활의 다양한 면
+- 선생님과 학생, 친구들 간의 따뜻한 관계
+- 작은 실수와 성취를 통한 성장 스토리
+- 교훈: 학교는 배움과 우정을 쌓는 소중한 공간
+
+🏫 스토리 요소:
+- 수업 시간의 재미있는 에피소드
+- 운동회, 학예회, 소풍 등 학교 행사
+- 숙제, 시험, 발표 등으로 인한 고민과 해결
+- 급식실, 운동장, 도서관에서의 이야기
+- 새 친구 사귀기, 단체 활동 참여하기
+
+🗣️ 대화 스타일:
+- 활발하고 생기 넘치는 어린이 특유의 말투
+- "선생님!", "친구들아!" 같은 학교에서 쓰는 호칭
+- 궁금증과 호기심이 가득한 질문들
+- 때로는 장난스럽고 때로는 진지한 대화`,
+
+      'dreams-imagination': `
+🎭 어린이 연극 "꿈과 상상" 테마 대본 생성
+
+📝 기본 설정:
+- 등장인물 수: ${animals.length}명
+- 대본 길이: ${scriptLength}
+- 연령대: 5-12세 어린이 대상
+
+🌟 꿈꾸는 아이들 캐릭터 정보:
+${animalDetails}
+
+✨ 테마별 특성:
+- 무한한 상상력과 창의성을 펼치는 이야기
+- 현실과 환상이 어우러진 신비로운 세계
+- 각자의 꿈과 희망을 표현하고 응원하는 과정
+- 불가능해 보이는 일들을 상상력으로 해결
+- 교훈: 꿈과 상상력은 세상을 바꾸는 힘이 된다
+
+🎨 스토리 요소:
+- 구름 위의 성, 별나라, 무지개 다리 등 환상적 배경
+- 시간 여행, 크기 변화, 하늘 날기 등 상상 속 모험
+- 꿈 속에서 만나는 신비로운 존재들
+- 그림, 음악, 이야기 창작 등 예술 활동
+- 작은 아이디어가 큰 변화를 만들어내는 과정
+
+🗣️ 대화 스타일:
+- 풍부한 상상력이 느껴지는 창의적인 표현
+- "만약에...", "상상해봐!" 같은 가정법 문장
+- 비유와 은유가 가득한 시적인 대사
+- 꿈꾸는 듯한 몽환적이고 따뜻한 어조`
+    };
+
+    return prompts[theme] || prompts['animal-friends'];
+  };
+
   const childrenThemes = [
     {
       value: 'animal-friends',
@@ -405,8 +573,8 @@ const AIScript = () => {
     );
   };
 
-  // 동물 선택 완료 핸들러
-  const handleAnimalSelectionComplete = () => {
+  // 동물 선택 완료 및 대본 생성 핸들러
+  const handleAnimalSelectionComplete = async () => {
     if (selectedAnimals.length === 0) {
       toast.error('최소 1개의 동물을 선택해주세요.');
       return;
@@ -418,7 +586,12 @@ const AIScript = () => {
       return;
     }
 
-    // 선택된 동물들을 캐릭터로 변환하여 formData에 설정
+    if (!selectedScriptLength) {
+      toast.error('대본 길이를 선택해주세요.');
+      return;
+    }
+
+    // 선택된 동물들을 캐릭터로 변환
     const animalCharacters = selectedAnimals.map((animal, index) => ({
       name: animal.name,
       gender: 'random',
@@ -432,11 +605,61 @@ const AIScript = () => {
       voiceStyle: animal.voiceStyle
     }));
 
-    setFormData(prev => ({
-      ...prev,
-      characterCount: selectedAnimals.length.toString(),
-      characters: animalCharacters
-    }));
+    // 바로 대본 생성 시작
+    setError('');
+    setIsGenerating(true);
+    setGeneratedScript('');
+    setProgress(0);
+
+    try {
+      // 테마별 전용 프롬프트 생성
+      const themePrompt = getThemePrompt(
+        selectedChildrenTheme.value, 
+        selectedAnimals, 
+        lengths.find(l => l.value === selectedScriptLength)?.label || '중간'
+      );
+
+      const requestData = {
+        template: 'children',
+        theme: selectedChildrenTheme.value,
+        themePrompt: themePrompt,
+        characterCount: selectedAnimals.length.toString(),
+        characters: animalCharacters,
+        genre: selectedChildrenTheme.genre,
+        length: selectedScriptLength,
+        age: 'children',
+        gender: 'random'
+      };
+
+      let currentProgress = 0;
+      const progressInterval = setInterval(() => {
+        currentProgress += Math.random() * 15;
+        if (currentProgress > 90) currentProgress = 90;
+        setProgress(Math.min(currentProgress, 90));
+      }, 500);
+
+      const response = await api.post('/ai-script/generate', requestData);
+      
+      clearInterval(progressInterval);
+      setProgress(100);
+
+      if (response.data && response.data.script) {
+        setGeneratedScript(response.data.script);
+        toast.success('🎭 동물 친구들 대본이 생성되었습니다!');
+        
+        // 사용량 정보 업데이트
+        setTimeout(() => {
+          setProgress(0);
+          fetchUsageInfo();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('대본 생성 오류:', error);
+      setError('대본 생성 중 오류가 발생했습니다.');
+      setProgress(0);
+    } finally {
+      setIsGenerating(false);
+    }
 
     setShowAnimalSelection(false);
   };
@@ -1294,17 +1517,62 @@ const AIScript = () => {
                 ))}
               </div>
 
-              {/* 완료 버튼 */}
+              {/* 대본 길이 선택 */}
+              <div className="mt-6 mb-6">
+                <h4 className="text-lg font-bold text-gray-900 mb-4 text-center">📏 대본 길이 선택</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                  {lengths.map((length) => (
+                    <label key={length.value} className="relative">
+                      <input
+                        type="radio"
+                        name="scriptLength"
+                        value={length.value}
+                        checked={selectedScriptLength === length.value}
+                        onChange={(e) => setSelectedScriptLength(e.target.value)}
+                        className="sr-only peer"
+                        disabled={!length.available}
+                      />
+                      <div className={`p-4 border-2 rounded-xl cursor-pointer transition-all relative ${
+                        length.available 
+                          ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:border-purple-500 peer-checked:shadow-md'
+                          : 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60'
+                      }`}>
+                        <div className="text-center">
+                          <div className={`text-2xl mb-2 ${!length.available ? 'grayscale' : ''}`}>{length.icon}</div>
+                          <div className={`font-medium ${length.available ? 'text-gray-900' : 'text-gray-500'}`}>
+                            {length.label}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">{length.time}</div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 대본 생성 버튼 */}
               <div className="flex justify-center mt-6">
                 <button
                   onClick={handleAnimalSelectionComplete}
                   disabled={
                     selectedAnimals.length === 0 || 
-                    selectedAnimals.reduce((sum, animal) => sum + (animal.percentage || 0), 0) !== 100
+                    selectedAnimals.reduce((sum, animal) => sum + (animal.percentage || 0), 0) !== 100 ||
+                    !selectedScriptLength ||
+                    isGenerating
                   }
-                  className="px-8 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold rounded-lg shadow-lg hover:from-green-600 hover:to-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold rounded-xl shadow-lg hover:from-green-600 hover:to-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  동물 선택 완료
+                  {isGenerating ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>대본 생성 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      <span>🎭 대본 생성하기</span>
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>

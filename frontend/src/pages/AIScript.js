@@ -648,6 +648,11 @@ ${animalDetails}
         setGeneratedScript(response.data.script);
         toast.success('🎭 동물 친구들 대본이 생성되었습니다!');
         
+        // 템플릿 선택 화면들을 모두 숨기고 대본 결과 화면으로 이동
+        setShowTemplateSelection(false);
+        setShowChildrenThemeSelection(false);
+        setShowAnimalSelection(false);
+        
         // 사용량 정보 업데이트
         setTimeout(() => {
           setProgress(0);
@@ -661,8 +666,6 @@ ${animalDetails}
     } finally {
       setIsGenerating(false);
     }
-
-    setShowAnimalSelection(false);
   };
 
   // 동물 선택에서 테마로 돌아가기

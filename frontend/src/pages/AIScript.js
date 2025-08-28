@@ -87,6 +87,8 @@ const AIScript = () => {
   // 템플릿 선택 상태 관리
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplateSelection, setShowTemplateSelection] = useState(true);
+  const [showChildrenThemeSelection, setShowChildrenThemeSelection] = useState(false);
+  const [selectedChildrenTheme, setSelectedChildrenTheme] = useState(null);
 
   // 사용량 정보 가져오기
   const fetchUsageInfo = async () => {
@@ -242,32 +244,100 @@ const AIScript = () => {
     'random': '랜덤'
   };
 
+  // 어린이 연극 테마들
+  const childrenThemes = [
+    {
+      value: 'animal-friends',
+      label: '동물 친구들',
+      description: '토끼, 고양이, 강아지 등 귀여운 동물들이 등장하는 따뜻한 이야기',
+      icon: '🐰',
+      genre: '동물 친구들'
+    },
+    {
+      value: 'magic-adventure',
+      label: '마법의 모험',
+      description: '마법사와 요정들이 등장하는 환상적인 모험 이야기',
+      icon: '🪄',
+      genre: '마법의 세계'
+    },
+    {
+      value: 'friendship',
+      label: '우정 이야기',
+      description: '친구들과 함께 문제를 해결하고 도우며 성장하는 이야기',
+      icon: '👫',
+      genre: '우정과 모험'
+    },
+    {
+      value: 'school-life',
+      label: '학교 생활',
+      description: '학교에서 일어나는 재미있고 교훈적인 일상 이야기',
+      icon: '🎒',
+      genre: '학교 생활'
+    },
+    {
+      value: 'dreams-imagination',
+      label: '꿈과 상상',
+      description: '아이들의 무한한 상상력과 꿈을 키워주는 창의적인 이야기',
+      icon: '🌟',
+      genre: '꿈과 상상'
+    }
+  ];
+
   // 템플릿 선택 핸들러
   const handleTemplateSelect = (templateValue) => {
     const template = templates.find(t => t.value === templateValue);
     setSelectedTemplate(template);
     
-    if (template && template.defaultSettings) {
+    // 어린이 연극을 선택한 경우 테마 선택 페이지로 이동
+    if (templateValue === 'children') {
+      setShowTemplateSelection(false);
+      setShowChildrenThemeSelection(true);
       setFormData(prev => ({
         ...prev,
         template: templateValue,
-        ...template.defaultSettings
+        age: 'children', // 어린이 연령으로 고정
+        length: 'short' // 짧은 길이로 기본 설정
       }));
     } else {
-      setFormData(prev => ({
-        ...prev,
-        template: templateValue
-      }));
+      // 다른 템플릿의 경우 바로 옵션 설정 페이지로 이동
+      if (template && template.defaultSettings) {
+        setFormData(prev => ({
+          ...prev,
+          template: templateValue,
+          ...template.defaultSettings
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          template: templateValue
+        }));
+      }
+      setShowTemplateSelection(false);
+      setShowChildrenThemeSelection(false);
     }
-    
-    // 템플릿 선택 후 옵션 설정 페이지로 이동
-    setShowTemplateSelection(false);
   };
 
-  // 템플릿 선택 페이지로 돌아가기
-  const handleBackToTemplates = () => {
+  // 어린이 테마 선택 핸들러
+  const handleChildrenThemeSelect = (themeValue) => {
+    const theme = childrenThemes.find(t => t.value === themeValue);
+    setSelectedChildrenTheme(theme);
+    
+    setFormData(prev => ({
+      ...prev,
+      genre: theme.genre,
+      characterCount: '2' // 기본 2명으로 설정
+    }));
+    
+    // 테마 선택 후 옵션 설정 페이지로 이동
+    setShowChildrenThemeSelection(false);
+  };
+
+  // 어린이 테마 선택 페이지에서 템플릿으로 돌아가기
+  const handleBackToTemplatesFromTheme = () => {
     setShowTemplateSelection(true);
+    setShowChildrenThemeSelection(false);
     setSelectedTemplate(null);
+    setSelectedChildrenTheme(null);
     setFormData({
       template: '',
       characterCount: '1',
@@ -279,6 +349,30 @@ const AIScript = () => {
       characterRelationships: '',
       customPrompt: ''
     });
+  };
+
+  // 템플릿 선택 페이지로 돌아가기 (옵션 설정 페이지에서)
+  const handleBackToTemplates = () => {
+    if (selectedTemplate?.value === 'children') {
+      // 어린이 연극인 경우 테마 선택 페이지로
+      setShowChildrenThemeSelection(true);
+    } else {
+      // 다른 템플릿인 경우 템플릿 선택 페이지로
+      setShowTemplateSelection(true);
+      setSelectedTemplate(null);
+      setSelectedChildrenTheme(null);
+      setFormData({
+        template: '',
+        characterCount: '1',
+        genre: '',
+        length: '',
+        gender: '',
+        age: '',
+        characters: [],
+        characterRelationships: '',
+        customPrompt: ''
+      });
+    }
   };
 
   // 폼 데이터 변경 핸들러
@@ -727,14 +821,27 @@ const AIScript = () => {
     }
     
     // 입력값 검증
+    const isChildrenTemplate = selectedTemplate?.value === 'children';
     if (parseInt(formData.characterCount) === 1) {
-      if (!formData.characterCount || !formData.genre || !formData.length || !formData.gender || !formData.age) {
-        setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이, 성별, 연령대)');
+      const requiredFields = ['characterCount', 'length', 'gender', 'age'];
+      if (!isChildrenTemplate) requiredFields.push('genre');
+      
+      if (requiredFields.some(field => !formData[field])) {
+        const requiredFieldsText = isChildrenTemplate 
+          ? '등장인물 수, 대본 길이, 성별, 연령대'
+          : '등장인물 수, 장르, 대본 길이, 성별, 연령대';
+        setError(`필수 항목을 모두 선택해주세요. (${requiredFieldsText})`);
         return;
       }
     } else {
-      if (!formData.characterCount || !formData.genre || !formData.length) {
-        setError('필수 항목을 모두 선택해주세요. (등장인물 수, 장르, 대본 길이)');
+      const requiredFields = ['characterCount', 'length'];
+      if (!isChildrenTemplate) requiredFields.push('genre');
+      
+      if (requiredFields.some(field => !formData[field])) {
+        const requiredFieldsText = isChildrenTemplate 
+          ? '등장인물 수, 대본 길이'
+          : '등장인물 수, 장르, 대본 길이';
+        setError(`필수 항목을 모두 선택해주세요. (${requiredFieldsText})`);
         return;
       }
     }
@@ -871,6 +978,97 @@ const AIScript = () => {
     </div>
   );
 
+  // 어린이 테마 선택 페이지 렌더링
+  const renderChildrenThemeSelection = () => (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 py-4 sm:py-8 md:py-12">
+      <div className="container mx-auto px-2 sm:px-4">
+        <div className="max-w-6xl mx-auto">
+          
+          {/* 헤더 */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-8"
+          >
+            {/* 뒤로가기 버튼 */}
+            <div className="flex justify-center mb-6">
+              <button
+                onClick={handleBackToTemplatesFromTheme}
+                className="flex items-center space-x-2 px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 rounded-lg shadow-md transition-colors duration-200"
+              >
+                <ArrowRight className="w-4 h-4 rotate-180" />
+                <span>템플릿 다시 선택</span>
+              </button>
+            </div>
+            
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-pink-400 to-purple-500 rounded-2xl mb-6 shadow-lg">
+              <span className="text-3xl">🧒</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              🎭 어린이 연극 테마 선택
+            </h1>
+            <p className="text-lg text-gray-600 mb-8">
+              아이들이 좋아할 만한 테마를 선택해주세요
+            </p>
+          </motion.div>
+
+          {/* 테마 카드들 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {childrenThemes.map((theme, index) => (
+              <motion.div
+                key={theme.value}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                onClick={() => handleChildrenThemeSelect(theme.value)}
+                className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-300 group"
+              >
+                <div className="text-center space-y-4">
+                  <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                    {theme.icon}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
+                    {theme.label}
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    {theme.description}
+                  </p>
+                  
+                  <div className="pt-4">
+                    <div className="bg-gradient-to-r from-pink-100 to-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-semibold group-hover:from-pink-500 group-hover:to-purple-500 group-hover:text-white transition-colors">
+                      이 테마 선택하기
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* 안내 메시지 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="mt-12 text-center"
+          >
+            <div className="bg-white rounded-xl shadow-md p-6 mx-auto max-w-2xl">
+              <div className="flex items-center justify-center space-x-2 mb-3">
+                <span className="text-2xl">🌟</span>
+                <span className="font-semibold text-gray-900">어린이 연극의 특징</span>
+              </div>
+              <div className="text-sm text-gray-600 space-y-2">
+                <div>✨ <strong>교육적 가치:</strong> 재미와 함께 도덕적 교훈을 전달</div>
+                <div>🎈 <strong>안전한 내용:</strong> 폭력적이거나 무서운 요소 없이 구성</div>
+                <div>🌈 <strong>긍정적 메시지:</strong> 우정, 협력, 나눔의 가치 강조</div>
+                <div>🎪 <strong>연기하기 쉬움:</strong> 어린이가 이해하고 연기하기 쉬운 대사</div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+
   // 템플릿 선택 페이지 렌더링
   const renderTemplateSelection = () => (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-4 sm:py-8 md:py-12">
@@ -976,7 +1174,8 @@ const AIScript = () => {
     </div>
   );
 
-  return showTemplateSelection ? renderTemplateSelection() : (
+  return showTemplateSelection ? renderTemplateSelection() :
+         showChildrenThemeSelection ? renderChildrenThemeSelection() : (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-4 sm:py-8 md:py-12">
       <div className="container mx-auto px-2 sm:px-4">
         <div className="max-w-4xl mx-auto">
@@ -1327,21 +1526,23 @@ const AIScript = () => {
                 </div>
               )}
 
-              {/* 장르 선택 */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <Film className="w-6 h-6 mr-3 text-purple-500" />
-                  장르
-                </label>
-                <Dropdown
-                  options={genres}
-                  value={formData.genre}
-                  onChange={(value) => handleInputChange('genre', value)}
-                  placeholder="장르를 선택하세요"
-                  isOpen={showGenreDropdown}
-                  setIsOpen={setShowGenreDropdown}
-                />
-              </div>
+              {/* 장르 선택 (어린이 템플릿이 아닐 때만 표시) */}
+              {selectedTemplate?.value !== 'children' && (
+                <div className="space-y-4">
+                  <label className="flex items-center text-lg font-semibold text-gray-800">
+                    <Film className="w-6 h-6 mr-3 text-purple-500" />
+                    장르
+                  </label>
+                  <Dropdown
+                    options={genres}
+                    value={formData.genre}
+                    onChange={(value) => handleInputChange('genre', value)}
+                    placeholder="장르를 선택하세요"
+                    isOpen={showGenreDropdown}
+                    setIsOpen={setShowGenreDropdown}
+                  />
+                </div>
+              )}
 
               {/* 대본 길이 */}
               <div className="space-y-4">

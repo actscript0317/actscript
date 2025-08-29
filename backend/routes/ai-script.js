@@ -622,20 +622,19 @@ ${characters && characters.map((char, index) =>
 
       // OpenAI API 호출 with 재시도 및 타임아웃
       console.log('🚀 OpenAI API 호출 시작 (커스텀 프롬프트 모드)');
-      const completion = await callOpenAIWithRetry(openai, {
-        model: MODEL_FINAL,
-        messages: [
-          {
-            role: "system",
-            content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
+      const completion = await callOpenAIWithRetry(openai, [
+        {
+          role: "system",
+          content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
 
 대본은 반드시 한국어로 작성하며, 표준 대본 형식을 따르세요.`
-          },
-          {
-            role: "user",
-            content: enhancedCustomPrompt
-          }
-        ],
+        },
+        {
+          role: "user",
+          content: enhancedCustomPrompt
+        }
+      ], {
+        model: MODEL_FINAL,
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         temperature: TEMPERATURE_FINAL
       });
@@ -843,12 +842,10 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
       attempts++;
       console.log(`📝 대본 생성 시도 ${attempts}/${maxAttempts}`);
 
-      const completion = await callOpenAIWithRetry(openai, {
-        model: MODEL_FINAL,
-        messages: [
-          {
-            role: "system",
-            content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
+      const completion = await callOpenAIWithRetry(openai, [
+        {
+          role: "system",
+          content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
 
 1. **분량 준수 최우선**: 정확한 대사 줄 수를 지켜야 합니다. 이는 가장 중요한 요구사항입니다.
 2. **인물별 정확한 분량**: 각 인물의 할당된 대사 줄 수를 1줄도 틀리지 말고 정확히 맞춰야 합니다.
@@ -856,12 +853,13 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
 4. **재시도 가능**: 분량이 맞지 않으면 다시 작성을 요청받을 수 있습니다.
 
 대본은 반드시 한국어로 작성하며, 표준 대본 형식을 따르세요.`
-          },
-          {
-            role: "user",
-            content: enhancedPrompt
-          }
-        ],
+        },
+        {
+          role: "user",
+          content: enhancedPrompt
+        }
+      ], {
+        model: MODEL_FINAL,
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         temperature: TEMPERATURE_FINAL
       });
@@ -1042,18 +1040,17 @@ ${selectedIntensity.instruction}
 리라이팅된 대사만 출력하세요. 추가 설명이나 해석은 포함하지 마세요.`;
 
     // OpenAI API 호출 with 재시도 및 타임아웃
-    const completion = await callOpenAIWithRetry(openai, {
+    const completion = await callOpenAIWithRetry(openai, [
+      {
+        role: "system",
+        content: "You are a professional Korean scriptwriter specializing in rewriting dialogue to be more natural and engaging for actors. Always respond in Korean and focus on creating realistic, actable dialogue."
+      },
+      {
+        role: "user",
+        content: rewritePrompt
+      }
+    ], {
       model: MODEL_FINAL,
-      messages: [
-        {
-          role: "system",
-          content: "You are a professional Korean scriptwriter specializing in rewriting dialogue to be more natural and engaging for actors. Always respond in Korean and focus on creating realistic, actable dialogue."
-        },
-        {
-          role: "user",
-          content: rewritePrompt
-        }
-      ],
       max_completion_tokens: 1000,
       temperature: TEMPERATURE_FINAL
     });

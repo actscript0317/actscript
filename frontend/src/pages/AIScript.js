@@ -639,14 +639,15 @@ ${animalDetails}
         setProgress(Math.min(currentProgress, 90));
       }, 500);
 
-      const response = await api.post('/ai-script/generate', requestData);
+      const response = await api.post('/children-theater/generate', requestData);
       
       clearInterval(progressInterval);
       setProgress(100);
 
       if (response.data && response.data.script) {
-        setGeneratedScript(response.data.script);
-        toast.success('🎭 동물 친구들 대본이 생성되었습니다!');
+        setGeneratedScript(response.data.script.content || response.data.script);
+        setGeneratedScriptId(response.data.script.id); // 스크립트 ID 저장
+        toast.success('🎭 어린이 연극 대본이 생성되었습니다!');
         
         // 템플릿 선택 화면들을 모두 숨기고 대본 결과 화면으로 이동
         setShowTemplateSelection(false);

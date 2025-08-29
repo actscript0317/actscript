@@ -7,7 +7,6 @@ const { reserveUsage, commitUsage, rollbackUsage } = require('../helpers/usage')
 const { getGenreDirective, parseOpenAIError, callOpenAIWithRetry, logRequestData, MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../helpers/aiHelpers');
 const { extractTitleFromScript, saveScript } = require('../helpers/scriptHelpers');
 const { enhancePromptWithRAG } = require('../helpers/ragHelpers');
-const { generateChildrenTheaterScript } = require('../helpers/childrenTheaterTemplate');
 
 const router = express.Router();
 
@@ -414,26 +413,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
     }
 
     // 커스텀 프롬프트가 있다면 우선 적용
-    if (template === 'children' && theme && themePrompt) {
-      // 어린이 연극 템플릿 사용
-      try {
-        const result = await generateChildrenTheaterScript(openai, req.user.id, req.body, usageInfo);
-        return res.status(200).json(result);
-      } catch (error) {
-        console.error('❌ 어린이 연극 템플릿 오류:', error);
-        // 일반 대본 생성과 동일한 에러 핸들링
-        await rollbackUsage();
-        const parsed = parseOpenAIError(error);
-        return res.status(parsed.http).json({
-          error: parsed.code,
-          message: parsed.msg,
-          ...(process.env.NODE_ENV !== 'production' && { 
-            debug: error.message 
-          })
-        });
-      }
-
-    } else if (customPrompt && customPrompt.trim()) {
+    if (customPrompt && customPrompt.trim()) {
       // 인물 태그 처리 (예: /김철수 -> 김철수)
       let processedPrompt = customPrompt;
       if (characters && Array.isArray(characters)) {

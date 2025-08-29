@@ -4,7 +4,7 @@ const config = require('../config/env');
 const { supabase, supabaseAdmin, safeQuery } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/supabaseAuth');
 const { reserveUsage, commitUsage, rollbackUsage } = require('../helpers/usage');
-const { MODEL_FINAL, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS, parseOpenAIError, callOpenAIWithRetry } = require('../helpers/aiHelpers');
+const { parseOpenAIError, callOpenAIWithRetry, MODEL_FINAL, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../helpers/aiHelpers');
 const { extractTitleFromScript } = require('../helpers/scriptHelpers');
 const { enhancePromptWithRAG } = require('../helpers/ragHelpers');
 
@@ -69,7 +69,7 @@ async function saveChildrenScript(userId, scriptContent, metadata = {}) {
   return saveResult.data;
 }
 
-// 어린이 연극 대본 생성 API
+// 어린이 연극 대본 생성 API - v1.1
 router.post('/generate', authenticateToken, async (req, res) => {
   try {
     console.log('🎭 어린이 연극 대본 생성 요청 시작');

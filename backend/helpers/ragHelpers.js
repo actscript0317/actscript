@@ -152,16 +152,28 @@ function extractReferencePatterns(chunks) {
     .filter(curve => curve)
     .filter((curve, index, arr) => arr.indexOf(curve) === index);
   
-  // 대사 스타일 분석
+  // 대사 스타일 분석 (감정 변화와 톤 분석 강화)
   const dialoguePatterns = chunks.map(chunk => {
     const content = chunk.content || '';
     const scriptMatch = content.match(/\[Script\]([\s\S]*?)(?=\[|$)/);
     if (scriptMatch) {
+      const allLines = scriptMatch[1].trim().split('\n').filter(line => line.trim());
+      const totalLines = allLines.length;
+      
+      // 대사의 감정 변화 패턴 분석
+      const emotionFlow = {
+        opening: allLines.slice(0, Math.min(2, totalLines)), // 시작부
+        middle: totalLines > 4 ? [allLines[Math.floor(totalLines / 2)]] : [], // 중간부
+        ending: totalLines > 2 ? allLines.slice(-2) : [] // 마무리부
+      };
+      
       return {
         tone: chunk.tone,
         pacing: chunk.pacing,
         lineCount: chunk.line_count,
-        sample: scriptMatch[1].trim().split('\n')[0] // 첫 번째 대사만
+        emotionCurve: chunk.emotion_curve,
+        emotionFlow: emotionFlow,
+        dialogueCount: totalLines
       };
     }
     return null;
@@ -219,15 +231,36 @@ function buildRAGReference(chunks, patterns) {
     ragSection += `- 관계: ${chunk.relationship_type || '일반'}\n`;
     ragSection += `- 분위기: ${chunk.mood || '일반'}\n`;
     
-    // 대사 샘플 추출
+    // 대사 샘플 추출 (더 많은 대사 포함)
     const content = chunk.content || '';
     const scriptMatch = content.match(/\[Script\]([\s\S]*?)(?=\[|$)/);
     if (scriptMatch) {
-      const sampleLines = scriptMatch[1].trim().split('\n').slice(0, 2); // 처음 2줄만
-      ragSection += `- 대사 스타일 참고:\n`;
-      sampleLines.forEach(line => {
+      const allLines = scriptMatch[1].trim().split('\n').filter(line => line.trim());
+      
+      // 감정 변화를 보여줄 수 있는 대사들 선별 (초반, 중반, 후반에서 각각 선택)
+      const totalLines = allLines.length;
+      const sampleIndices = [];
+      
+      if (totalLines <= 6) {
+        // 짧은 스크립트는 모든 대사 포함
+        sampleIndices.push(...Array.from({length: totalLines}, (_, i) => i));
+      } else {
+        // 긴 스크립트는 초반(0-1), 중반, 후반(마지막-1, 마지막) 대사 선택
+        sampleIndices.push(0, 1); // 초반 2줄
+        const midIndex = Math.floor(totalLines / 2);
+        sampleIndices.push(midIndex); // 중반 1줄
+        sampleIndices.push(totalLines - 2, totalLines - 1); // 후반 2줄
+      }
+      
+      const uniqueIndices = [...new Set(sampleIndices)].filter(i => i < totalLines);
+      const sampleLines = uniqueIndices.map(i => allLines[i]);
+      
+      ragSection += `- 대사 스타일 및 감정 흐름 참고:\n`;
+      sampleLines.forEach((line, idx) => {
         if (line.trim()) {
-          ragSection += `  ${line.trim()}\n`;
+          const position = uniqueIndices[idx] === 0 ? '(초반)' : 
+                          uniqueIndices[idx] >= totalLines - 2 ? '(후반)' : '(중반)';
+          ragSection += `  ${position} ${line.trim()}\n`;
         }
       });
     }
@@ -241,6 +274,28 @@ function buildRAGReference(chunks, patterns) {
   
   if (patterns.emotionPatterns.length > 0) {
     ragSection += `**감정 변화 패턴:** ${patterns.emotionPatterns.join(' / ')}\n`;
+  }
+  
+  // 대사 패턴 상세 분석 추가
+  if (patterns.dialoguePatterns.length > 0) {
+    ragSection += `\n**대사 작성 참고 패턴:**\n`;
+    patterns.dialoguePatterns.forEach((pattern, index) => {
+      ragSection += `📝 패턴 ${index + 1}: ${pattern.tone} 톤, ${pattern.emotionCurve || '감정변화 정보 없음'}\n`;
+      
+      // 감정 흐름별 대사 예시
+      if (pattern.emotionFlow) {
+        if (pattern.emotionFlow.opening.length > 0) {
+          ragSection += `  - 시작부 톤: "${pattern.emotionFlow.opening[0]}"\n`;
+        }
+        if (pattern.emotionFlow.middle.length > 0) {
+          ragSection += `  - 중간부 톤: "${pattern.emotionFlow.middle[0]}"\n`;
+        }
+        if (pattern.emotionFlow.ending.length > 0) {
+          ragSection += `  - 마무리 톤: "${pattern.emotionFlow.ending[pattern.emotionFlow.ending.length - 1]}"\n`;
+        }
+      }
+      ragSection += '\n';
+    });
   }
   
   ragSection += '\n**❗ 중요:** 위 참고 자료는 스타일과 패턴 이해용입니다. 원문을 복사하지 말고, 패턴을 참고하여 완전히 새로운 대본을 창작하세요.\n\n';

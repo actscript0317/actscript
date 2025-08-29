@@ -2,16 +2,18 @@ const { MODEL_FINAL, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../co
 const { callOpenAIWithRetry } = require('./aiHelpers');
 const { extractTitleFromScript, saveScript } = require('./scriptHelpers');
 const { enhancePromptWithRAG } = require('./ragHelpers');
+const { commitUsage } = require('./usage');
 
 /**
  * 어린이 연극 템플릿 전용 대본 생성
  */
 async function generateChildrenTheaterScript(openai, userId, requestData, usageInfo) {
-  const { characterCount, length, characters, template, theme, themePrompt } = requestData;
+  try {
+    const { characterCount, length, characters, template, theme, themePrompt } = requestData;
 
-  console.log(`🎭 어린이 연극 "${theme}" 테마 대본 생성 시작`);
-  
-  const prompt = `당신은 한국의 어린이 연극 대본을 전문적으로 쓰는 작가입니다.
+    console.log(`🎭 어린이 연극 "${theme}" 테마 대본 생성 시작`);
+    
+    const prompt = `당신은 한국의 어린이 연극 대본을 전문적으로 쓰는 작가입니다.
 
 ${themePrompt}
 
@@ -45,77 +47,83 @@ ${characters && characters.map((char, index) =>
 - 각 동물의 특성을 잘 살린 개성 있는 대사
 - 어린이가 따라 할 수 있는 적절한 언어 사용`;
 
-  console.log('🔍 어린이 연극 RAG 기반 참고 청크 검색 중...');
-  const childrenRagCriteria = {
-    genre: '어린이 연극',
-    ageGroup: 'children',
-    gender: 'random',
-    characterCount: parseInt(characterCount),
-    mood: theme // 테마를 mood로 사용
-  };
-  
-  const enhancedChildrenPrompt = await enhancePromptWithRAG(prompt, childrenRagCriteria);
-
-  console.log('🎭 어린이 연극 대본 생성 중 (GPT-4o 모델 사용)');
-  const completion = await callOpenAIWithRetry(openai, [
-    {
-      role: "user",
-      content: enhancedChildrenPrompt
-    }
-  ], {
-    model: MODEL_FINAL,
-    temperature: TEMPERATURE_FINAL,
-    max_completion_tokens: MAX_COMPLETION_TOKENS
-  });
-
-  const generatedScript = completion.choices[0].message.content;
-  console.log('✅ 어린이 연극 대본 생성 완료');
-
-  // 제목 추출
-  const title = extractTitleFromScript(generatedScript);
-
-  // 스크립트 저장 (어린이 연극 전용)
-  console.log('💾 Supabase에 어린이 연극 대본 저장 시작');
-  const savedScript = await saveScript(userId, generatedScript, {
-    title: title,
-    genre: `어린이 연극 - ${theme}`,
-    characterCount: parseInt(characterCount) || 1,
-    length: length,
-    gender: 'random',
-    age: 'children',
-    isCustom: false,
-    template: 'children',
-    theme: theme
-  });
-
-  console.log(`✅ 어린이 연극 대본 저장 완료 - ID: ${savedScript.id}`);
-
-  return {
-    success: true,
-    script: {
-      id: savedScript.id,
-      title: title,
-      content: generatedScript,
+    console.log('🔍 어린이 연극 RAG 기반 참고 청크 검색 중...');
+    const childrenRagCriteria = {
+      genre: '어린이 연극',
+      ageGroup: 'children',
+      gender: 'random',
       characterCount: parseInt(characterCount),
+      mood: theme // 테마를 mood로 사용
+    };
+    
+    const enhancedChildrenPrompt = await enhancePromptWithRAG(prompt, childrenRagCriteria);
+
+    console.log('🎭 어린이 연극 대본 생성 중 (GPT-4o 모델 사용)');
+    const completion = await callOpenAIWithRetry(openai, [
+      {
+        role: "user",
+        content: enhancedChildrenPrompt
+      }
+    ], {
+      model: MODEL_FINAL,
+      temperature: TEMPERATURE_FINAL,
+      max_completion_tokens: MAX_COMPLETION_TOKENS
+    });
+
+    const generatedScript = completion.choices[0].message.content;
+    console.log('✅ 어린이 연극 대본 생성 완료');
+
+    // 제목 추출
+    const title = extractTitleFromScript(generatedScript);
+
+    // 스크립트 저장 (어린이 연극 전용)
+    console.log('💾 Supabase에 어린이 연극 대본 저장 시작');
+    const savedScript = await saveScript(userId, generatedScript, {
+      title: title,
       genre: `어린이 연극 - ${theme}`,
+      characterCount: parseInt(characterCount) || 1,
       length: length,
       gender: 'random',
       age: 'children',
+      isCustom: false,
       template: 'children',
-      theme: theme,
-      createdAt: new Date().toISOString()
-    },
-    metadata: {
-      characterCount,
-      genre: `어린이 연극 - ${theme}`,
-      gender: 'random',
-      age: 'children',
-      length: length,
-      template: 'children',
-      theme: theme,
-      generatedAt: new Date().toISOString()
-    }
-  };
+      theme: theme
+    });
+
+    // 사용량 확정 (성공 시)
+    await commitUsage(userId, usageInfo.month);
+    console.log(`✅ 어린이 연극 대본 저장 완료 - ID: ${savedScript.id}`);
+
+    return {
+      success: true,
+      script: {
+        id: savedScript.id,
+        title: title,
+        content: generatedScript,
+        characterCount: parseInt(characterCount),
+        genre: `어린이 연극 - ${theme}`,
+        length: length,
+        gender: 'random',
+        age: 'children',
+        template: 'children',
+        theme: theme,
+        createdAt: new Date().toISOString()
+      },
+      metadata: {
+        characterCount,
+        genre: `어린이 연극 - ${theme}`,
+        gender: 'random',
+        age: 'children',
+        length: length,
+        template: 'children',
+        theme: theme,
+        generatedAt: new Date().toISOString()
+      }
+    };
+  } catch (error) {
+    console.error('❌ 어린이 연극 대본 생성 오류:', error);
+    throw error; // 상위 레벨에서 에러 핸들링하도록 전파
+  }
 }
 
 module.exports = {

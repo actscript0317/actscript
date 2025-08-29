@@ -69,7 +69,7 @@ async function saveChildrenScript(userId, scriptContent, metadata = {}) {
   return saveResult.data;
 }
 
-// 어린이 연극 대본 생성 API - v1.1
+// 어린이 연극 대본 생성 API - v1.2 (force deploy)
 router.post('/generate', authenticateToken, async (req, res) => {
   try {
     console.log('🎭 어린이 연극 대본 생성 요청 시작');

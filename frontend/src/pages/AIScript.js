@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { 
   Sparkles, 
@@ -27,6 +27,7 @@ import { useAuth } from '../contexts/AuthContext';
 const AIScript = () => {
   const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // 사용량 관리 상태 (테스트 플랜: 월 10회 제한, 모든 기능 이용 가능)
   const [usageData, setUsageData] = useState({
@@ -132,6 +133,26 @@ const AIScript = () => {
       fetchUsageInfo();
     }
   }, [user]);
+
+  // URL 파라미터 확인하여 템플릿 자동 선택
+  useEffect(() => {
+    const template = searchParams.get('template');
+    if (template === 'children') {
+      // 어린이 연극 템플릿 자동 선택
+      const childrenTemplate = templates.find(t => t.value === 'children');
+      if (childrenTemplate) {
+        setSelectedTemplate(childrenTemplate);
+        setShowTemplateSelection(false);
+        setShowChildrenThemeSelection(true);
+        setFormData(prev => ({
+          ...prev,
+          template: 'children',
+          age: 'children',
+          length: 'short'
+        }));
+      }
+    }
+  }, [searchParams]);
 
   // 옵션 데이터 (모든 사용자에게 전체 기능 제공)
   const characterOptions = [

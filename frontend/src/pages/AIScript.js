@@ -670,7 +670,9 @@ ${animalDetails}
         setGeneratedScriptId(response.data.script.id); // 스크립트 ID 저장
         toast.success('🎭 어린이 연극 대본이 생성되었습니다!');
         
-        // 화면 전환 없이 현재 화면에서 대본을 보여주기 위해 화면 숨김 제거
+        // 대본 생성 후 일반 화면으로 전환하여 결과 표시
+        setShowAnimalSelection(false);
+        setShowChildrenThemeSelection(false);
         
         // 사용량 정보 업데이트
         setTimeout(() => {

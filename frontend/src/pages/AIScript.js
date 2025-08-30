@@ -665,10 +665,16 @@ ${animalDetails}
       clearInterval(progressInterval);
       setProgress(100);
 
+      console.log('🎭 전체 응답 데이터:', response.data);
+      
       if (response.data && response.data.script) {
         const scriptContent = response.data.script.content || response.data.script;
         console.log('🎭 생성된 대본 내용:', scriptContent);
+        console.log('🎭 대본 길이:', scriptContent?.length);
+        
         setGeneratedScript(scriptContent);
+        console.log('🎭 setGeneratedScript 호출 완료');
+        
         setGeneratedScriptId(response.data.script.id); // 스크립트 ID 저장
         toast.success('🎭 어린이 연극 대본이 생성되었습니다!');
         
@@ -1829,115 +1835,26 @@ ${animalDetails}
            <div>
              {renderAnimalSelection()}
              {/* 어린이 연극 대본 결과 - 메인 컴포넌트에서 렌더링 */}
-             {generatedScript && (
-               <div className="container mx-auto px-2 sm:px-4 mt-8">
-                 <div className="max-w-7xl mx-auto">
-                   <motion.div
-                     id="result"
-                     initial={{ opacity: 0, y: 20 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     exit={{ opacity: 0, y: -20 }}
-                     className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8"
-                   >
-                     <div className="text-center mb-8">
-                       <motion.div
-                         initial={{ scale: 0 }}
-                         animate={{ scale: 1 }}
-                         transition={{ delay: 0.2, type: "spring" }}
-                         className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl mb-4 shadow-lg"
-                       >
-                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                         </svg>
-                       </motion.div>
-                       <h2 className="text-3xl font-bold text-gray-900 mb-2">🎭 어린이 연극 대본 생성 완료!</h2>
-                       <p className="text-gray-600">생성된 동물 친구들 대본을 확인하고 연습에 활용해보세요.</p>
-                     </div>
-
-                     <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
-                       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
-                         <h3 className="text-lg font-semibold text-gray-800">🐰 동물 친구들 연극 대본</h3>
-                         <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
-                           <span className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
-                             {selectedAnimals.length}마리
-                           </span>
-                           <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
-                             어린이 연극
-                           </span>
-                           <span className="px-2 py-1 sm:px-3 bg-green-100 text-green-700 rounded-full">
-                             {selectedChildrenTheme?.label || '동물 친구들'}
-                           </span>
-                           <span className="px-2 py-1 sm:px-3 bg-orange-100 text-orange-700 rounded-full">
-                             {formData.length === 'short' ? '짧은 대본' : formData.length === 'medium' ? '중간 길이' : '긴 대본'}
-                           </span>
-                         </div>
-                       </div>
-                       
-                       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                         <div className="flex items-start sm:items-center text-blue-700">
-                           <RefreshCw className="w-4 h-4 mr-2 mt-0.5 sm:mt-0 flex-shrink-0" />
-                           <span className="text-xs sm:text-sm font-medium">✨ 리라이팅 기능: 수정하고 싶은 대사나 문장을 드래그로 선택하면 AI가 더 나은 표현으로 바꿔줍니다 (최소 5자 이상)</span>
-                         </div>
-                       </div>
-                       
-                       <div 
-                         className="prose max-w-none whitespace-pre-wrap bg-white p-4 rounded-lg border border-gray-300 text-gray-800 leading-relaxed text-sm sm:text-base font-mono overflow-x-auto"
-                         style={{ fontFamily: "'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, sans-serif" }}
-                         onMouseUp={handleTextSelection}
-                       >
-                         {generatedScript}
-                       </div>
-                     </div>
-
-                     {/* 액션 버튼들 */}
-                     <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
-                       <button
-                         onClick={async () => {
-                           try {
-                             await navigator.clipboard.writeText(generatedScript);
-                             toast.success('대본이 클립보드에 복사되었습니다!');
-                           } catch (err) {
-                             toast.error('복사 중 오류가 발생했습니다.');
-                           }
-                         }}
-                         className="flex items-center justify-center px-3 sm:px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                       >
-                         <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                         복사
-                       </button>
-                       <button
-                         onClick={() => navigate('/script-vault')}
-                         className="flex items-center justify-center px-3 sm:px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                       >
-                         <Archive className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                         <span className="hidden sm:inline">대본함</span>
-                         <span className="sm:hidden">함</span>
-                       </button>
-                       <button
-                         onClick={openMemoModal}
-                         className="flex items-center justify-center px-3 sm:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                       >
-                         <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                         <span className="hidden sm:inline">📝 메모</span>
-                         <span className="sm:hidden">메모</span>
-                       </button>
-                       <button
-                         onClick={() => {
-                           setGeneratedScript('');
-                           setFinalPrompt('');
-                           setError('');
-                           // 동물 선택 화면 새로고침
-                           setSelectedAnimals([]);
-                           window.scrollTo({ top: 0, behavior: 'smooth' });
-                         }}
-                         className="flex items-center justify-center px-3 sm:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                       >
-                         <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                         다시 생성
-                       </button>
-                     </div>
-                   </motion.div>
+             {(() => {
+               console.log('🎯 메인 컴포넌트에서 generatedScript 체크:', {
+                 generatedScript: generatedScript,
+                 length: generatedScript?.length,
+                 showAnimalSelection: showAnimalSelection,
+                 hasScript: !!generatedScript
+               });
+               return generatedScript;
+             })() && (
+               <div className="bg-red-500 text-white p-8 m-4 rounded-lg">
+                 <h2 className="text-xl mb-4">🎭 대본이 생성되었습니다!</h2>
+                 <div className="bg-white text-black p-4 rounded">
+                   <pre style={{whiteSpace: 'pre-wrap'}}>{generatedScript}</pre>
                  </div>
+                 <button 
+                   onClick={() => setGeneratedScript('')}
+                   className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+                 >
+                   대본 지우기
+                 </button>
                </div>
              )}
            </div>

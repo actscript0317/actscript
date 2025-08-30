@@ -1876,37 +1876,52 @@ ${animalDetails}
               </div>
 
               {/* 액션 버튼들 */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleSaveScript}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+              <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(generatedScript);
+                      toast.success('대본이 클립보드에 복사되었습니다!');
+                    } catch (err) {
+                      toast.error('복사 중 오류가 발생했습니다.');
+                    }
+                  }}
+                  className="flex items-center justify-center px-3 sm:px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                 >
-                  <Save className="w-5 h-5" />
-                  <span>대본 저장하기</span>
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleCopyScript}
-                  className="flex-1 bg-white border-2 border-gray-300 hover:border-purple-400 hover:bg-purple-50 text-gray-700 font-semibold py-3 px-6 rounded-xl transition duration-300 flex items-center justify-center space-x-2"
+                  <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  복사
+                </button>
+                <button
+                  onClick={() => navigate('/script-vault')}
+                  className="flex items-center justify-center px-3 sm:px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                 >
-                  <Copy className="w-5 h-5" />
-                  <span>대본 복사하기</span>
-                </motion.button>
-              </div>
-
-              <div className="flex justify-center mt-6">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleGenerateAnother}
-                  className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-semibold py-3 px-8 rounded-xl transition duration-300 shadow-lg hover:shadow-xl flex items-center space-x-2"
+                  <Archive className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">대본함</span>
+                  <span className="sm:hidden">함</span>
+                </button>
+                <button
+                  onClick={openMemoModal}
+                  className="flex items-center justify-center px-3 sm:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                 >
-                  <RefreshCw className="w-5 h-5" />
-                  <span>다른 대본 생성하기</span>
-                </motion.button>
+                  <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">📝 메모</span>
+                  <span className="sm:hidden">메모</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setGeneratedScript('');
+                    setFinalPrompt('');
+                    setError('');
+                    // 동물 선택 화면으로 돌아가기
+                    setShowAnimalSelection(true);
+                    setShowChildrenThemeSelection(false);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="flex items-center justify-center px-3 sm:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
+                >
+                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  다시 생성
+                </button>
               </div>
             </motion.div>
           )}

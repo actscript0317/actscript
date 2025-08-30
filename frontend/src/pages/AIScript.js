@@ -670,9 +670,7 @@ ${animalDetails}
         setGeneratedScriptId(response.data.script.id); // 스크립트 ID 저장
         toast.success('🎭 어린이 연극 대본이 생성되었습니다!');
         
-        // 대본 생성 후 일반 화면으로 전환하여 결과 표시
-        setShowAnimalSelection(false);
-        setShowChildrenThemeSelection(false);
+        // 동물 선택 화면에서 그대로 대본 표시 - 화면 전환하지 않음
         
         // 사용량 정보 업데이트
         setTimeout(() => {
@@ -1817,6 +1815,101 @@ ${animalDetails}
               </div>
             </div>
           </motion.div>
+
+          {/* 생성된 대본 결과 - 동물 선택 화면에서 표시 */}
+          {generatedScript && (
+            <motion.div
+              id="result"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8 mt-8"
+            >
+              <div className="text-center mb-8">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring" }}
+                  className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl mb-4 shadow-lg"
+                >
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </motion.div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">🎭 어린이 연극 대본 생성 완료!</h2>
+                <p className="text-gray-600">생성된 동물 친구들 대본을 확인하고 연습에 활용해보세요.</p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
+                  <h3 className="text-lg font-semibold text-gray-800">🐰 동물 친구들 연극 대본</h3>
+                  <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
+                    <span className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
+                      {selectedAnimals.length}마리
+                    </span>
+                    <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
+                      어린이 연극
+                    </span>
+                    <span className="px-2 py-1 sm:px-3 bg-green-100 text-green-700 rounded-full">
+                      {selectedChildrenTheme?.label || '동물 친구들'}
+                    </span>
+                    <span className="px-2 py-1 sm:px-3 bg-orange-100 text-orange-700 rounded-full">
+                      {formData.length === 'short' ? '짧은 대본' : formData.length === 'medium' ? '중간 길이' : '긴 대본'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start sm:items-center text-blue-700">
+                    <RefreshCw className="w-4 h-4 mr-2 mt-0.5 sm:mt-0 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium">✨ 리라이팅 기능: 수정하고 싶은 대사나 문장을 드래그로 선택하면 AI가 더 나은 표현으로 바꿔줍니다 (최소 5자 이상)</span>
+                  </div>
+                </div>
+                
+                <div 
+                  className="prose max-w-none whitespace-pre-wrap bg-white p-4 rounded-lg border border-gray-300 text-gray-800 leading-relaxed text-sm sm:text-base font-mono overflow-x-auto"
+                  style={{ fontFamily: "'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, sans-serif" }}
+                  onMouseUp={handleTextSelection}
+                >
+                  {generatedScript}
+                </div>
+              </div>
+
+              {/* 액션 버튼들 */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleSaveScript}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                >
+                  <Save className="w-5 h-5" />
+                  <span>대본 저장하기</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleCopyScript}
+                  className="flex-1 bg-white border-2 border-gray-300 hover:border-purple-400 hover:bg-purple-50 text-gray-700 font-semibold py-3 px-6 rounded-xl transition duration-300 flex items-center justify-center space-x-2"
+                >
+                  <Copy className="w-5 h-5" />
+                  <span>대본 복사하기</span>
+                </motion.button>
+              </div>
+
+              <div className="flex justify-center mt-6">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleGenerateAnother}
+                  className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-semibold py-3 px-8 rounded-xl transition duration-300 shadow-lg hover:shadow-xl flex items-center space-x-2"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  <span>다른 대본 생성하기</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

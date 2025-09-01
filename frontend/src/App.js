@@ -7,9 +7,6 @@ import PrivateRoute from './components/PrivateRoute';
 import PublicRoute from './components/PublicRoute';
 import Home from './pages/Home';
 import AIScript from './pages/AIScript';
-import AIScriptMain from './pages/AIScriptMain';
-import ChildrenTheater from './pages/ChildrenTheater';
-import SchoolTheater from './pages/SchoolTheater';
 import ScriptVault from './pages/ScriptVault';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -82,26 +79,6 @@ function App() {
               
               {/* 인증이 필요한 사용자만 접근 가능한 라우트 */}
               <Route path="/ai-script" element={
-                <PrivateRoute>
-                  <AIScriptMain />
-                </PrivateRoute>
-              } />
-              <Route path="/ai-script/children" element={
-                <PrivateRoute>
-                  <ChildrenTheater />
-                </PrivateRoute>
-              } />
-              <Route path="/ai-script/school" element={
-                <PrivateRoute>
-                  <SchoolTheater />
-                </PrivateRoute>
-              } />
-              <Route path="/ai-script/family" element={
-                <PrivateRoute>
-                  <SchoolTheater />
-                </PrivateRoute>
-              } />
-              <Route path="/ai-script/general" element={
                 <PrivateRoute>
                   <AIScript />
                 </PrivateRoute>

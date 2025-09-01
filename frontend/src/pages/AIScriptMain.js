@@ -46,7 +46,7 @@ const AIScriptMain = () => {
     }
   }, [user]);
 
-  // 템플릿 데이터
+  // 템플릿 데이터 (원래 AIScript.js와 동일)
   const templates = [
     {
       value: 'children',
@@ -82,8 +82,9 @@ const AIScriptMain = () => {
     }
   ];
 
-  // 템플릿 선택 처리
-  const handleTemplateSelect = (template) => {
+  // 템플릿 선택 처리 (원래 AIScript.js 로직)
+  const handleTemplateSelect = (templateValue) => {
+    const template = templates.find(t => t.value === templateValue);
     setSelectedTemplate(template);
     
     // 해당 페이지로 이동
@@ -168,7 +169,7 @@ const AIScriptMain = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  onClick={() => handleTemplateSelect(template)}
+                  onClick={() => handleTemplateSelect(template.value)}
                   className={`bg-gradient-to-r ${template.color} rounded-xl p-6 text-white cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 group`}
                 >
                   <div className="text-center">

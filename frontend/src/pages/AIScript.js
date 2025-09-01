@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { 
   Sparkles, 
@@ -28,6 +28,7 @@ const AIScript = () => {
   const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   
   // 사용량 관리 상태 (테스트 플랜: 월 10회 제한, 모든 기능 이용 가능)
   const [usageData, setUsageData] = useState({
@@ -134,25 +135,48 @@ const AIScript = () => {
     }
   }, [user]);
 
-  // URL 파라미터 확인하여 템플릿 자동 선택
+  // URL 경로에서 템플릿 자동 선택
   useEffect(() => {
-    const template = searchParams.get('template');
-    if (template === 'children') {
-      // 어린이 연극 템플릿 자동 선택
-      const childrenTemplate = templates.find(t => t.value === 'children');
-      if (childrenTemplate) {
-        setSelectedTemplate(childrenTemplate);
-        setShowTemplateSelection(false);
-        setShowChildrenThemeSelection(true);
-        setFormData(prev => ({
-          ...prev,
-          template: 'children',
-          age: 'children',
-          length: 'short'
-        }));
-      }
+    const path = location.pathname;
+    let templateType = 'general'; // 기본값
+    
+    if (path === '/ai-script/general') {
+      templateType = 'general';
+    } else if (path === '/ai-script/school') {
+      templateType = 'school';
+    } else if (path === '/ai-script/family') {
+      templateType = 'family';
     }
-  }, [searchParams]);
+    
+    // 템플릿에 따른 기본 설정
+    const templateSettings = {
+      general: { template: 'general' },
+      school: { 
+        template: 'school', 
+        age: 'kids', 
+        genre: '학교 생활', 
+        length: 'medium',
+        characterCount: '3'
+      },
+      family: { 
+        template: 'family', 
+        age: 'random', 
+        genre: '가족 이야기', 
+        length: 'medium',
+        characterCount: '4'
+      }
+    };
+    
+    // 폼 데이터 설정
+    setFormData(prev => ({
+      ...prev,
+      ...templateSettings[templateType]
+    }));
+    
+    // 템플릿 선택 화면 건너뛰기
+    setShowTemplateSelection(false);
+    
+  }, [location]);
 
   // 옵션 데이터 (모든 사용자에게 전체 기능 제공)
   const characterOptions = [

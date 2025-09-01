@@ -85,7 +85,7 @@ const Home = () => {
               {/* CTA 버튼들 */}
               <div className="flex flex-col sm:flex-row gap-4 opacity-0 animate-fade-in-up" style={{animationDelay: '0.6s', animationFillMode: 'forwards'}}>
                 <Link 
-                  to="/ai-script" 
+                  to="/ai-script/main" 
                   className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold text-lg px-8 py-4 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                 >
                   나만의 대본 만들기
@@ -173,7 +173,7 @@ const Home = () => {
                   </li>
                 </ul>
                 <Link
-                  to="/ai-script"
+                  to="/ai-script/main"
                   className="w-full block text-center bg-gray-600 text-white py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors"
                 >
                   무료로 시작하기

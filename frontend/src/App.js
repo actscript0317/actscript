@@ -82,6 +82,11 @@ function App() {
               {/* 인증이 필요한 사용자만 접근 가능한 라우트 */}
               <Route path="/ai-script" element={
                 <PrivateRoute>
+                  <AIScript />
+                </PrivateRoute>
+              } />
+              <Route path="/ai-script/main" element={
+                <PrivateRoute>
                   <AIScriptMain />
                 </PrivateRoute>
               } />

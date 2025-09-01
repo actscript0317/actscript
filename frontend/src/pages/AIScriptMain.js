@@ -78,7 +78,7 @@ const AIScriptMain = () => {
       description: '자유로운 설정으로 다양한 상황의 대본',
       icon: '🎭',
       color: 'from-pink-400 to-orange-500',
-      path: '/ai-script/general'
+      path: '/ai-script'
     }
   ];
 

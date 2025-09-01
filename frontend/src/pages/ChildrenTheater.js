@@ -343,7 +343,7 @@ ${animals.map(animal => `${animal.label}: ${animal.personality}, ${animal.voiceS
           {/* 뒤로가기 버튼 */}
           <div className="flex justify-center mb-6">
             <button
-              onClick={() => navigate('/ai-script')}
+              onClick={() => navigate('/ai-script/main')}
               className="flex items-center space-x-2 px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 rounded-lg shadow-md transition-colors duration-200"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -691,7 +691,7 @@ ${animals.map(animal => `${animal.label}: ${animal.personality}, ${animal.voiceS
                      </div>
                    )}
 
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-4">
                      <button
                        onClick={() => {
                          navigator.clipboard.writeText(generatedScript);

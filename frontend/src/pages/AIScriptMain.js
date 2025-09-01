@@ -62,7 +62,7 @@ const AIScriptMain = () => {
       description: '학교 발표회나 축제에 적합한 연극',
       icon: '🎒',
       color: 'from-blue-400 to-purple-500',
-      path: '/ai-script?template=school'
+      path: '/ai-script/advanced?template=school'
     },
     {
       value: 'family',
@@ -70,7 +70,7 @@ const AIScriptMain = () => {
       description: '온 가족이 함께 즐길 수 있는 연극',
       icon: '👨‍👩‍👧‍👦',
       color: 'from-purple-400 to-pink-500',
-      path: '/ai-script?template=family'
+      path: '/ai-script/advanced?template=family'
     },
     {
       value: 'general',
@@ -78,7 +78,7 @@ const AIScriptMain = () => {
       description: '자유로운 설정으로 다양한 상황의 대본',
       icon: '🎭',
       color: 'from-pink-400 to-orange-500',
-      path: '/ai-script?template=general'
+      path: '/ai-script/advanced?template=general'
     }
   ];
 

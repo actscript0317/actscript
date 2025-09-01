@@ -10,7 +10,8 @@ import {
   Check,
   Archive,
   Edit3,
-  ArrowLeft
+  ArrowLeft,
+  X
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';

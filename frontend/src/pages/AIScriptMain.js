@@ -54,7 +54,7 @@ const AIScriptMain = () => {
       description: '5~12세 어린이를 위한 교육적이고 재미있는 연극',
       icon: '🧒',
       color: 'from-green-400 to-blue-500',
-      path: '/children-theater'
+      path: '/ai-script/children'
     },
     {
       value: 'school',
@@ -62,7 +62,7 @@ const AIScriptMain = () => {
       description: '학교 발표회나 축제에 적합한 연극',
       icon: '🎒',
       color: 'from-blue-400 to-purple-500',
-      path: '/ai-script/advanced?template=school'
+      path: '/ai-script/school'
     },
     {
       value: 'family',
@@ -70,7 +70,7 @@ const AIScriptMain = () => {
       description: '온 가족이 함께 즐길 수 있는 연극',
       icon: '👨‍👩‍👧‍👦',
       color: 'from-purple-400 to-pink-500',
-      path: '/ai-script/advanced?template=family'
+      path: '/ai-script/family'
     },
     {
       value: 'general',
@@ -78,7 +78,7 @@ const AIScriptMain = () => {
       description: '자유로운 설정으로 다양한 상황의 대본',
       icon: '🎭',
       color: 'from-pink-400 to-orange-500',
-      path: '/ai-script/advanced?template=general'
+      path: '/ai-script/general'
     }
   ];
 

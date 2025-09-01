@@ -85,14 +85,24 @@ function App() {
                   <AIScriptMain />
                 </PrivateRoute>
               } />
-              <Route path="/ai-script/advanced" element={
+              <Route path="/ai-script/children" element={
+                <PrivateRoute>
+                  <ChildrenTheater />
+                </PrivateRoute>
+              } />
+              <Route path="/ai-script/school" element={
                 <PrivateRoute>
                   <AIScript />
                 </PrivateRoute>
               } />
-              <Route path="/children-theater" element={
+              <Route path="/ai-script/family" element={
                 <PrivateRoute>
-                  <ChildrenTheater />
+                  <AIScript />
+                </PrivateRoute>
+              } />
+              <Route path="/ai-script/general" element={
+                <PrivateRoute>
+                  <AIScript />
                 </PrivateRoute>
               } />
               <Route path="/script-vault" element={

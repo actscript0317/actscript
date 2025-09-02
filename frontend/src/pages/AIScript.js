@@ -2681,21 +2681,3 @@ ${animalDetails}
 };
 
 export default AIScript; 
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* 메인 폼 카드 및 기타 컨텐츠는 여기에... */}
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 mb-8">
-          <div className="text-center text-gray-500">
-            일반 대본 생성 폼이 여기에 위치합니다.
-          </div>
-        </div>
-        
-      </div>
-    </div>
-  );
-};
-
-export default AIScript; 

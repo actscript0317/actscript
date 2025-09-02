@@ -23,6 +23,11 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import TemplateSelection from './ai-script/TemplateSelection';
+import ChildrenThemeSelection from './ai-script/ChildrenThemeSelection';
+import AnimalSelection from './ai-script/AnimalSelection';
+import ScriptRenderer from '../components/common/ScriptRenderer';
+import Dropdown from '../components/common/Dropdown';
 
 const AIScript = () => {
   const { addSavedScript, user } = useAuth();
@@ -95,6 +100,13 @@ const AIScript = () => {
   const [selectedAnimals, setSelectedAnimals] = useState([]);
   const [selectedScriptLength, setSelectedScriptLength] = useState('medium');
   const [progress, setProgress] = useState(0);
+  
+  // 드롭다운 상태 관리
+  const [isGenreDropdownOpen, setIsGenreDropdownOpen] = useState(false);
+  const [isLengthDropdownOpen, setIsLengthDropdownOpen] = useState(false);
+  const [isGenderDropdownOpen, setIsGenderDropdownOpen] = useState(false);
+  const [isAgeDropdownOpen, setIsAgeDropdownOpen] = useState(false);
+  const [isCharacterCountDropdownOpen, setIsCharacterCountDropdownOpen] = useState(false);
 
   // 사용량 정보 가져오기
   const fetchUsageInfo = async () => {
@@ -1017,121 +1029,6 @@ ${animalDetails}
   };
 
   // 리라이팅 모달 닫기
-  // 대본 파싱 및 렌더링 함수
-  const parseAndRenderScript = (script) => {
-    if (!script || typeof script !== 'string') return null;
-
-    const lines = script.split('\n');
-    const sections = [];
-    let currentSection = { type: 'text', content: [] };
-
-    lines.forEach((line, index) => {
-      const trimmedLine = line.trim();
-      
-      // 섹션 헤더 감지
-      if (trimmedLine.match(/^===제목===$/i)) {
-        if (currentSection.content.length > 0) sections.push(currentSection);
-        currentSection = { type: 'title', content: [line] };
-      } else if (trimmedLine.match(/^===상황[ ]?설명===$/i)) {
-        if (currentSection.content.length > 0) sections.push(currentSection);
-        currentSection = { type: 'situation', content: [line] };
-      } else if (trimmedLine.match(/^===등장인물===$/i)) {
-        if (currentSection.content.length > 0) sections.push(currentSection);
-        currentSection = { type: 'character', content: [line] };
-      } else if (trimmedLine.match(/^===대본===$/i)) {
-        if (currentSection.content.length > 0) sections.push(currentSection);
-        currentSection = { type: 'dialogue', content: [line] };
-      } else if (trimmedLine.match(/^===연기[ ]?팁===$/i)) {
-        if (currentSection.content.length > 0) sections.push(currentSection);
-        currentSection = { type: 'tips', content: [line] };
-      } else {
-        currentSection.content.push(line);
-      }
-    });
-
-    if (currentSection.content.length > 0) sections.push(currentSection);
-
-    return sections.map((section, index) => {
-      const content = section.content.join('\n');
-      
-      switch (section.type) {
-        case 'title':
-          return (
-            <div key={index} className="mb-6">
-              <div className="text-2xl font-bold text-center text-purple-900 bg-gradient-to-r from-purple-100 to-pink-100 py-4 px-6 rounded-xl border-l-4 border-purple-500">
-                {content.replace(/^\*\*제목:\*\*\s*/i, '').replace(/^제목:\s*/i, '')}
-              </div>
-            </div>
-          );
-        case 'situation':
-          return (
-            <div key={index} className="mb-6">
-              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
-                <h3 className="font-bold text-blue-800 mb-2 flex items-center">
-                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                  상황 설명
-                </h3>
-                <div className="text-blue-700 leading-relaxed whitespace-pre-wrap font-medium">
-                  {content.replace(/^\*\*상황[ ]?설명:\*\*\s*/i, '').replace(/^상황[ ]?설명:\s*/i, '').replace(/^\[상황[ ]?설명\]\s*/i, '')}
-                </div>
-              </div>
-            </div>
-          );
-        case 'character':
-          return (
-            <div key={index} className="mb-6">
-              <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
-                <h3 className="font-bold text-green-800 mb-2 flex items-center">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  등장인물
-                </h3>
-                <div className="text-green-700 leading-relaxed whitespace-pre-wrap font-medium">
-                  {content.replace(/^\*\*인물:\*\*\s*/i, '').replace(/^인물:\s*/i, '').replace(/^\[등장인물\]\s*/i, '').replace(/^\[인물\]\s*/i, '')}
-                </div>
-              </div>
-            </div>
-          );
-        case 'dialogue':
-          return (
-            <div key={index} className="mb-6">
-              <div className="bg-gray-50 border-l-4 border-gray-400 p-6 rounded-r-lg">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center">
-                  <span className="w-2 h-2 bg-gray-500 rounded-full mr-2"></span>
-                  {section.content[0].includes('독백') ? '독백' : '대본'}
-                </h3>
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                  <div className="text-gray-800 leading-relaxed whitespace-pre-wrap font-serif text-base">
-                    {content.replace(/^\*\*독백:\*\*\s*/i, '').replace(/^독백:\s*/i, '').replace(/^\[독백\]\s*/i, '').replace(/^\*\*대본:\*\*\s*/i, '').replace(/^대본:\s*/i, '').replace(/^\[대본\]\s*/i, '')}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        case 'tips':
-          return (
-            <div key={index} className="mb-6">
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
-                <h3 className="font-bold text-yellow-800 mb-2 flex items-center">
-                  <span className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
-                  연기 팁
-                </h3>
-                <div className="text-yellow-700 leading-relaxed whitespace-pre-wrap font-medium">
-                  {content.replace(/^\*\*연기[ ]?팁:\*\*\s*/i, '').replace(/^연기[ ]?팁:\s*/i, '').replace(/^\*\*연기[ ]?포인트:\*\*\s*/i, '')}
-                </div>
-              </div>
-            </div>
-          );
-        default:
-          return (
-            <div key={index} className="mb-4">
-              <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {content}
-              </div>
-            </div>
-          );
-      }
-    });
-  };
 
 
 
@@ -1847,28 +1744,53 @@ ${animalDetails}
 
   // 조건부 렌더링을 단순화
   if (showTemplateSelection) {
-    return renderTemplateSelection();
+    return (
+      <TemplateSelection 
+        templates={templates}
+        onTemplateSelect={handleTemplateSelect}
+        ageMap={ageMap}
+      />
+    );
   }
 
   if (showChildrenThemeSelection) {
-    return renderChildrenThemeSelection();
+    return (
+      <ChildrenThemeSelection
+        childrenThemes={childrenThemes}
+        onThemeSelect={handleChildrenThemeSelect}
+        onBack={handleBackToTemplatesFromTheme}
+      />
+    );
   }
 
   if (showAnimalSelection) {
     return (
       <div>
-        {renderAnimalSelection()}
-        {/* 어린이 연극 대본 결과 - 메인 컴포넌트에서 렌더링 */}
+        <AnimalSelection
+          availableAnimals={availableAnimals}
+          selectedAnimals={selectedAnimals}
+          selectedScriptLength={selectedScriptLength}
+          lengths={lengths}
+          onAnimalToggle={handleAnimalToggle}
+          onAnimalPercentageChange={handleAnimalPercentageChange}
+          onAnimalRoleChange={handleAnimalRoleChange}
+          onScriptLengthChange={setSelectedScriptLength}
+          onComplete={handleAnimalSelectionComplete}
+          onBack={() => setShowChildrenThemeSelection(true)}
+          isLengthDropdownOpen={isLengthDropdownOpen}
+          setIsLengthDropdownOpen={setIsLengthDropdownOpen}
+        />
+        {/* 어린이 연극 대본 결과 */}
         {generatedScript && (
-             <div className="container mx-auto px-2 sm:px-4 mt-8">
-               <div className="max-w-7xl mx-auto">
-                 <motion.div
-                   id="result"
-                   initial={{ opacity: 0, y: 20 }}
-                   animate={{ opacity: 1, y: 0 }}
-                     exit={{ opacity: 0, y: -20 }}
-                     className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8"
-                   >
+          <div className="container mx-auto px-2 sm:px-4 mt-8">
+            <div className="max-w-7xl mx-auto">
+              <motion.div
+                id="result"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8"
+              >
                      <div className="text-center mb-8">
                        <motion.div
                          initial={{ scale: 0 }}
@@ -1911,10 +1833,10 @@ ${animalDetails}
                        </div>
                        
                        <div 
-                         className="bg-white rounded-lg p-3 sm:p-4 md:p-6 border border-gray-200 max-h-[60vh] sm:max-h-96 overflow-y-auto cursor-text select-text text-sm sm:text-base leading-relaxed"
+                         className="cursor-text select-text"
                          onMouseUp={handleTextSelection}
                        >
-                         {parseAndRenderScript(generatedScript)}
+                         <ScriptRenderer script={generatedScript} />
                        </div>
                      </div>
 

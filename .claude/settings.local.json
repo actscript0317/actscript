@@ -51,7 +51,9 @@
       "Bash(setx:*)",
       "Bash(del nul)",
       "Bash(git checkout:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(npm audit:*)",
+      "Bash(PORT=3001 npm start)"
     ],
     "deny": [],
     "additionalDirectories": [

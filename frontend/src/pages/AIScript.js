@@ -1845,27 +1845,29 @@ ${animalDetails}
     </div>
   );
 
-  return showTemplateSelection ? renderTemplateSelection() :
-         showChildrenThemeSelection ? renderChildrenThemeSelection() :
-         showAnimalSelection ? (
-           <div>
-             {renderAnimalSelection()}
-             {/* 어린이 연극 대본 결과 - 메인 컴포넌트에서 렌더링 */}
-             {(() => {
-               console.log('🎯 메인 컴포넌트에서 generatedScript 체크:', {
-                 generatedScript: generatedScript,
-                 length: generatedScript?.length,
-                 showAnimalSelection: showAnimalSelection,
-                 hasScript: !!generatedScript
-               });
-               return generatedScript;
-             })() && (
-               <div className="container mx-auto px-2 sm:px-4 mt-8">
-                 <div className="max-w-7xl mx-auto">
-                   <motion.div
-                     id="result"
-                     initial={{ opacity: 0, y: 20 }}
-                     animate={{ opacity: 1, y: 0 }}
+  return (
+    <>
+      {showTemplateSelection ? renderTemplateSelection() :
+       showChildrenThemeSelection ? renderChildrenThemeSelection() :
+       showAnimalSelection ? (
+         <div>
+           {renderAnimalSelection()}
+           {/* 어린이 연극 대본 결과 - 메인 컴포넌트에서 렌더링 */}
+           {(() => {
+             console.log('🎯 메인 컴포넌트에서 generatedScript 체크:', {
+               generatedScript: generatedScript,
+               length: generatedScript?.length,
+               showAnimalSelection: showAnimalSelection,
+               hasScript: !!generatedScript
+             });
+             return generatedScript;
+           })() && (
+             <div className="container mx-auto px-2 sm:px-4 mt-8">
+               <div className="max-w-7xl mx-auto">
+                 <motion.div
+                   id="result"
+                   initial={{ opacity: 0, y: 20 }}
+                   animate={{ opacity: 1, y: 0 }}
                      exit={{ opacity: 0, y: -20 }}
                      className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8"
                    >
@@ -3136,6 +3138,8 @@ ${animalDetails}
         </div>
       </div>
     </div>
+      )}
+    </>
   );
 };
 

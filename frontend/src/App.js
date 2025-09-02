@@ -23,7 +23,7 @@ import ActorRecruitment from './pages/comunity/ActorRecruitment';
 import ModelRecruitment from './pages/ModelRecruitment';
 import ActorInfo from './pages/comunity/ActorInfo';
 // 새로운 게시글 관련 페이지들
-import CreatePost from './pages/CreatePost';
+import CreatePost from './pages/comunity/CreatePost';
 import PostDetail from './pages/PostDetail';
 // 결제 관련 페이지들
 import Payment from './pages/Payment';

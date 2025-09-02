@@ -1,97 +1,91 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 const TemplateSelection = ({ templates, onTemplateSelect, ageMap }) => {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 md:py-16">
-      <div className="container mx-auto px-4 max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 py-12">
+      <div className="container mx-auto px-6 max-w-7xl">
         
         {/* 헤더 */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-semibold text-gray-900 mb-4 tracking-tight">
+          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-blue-200/50 text-blue-600 text-sm font-medium mb-6">
+            <Sparkles size={16} />
             AI 대본 생성기
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
+            원하는 템플릿을 선택하세요
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            원하는 템플릿을 선택하여 완벽한 대본을 생성하세요
+          <p className="text-slate-600 max-w-xl mx-auto text-base">
+            각 템플릿은 특별히 최적화된 AI 프롬프트로 완벽한 대본을 생성합니다
           </p>
         </motion.div>
 
         {/* 템플릿 카드들 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {templates.map((template, index) => (
             <motion.div
               key={template.value}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              transition={{ delay: index * 0.08, duration: 0.5 }}
               onClick={() => onTemplateSelect(template.value)}
-              className="group bg-white rounded-3xl border border-gray-200 hover:border-gray-300 p-8 cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-1"
+              className="group relative bg-white/70 backdrop-blur-sm border border-white/50 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-200/50 hover:-translate-y-1"
             >
-              <div className="text-center space-y-6">
-                <div className="text-5xl transition-transform duration-300 group-hover:scale-110">
-                  {template.icon}
+              {/* 카드 콘텐츠 */}
+              <div className="space-y-4">
+                {/* 아이콘 */}
+                <div className="flex items-center justify-between">
+                  <div className="text-3xl transition-transform duration-300 group-hover:scale-110">
+                    {template.icon}
+                  </div>
+                  <ArrowRight 
+                    size={18} 
+                    className="text-slate-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-300" 
+                  />
                 </div>
                 
+                {/* 제목과 설명 */}
                 <div className="space-y-2">
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                  <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
                     {template.label}
                   </h3>
-                  <p className="text-gray-500 text-sm leading-relaxed">
+                  <p className="text-slate-500 text-sm leading-relaxed line-clamp-2">
                     {template.description}
                   </p>
                 </div>
                 
                 {/* 기본 설정 태그 */}
                 {template.defaultSettings && Object.keys(template.defaultSettings).length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-xs text-gray-400 font-medium">기본 설정</div>
-                    <div className="flex flex-wrap gap-1 justify-center">
-                      {template.defaultSettings.age && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
-                          {ageMap[template.defaultSettings.age] || template.defaultSettings.age}
-                        </span>
-                      )}
-                      {template.defaultSettings.genre && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
-                          {template.defaultSettings.genre}
-                        </span>
-                      )}
-                      {template.defaultSettings.characterCount && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
-                          {template.defaultSettings.characterCount}명
-                        </span>
-                      )}
-                    </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {template.defaultSettings.age && (
+                      <span className="inline-flex px-2.5 py-1 bg-slate-100/80 text-slate-600 rounded-lg text-xs font-medium">
+                        {ageMap[template.defaultSettings.age] || template.defaultSettings.age}
+                      </span>
+                    )}
+                    {template.defaultSettings.genre && (
+                      <span className="inline-flex px-2.5 py-1 bg-slate-100/80 text-slate-600 rounded-lg text-xs font-medium">
+                        {template.defaultSettings.genre}
+                      </span>
+                    )}
+                    {template.defaultSettings.characterCount && (
+                      <span className="inline-flex px-2.5 py-1 bg-slate-100/80 text-slate-600 rounded-lg text-xs font-medium">
+                        {template.defaultSettings.characterCount}명
+                      </span>
+                    )}
                   </div>
                 )}
-                
-                <div className="pt-4">
-                  <div className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-medium group-hover:bg-blue-600 transition-colors">
-                    선택하기
-                  </div>
-                </div>
               </div>
+
+              {/* 호버 시 나타나는 그라데이션 보더 */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             </motion.div>
           ))}
         </div>
-
-        {/* 간단한 안내 메시지 */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-16 text-center"
-        >
-          <p className="text-gray-500 text-sm max-w-3xl mx-auto">
-            각 템플릿은 특별히 설계된 AI 프롬프트로 최적화되어 있습니다. 
-            선택한 템플릿에 따라 맞춤형 옵션이 제공됩니다.
-          </p>
-        </motion.div>
 
       </div>
     </div>

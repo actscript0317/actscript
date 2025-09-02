@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import TemplateSelection from './ai-script/TemplateSelection';
 import ChildrenThemeSelection from './ai-script/ChildrenThemeSelection';
 import AnimalSelection from './ai-script/AnimalSelection';
 import ScriptRenderer from '../components/common/ScriptRenderer';
@@ -742,7 +743,7 @@ ${animalDetails}
 
   // 어린이 테마 선택 페이지에서 템플릿으로 돌아가기
   const handleBackToTemplatesFromTheme = () => {
-    setShowTemplateSelection(false);
+    setShowTemplateSelection(true);
     setShowChildrenThemeSelection(false);
     setSelectedTemplate(null);
     setSelectedChildrenTheme(null);
@@ -763,26 +764,8 @@ ${animalDetails}
 
   // 템플릿 선택 페이지로 돌아가기 (옵션 설정 페이지에서)
   const handleBackToTemplates = () => {
-    if (selectedTemplate?.value === 'children') {
-      // 어린이 연극인 경우 테마 선택 페이지로
-      setShowChildrenThemeSelection(true);
-    } else {
-      // 다른 템플릿인 경우 템플릿 선택 페이지로
-      setShowTemplateSelection(false);
-      setSelectedTemplate(null);
-      setSelectedChildrenTheme(null);
-      setFormData({
-        template: '',
-        characterCount: '1',
-        genre: '',
-        length: '',
-        gender: '',
-        age: '',
-        characters: [],
-        characterRelationships: '',
-        customPrompt: ''
-      });
-    }
+    // AIScript 메인 페이지로 이동
+    navigate('/ai-script');
   };
 
   // 폼 데이터 변경 핸들러
@@ -1294,6 +1277,16 @@ ${animalDetails}
   );
 
 
+  // 조건부 렌더링을 단순화
+  if (showTemplateSelection) {
+    return (
+      <TemplateSelection 
+        templates={templates}
+        onTemplateSelect={handleTemplateSelect}
+        ageMap={ageMap}
+      />
+    );
+  }
 
   if (showChildrenThemeSelection) {
     return (

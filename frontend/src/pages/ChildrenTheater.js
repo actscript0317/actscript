@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { 
   Sparkles, 
@@ -28,6 +28,7 @@ import { useAuth } from '../contexts/AuthContext';
 const ChildrenTheater = () => {
   const { addSavedScript, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   
   // 사용량 관리 상태 (테스트 플랜: 월 10회 제한, 모든 기능 이용 가능)
   const [usageData, setUsageData] = useState({
@@ -130,6 +131,36 @@ const ChildrenTheater = () => {
       fetchUsageInfo();
     }
   }, [user]);
+
+  // URL 경로에 따른 자동 테마 선택
+  useEffect(() => {
+    const path = location.pathname;
+    const themeMap = {
+      '/ai-script/children/animal-friends': 'animal-friends',
+      '/ai-script/children/magic-adventure': 'magic-adventure',
+      '/ai-script/children/friendship': 'friendship',
+      '/ai-script/children/school-life': 'school-life',
+      '/ai-script/children/dreams-imagination': 'dreams-imagination'
+    };
+    
+    if (themeMap[path]) {
+      const theme = childrenThemes.find(t => t.value === themeMap[path]);
+      if (theme) {
+        setSelectedChildrenTheme(theme);
+        setFormData(prev => ({
+          ...prev,
+          genre: theme.genre,
+          characterCount: '2'
+        }));
+        setShowChildrenThemeSelection(false);
+        
+        // 동물 친구들 테마는 동물 선택으로, 다른 테마는 일반 대본 생성으로
+        if (theme.value === 'animal-friends') {
+          setShowAnimalSelection(true);
+        }
+      }
+    }
+  }, [location]);
 
   // 어린이 연극 테마들 (AIScript.js에서 가져온 데이터)
   const childrenThemes = [
@@ -364,25 +395,9 @@ ${animalDetails}
     return prompts[theme] || prompts['animal-friends'];
   };
 
-  // 어린이 테마 선택 핸들러 (AIScript.js에서 가져온 함수)
+  // 어린이 테마 선택 핸들러 (하위 페이지로 네비게이션)
   const handleChildrenThemeSelect = (themeValue) => {
-    const theme = childrenThemes.find(t => t.value === themeValue);
-    setSelectedChildrenTheme(theme);
-    
-    setFormData(prev => ({
-      ...prev,
-      genre: theme.genre,
-      characterCount: '2' // 기본 2명으로 설정
-    }));
-    
-    // 동물 친구들 테마인 경우 동물 선택 페이지로 이동
-    if (themeValue === 'animal-friends') {
-      setShowChildrenThemeSelection(false);
-      setShowAnimalSelection(true);
-    } else {
-      // 다른 테마는 바로 옵션 설정 페이지로
-      setShowChildrenThemeSelection(false);
-    }
+    navigate(`/ai-script/children/${themeValue}`);
   };
 
   // 동물 선택 핸들러 (AIScript.js에서 가져온 함수)
@@ -958,40 +973,99 @@ ${animalDetails}
                 선택된 동물들 ({selectedAnimals.length}마리)
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                {selectedAnimals.map((animal) => (
-                  <div key={animal.value} className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-2xl">{animal.icon}</span>
-                      <span className="font-semibold text-gray-900">{animal.label}</span>
+              {/* 총 대사 분량 표시 바 */}
+              <div className={`border rounded-lg p-4 mb-6 ${
+                selectedAnimals.reduce((sum, animal) => sum + (animal.percentage || 0), 0) === 100
+                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                  : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-medium ${
+                    selectedAnimals.reduce((sum, animal) => sum + (animal.percentage || 0), 0) === 100
+                      ? 'text-green-800'
+                      : 'text-red-800'
+                  }`}>
+                    총 대사 분량 
+                    {selectedAnimals.reduce((sum, animal) => sum + (animal.percentage || 0), 0) === 100 
+                      ? ' ✅ 완료' 
+                      : ' ⚠️ 조정 필요'
+                    }
+                  </span>
+                  <span className={`text-lg font-bold ${
+                    selectedAnimals.reduce((sum, animal) => sum + (animal.percentage || 0), 0) === 100
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
+                    {selectedAnimals.reduce((sum, animal) => sum + (animal.percentage || 0), 0)}% / 100%
+                  </span>
+                </div>
+              </div>
+
+              {/* 동물별 설정 - 한 줄에 5개까지 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6">
+                {selectedAnimals.map((animal, index) => (
+                  <div key={animal.value} className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <div className="flex flex-col items-center mb-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mb-2">
+                        <span className="text-xl">{animal.icon}</span>
+                      </div>
+                      <div className="text-center">
+                        <h4 className="font-semibold text-gray-900 text-sm">{animal.label}</h4>
+                        <p className="text-xs text-gray-600">{animal.personality}</p>
+                      </div>
                     </div>
                     
-                    {/* 역할 선택 */}
-                    <div className="mb-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">역할</label>
-                      <select
-                        value={animal.roleType}
-                        onChange={(e) => handleAnimalRoleChange(animal.value, e.target.value)}
-                        className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                      >
-                        <option value="주연">주연</option>
-                        <option value="조연">조연</option>
-                        <option value="단역">단역</option>
-                      </select>
-                    </div>
-                    
-                    {/* 대사 비율 */}
-                    <div className="mb-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">대사 분량</label>
-                      <input
-                        type="number"
-                        min="5"
-                        max="60"
-                        value={animal.percentage}
-                        onChange={(e) => handleAnimalPercentageChange(animal.value, e.target.value)}
-                        className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                      />
-                      <div className="text-xs text-gray-500">%</div>
+                    <div className="space-y-3">
+                      {/* 역할 선택 */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">역할</label>
+                        <select
+                          value={animal.roleType}
+                          onChange={(e) => handleAnimalRoleChange(animal.value, e.target.value)}
+                          className="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                        >
+                          <option value="주연">주연</option>
+                          <option value="조연">조연</option>
+                          <option value="단역">단역</option>
+                        </select>
+                      </div>
+                      
+                      {/* 대사 분량 슬라이더 */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          분량: {animal.percentage}%
+                        </label>
+                        
+                        {/* 통합된 게이지 슬라이더 */}
+                        <div className="relative mb-2">
+                          <input
+                            type="range"
+                            min="5"
+                            max="90"
+                            step="5"
+                            value={animal.percentage || 0}
+                            onChange={(e) => handleAnimalPercentageChange(animal.value, e.target.value)}
+                            className="w-full h-4 bg-gray-200 rounded-full appearance-none cursor-pointer slider"
+                            style={{
+                              background: `linear-gradient(to right, #10b981 0%, #10b981 ${animal.percentage}%, #e5e7eb ${animal.percentage}%, #e5e7eb 100%)`
+                            }}
+                          />
+                          {/* 퍼센트 표시 */}
+                          <div 
+                            className="absolute top-0 h-4 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center pointer-events-none"
+                            style={{ width: `${animal.percentage}%` }}
+                          >
+                            <span className="text-white text-xs font-bold">
+                              {animal.percentage}%
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between text-xs text-gray-400">
+                          <span>5%</span>
+                          <span>90%</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}

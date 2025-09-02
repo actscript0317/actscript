@@ -95,6 +95,31 @@ function App() {
                   <ChildrenTheater />
                 </PrivateRoute>
               } />
+              <Route path="/ai-script/children/animal-friends" element={
+                <PrivateRoute>
+                  <ChildrenTheater />
+                </PrivateRoute>
+              } />
+              <Route path="/ai-script/children/magic-adventure" element={
+                <PrivateRoute>
+                  <ChildrenTheater />
+                </PrivateRoute>
+              } />
+              <Route path="/ai-script/children/friendship" element={
+                <PrivateRoute>
+                  <ChildrenTheater />
+                </PrivateRoute>
+              } />
+              <Route path="/ai-script/children/school-life" element={
+                <PrivateRoute>
+                  <ChildrenTheater />
+                </PrivateRoute>
+              } />
+              <Route path="/ai-script/children/dreams-imagination" element={
+                <PrivateRoute>
+                  <ChildrenTheater />
+                </PrivateRoute>
+              } />
               <Route path="/ai-script/school" element={
                 <PrivateRoute>
                   <AIScript />

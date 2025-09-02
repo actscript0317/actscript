@@ -4,7 +4,7 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 
 const TemplateSelection = ({ templates, onTemplateSelect, ageMap }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 py-12">
+    <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-6 max-w-7xl">
         
         {/* 헤더 */}

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Plus, Eye, Calendar, Users, MapPin, Heart, User, Bookmark } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { actorProfileAPI, likeAPI, bookmarkAPI } from '../services/api';
+import { actorProfileAPI, likeAPI, bookmarkAPI } from '../../services/api';
 
 const ActorProfile = () => {
   const { isAuthenticated } = useAuth();

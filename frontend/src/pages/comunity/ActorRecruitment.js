@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { actorRecruitmentAPI, likeAPI, bookmarkAPI } from '../services/api';
+import { actorRecruitmentAPI, likeAPI, bookmarkAPI } from '../../services/api';
 
 const ActorRecruitment = () => {
   const { isAuthenticated } = useAuth();

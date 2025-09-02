@@ -1462,13 +1462,9 @@ ${animalDetails}
               </motion.div>
             </div>
           </div>
-             )}
-           </div>
-         )}
-        </div>
+        )}
       </div>
     );
-  }
 
   // 기본 일반 대본 생성 화면 렌더링
   if (generatedScript) {

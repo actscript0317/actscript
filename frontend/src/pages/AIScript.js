@@ -1845,23 +1845,29 @@ ${animalDetails}
     </div>
   );
 
-  return (
-    <>
-      {showTemplateSelection ? renderTemplateSelection() :
-       showChildrenThemeSelection ? renderChildrenThemeSelection() :
-       showAnimalSelection ? (
-         <div>
-           {renderAnimalSelection()}
-           {/* 어린이 연극 대본 결과 - 메인 컴포넌트에서 렌더링 */}
-           {(() => {
-             console.log('🎯 메인 컴포넌트에서 generatedScript 체크:', {
-               generatedScript: generatedScript,
-               length: generatedScript?.length,
-               showAnimalSelection: showAnimalSelection,
-               hasScript: !!generatedScript
-             });
-             return generatedScript;
-           })() && (
+  // 조건부 렌더링을 단순화
+  if (showTemplateSelection) {
+    return renderTemplateSelection();
+  }
+
+  if (showChildrenThemeSelection) {
+    return renderChildrenThemeSelection();
+  }
+
+  if (showAnimalSelection) {
+    return (
+      <div>
+        {renderAnimalSelection()}
+        {/* 어린이 연극 대본 결과 - 메인 컴포넌트에서 렌더링 */}
+        {(() => {
+          console.log('🎯 메인 컴포넌트에서 generatedScript 체크:', {
+            generatedScript: generatedScript,
+            length: generatedScript?.length,
+            showAnimalSelection: showAnimalSelection,
+            hasScript: !!generatedScript
+          });
+          return generatedScript;
+        })() && (
              <div className="container mx-auto px-2 sm:px-4 mt-8">
                <div className="max-w-7xl mx-auto">
                  <motion.div
@@ -3135,11 +3141,119 @@ ${animalDetails}
               </motion.div>
             )}
           </AnimatePresence>
+          )}
         </div>
       </div>
+    );
+  }
+
+  // 기본 일반 대본 생성 화면
+  return (
+    <div className="min-h-screen bg-gray-50 py-8 md:py-12">
+      <div className="container mx-auto px-4 max-w-5xl">
+        
+        {/* 사용량 표시 바 */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  usageData.isPremium ? 'bg-green-500' : 'bg-blue-500'
+                }`}></div>
+                <span className="font-medium text-gray-900 text-sm">
+                  {usageData.isPremium ? '무제한 플랜' : '베타 테스트'}
+                </span>
+              </div>
+              <div className="text-sm text-gray-500">
+                {usageData.limit === null || usageData.limit === '무제한' ? 
+                  `${usageData.used}회 사용` :
+                  `${usageData.used}/${usageData.limit}회 사용`
+                }
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              {!usageData.isPremium && usageData.limit && usageData.limit !== '무제한' && (
+                <div className="w-20 bg-gray-100 rounded-full h-1.5">
+                  <div 
+                    className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (usageData.used / usageData.limit) * 100)}%` }}
+                  ></div>
+                </div>
+              )}
+              <span className={`text-xs font-medium px-2 py-1 rounded-md ${
+                usageData.isPremium 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-blue-100 text-blue-700'
+              }`}>
+                {usageData.isPremium ? '무제한' : `월 ${usageData.limit}회`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 사용량 초과 경고 */}
+        {!usageData.canGenerate && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 mb-8">
+            <div className="flex items-start space-x-3">
+              <div className="text-orange-500 mt-1">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-orange-800 mb-1">
+                  사용량 한도 초과
+                </h3>
+                <p className="text-orange-700 text-sm mb-2">
+                  베타 테스트 한도(월 {usageData.limit}회)를 초과했습니다. 다음 달에 사용량이 리셋됩니다.
+                </p>
+                <p className="text-xs text-orange-600">
+                  더 많은 사용이 필요하시면 관리자에게 문의해주세요.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* 페이지 헤더 */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          {/* 템플릿으로 돌아가기 버튼 */}
+          <div className="flex justify-center mb-8">
+            <button
+              onClick={handleBackToTemplates}
+              className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl transition-colors duration-200 text-sm"
+            >
+              <ArrowRight className="w-4 h-4 rotate-180" />
+              <span>템플릿 선택으로</span>
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-center space-x-4 mb-6">
+            <div className="text-4xl">
+              {selectedTemplate?.icon || '🎭'}
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">
+                {selectedTemplate?.label || 'AI 대본 생성기'}
+              </h1>
+              <p className="text-gray-600 text-sm mt-1">
+                {selectedTemplate?.description || '맞춤형 대본을 생성합니다'}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 메인 폼 카드 및 기타 컨텐츠는 여기에... */}
+        <div className="bg-white border border-gray-200 rounded-3xl p-8 mb-8">
+          <div className="text-center text-gray-500">
+            일반 대본 생성 폼이 여기에 위치합니다.
+          </div>
+        </div>
+        
+      </div>
     </div>
-    )}
-    </>
   );
 };
 

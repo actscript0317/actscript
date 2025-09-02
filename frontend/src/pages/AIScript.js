@@ -1859,15 +1859,7 @@ ${animalDetails}
       <div>
         {renderAnimalSelection()}
         {/* 어린이 연극 대본 결과 - 메인 컴포넌트에서 렌더링 */}
-        {(() => {
-          console.log('🎯 메인 컴포넌트에서 generatedScript 체크:', {
-            generatedScript: generatedScript,
-            length: generatedScript?.length,
-            showAnimalSelection: showAnimalSelection,
-            hasScript: !!generatedScript
-          });
-          return generatedScript;
-        })() && (
+        {generatedScript && (
              <div className="container mx-auto px-2 sm:px-4 mt-8">
                <div className="max-w-7xl mx-auto">
                  <motion.div

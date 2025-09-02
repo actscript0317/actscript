@@ -3138,7 +3138,7 @@ ${animalDetails}
         </div>
       </div>
     </div>
-      )}
+    )}
     </>
   );
 };

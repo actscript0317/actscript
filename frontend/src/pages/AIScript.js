@@ -1752,106 +1752,95 @@ ${animalDetails}
 
   // 템플릿 선택 페이지 렌더링
   const renderTemplateSelection = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-4 sm:py-8 md:py-12">
-      <div className="container mx-auto px-2 sm:px-4">
-        <div className="max-w-6xl mx-auto">
-          
-          {/* 헤더 */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              🎭 AI 대본 생성기
-            </h1>
-            <p className="text-lg text-gray-600 mb-8">
-              원하는 템플릿을 선택해서 완벽한 대본을 만들어보세요
-            </p>
-          </motion.div>
+    <div className="min-h-screen bg-gray-50 py-8 md:py-16">
+      <div className="container mx-auto px-4 max-w-6xl">
+        
+        {/* 헤더 */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-16"
+        >
+          <h1 className="text-4xl md:text-5xl font-semibold text-gray-900 mb-4 tracking-tight">
+            AI 대본 생성기
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            원하는 템플릿을 선택하여 완벽한 대본을 생성하세요
+          </p>
+        </motion.div>
 
-          {/* 템플릿 카드들 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {templates.map((template, index) => (
-              <motion.div
-                key={template.value}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => handleTemplateSelect(template.value)}
-                className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-300 group"
-              >
-                <div className="text-center space-y-4">
-                  <div className="text-6xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                    {template.icon}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
+        {/* 템플릿 카드들 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {templates.map((template, index) => (
+            <motion.div
+              key={template.value}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => handleTemplateSelect(template.value)}
+              className="group bg-white rounded-3xl border border-gray-200 hover:border-gray-300 p-8 cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-1"
+            >
+              <div className="text-center space-y-6">
+                <div className="text-5xl transition-transform duration-300 group-hover:scale-110">
+                  {template.icon}
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
                     {template.label}
                   </h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">
+                  <p className="text-gray-500 text-sm leading-relaxed">
                     {template.description}
                   </p>
-                  
-                  {/* 미리보기 설정 */}
-                  {template.defaultSettings && Object.keys(template.defaultSettings).length > 0 && (
-                    <div className="bg-gray-50 rounded-lg p-3 mt-4">
-                      <div className="text-xs text-gray-500 mb-2">기본 설정:</div>
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {template.defaultSettings.age && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                            {ageMap[template.defaultSettings.age] || template.defaultSettings.age}
-                          </span>
-                        )}
-                        {template.defaultSettings.genre && (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                            {template.defaultSettings.genre}
-                          </span>
-                        )}
-                        {template.defaultSettings.characterCount && (
-                          <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                            {template.defaultSettings.characterCount}명
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="pt-4">
-                    <div className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-semibold group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                      선택하기
+                </div>
+                
+                {/* 기본 설정 태그 */}
+                {template.defaultSettings && Object.keys(template.defaultSettings).length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-400 font-medium">기본 설정</div>
+                    <div className="flex flex-wrap gap-1 justify-center">
+                      {template.defaultSettings.age && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
+                          {ageMap[template.defaultSettings.age] || template.defaultSettings.age}
+                        </span>
+                      )}
+                      {template.defaultSettings.genre && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
+                          {template.defaultSettings.genre}
+                        </span>
+                      )}
+                      {template.defaultSettings.characterCount && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
+                          {template.defaultSettings.characterCount}명
+                        </span>
+                      )}
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* 안내 메시지 */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="mt-12 text-center"
-          >
-            <div className="bg-white rounded-xl shadow-md p-6 mx-auto max-w-2xl">
-              <div className="flex items-center justify-center space-x-2 mb-3">
-                <Sparkles className="w-5 h-5 text-purple-500" />
-                <span className="font-semibold text-gray-900">템플릿별 특징</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                <div className="space-y-1">
-                  <div>🧒 <strong>어린이 연극:</strong> 5~12세 교육적 내용</div>
-                  <div>🎒 <strong>학교 연극:</strong> 학교 발표회 최적화</div>
-                </div>
-                <div className="space-y-1">
-                  <div>👨‍👩‍👧‍👦 <strong>가족 연극:</strong> 모든 연령 함께</div>
-                  <div>🎭 <strong>일반 대본:</strong> 자유로운 설정</div>
+                )}
+                
+                <div className="pt-4">
+                  <div className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-medium group-hover:bg-blue-600 transition-colors">
+                    선택하기
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-
+            </motion.div>
+          ))}
         </div>
+
+        {/* 간단한 안내 메시지 */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="mt-16 text-center"
+        >
+          <p className="text-gray-500 text-sm max-w-3xl mx-auto">
+            각 템플릿은 특별히 설계된 AI 프롬프트로 최적화되어 있습니다. 
+            선택한 템플릿에 따라 맞춤형 옵션이 제공됩니다.
+          </p>
+        </motion.div>
+
       </div>
     </div>
   );
@@ -2001,106 +1990,109 @@ ${animalDetails}
              )}
            </div>
          ) : (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-4 sm:py-8 md:py-12">
-      <div className="container mx-auto px-2 sm:px-4">
-        <div className="max-w-4xl mx-auto">
-          
-          {/* 사용량 표시 바 */}
-          <div className={`bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 ${
-            usageData.isPremium ? 'border-green-500' : 'border-blue-500'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
-                  <Sparkles className={`w-5 h-5 ${
-                    usageData.isPremium ? 'text-green-600' : 'text-blue-600'
-                  }`} />
-                  <span className="font-medium text-gray-900">
-                    {usageData.isPremium ? '무제한 플랜' : '베타 테스트 플랜'}
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {usageData.limit === null || usageData.limit === '무제한' ? 
-                    `${usageData.used}회 사용 (무제한)` :
-                    `${usageData.used}/${usageData.limit}회 사용`
-                  }
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                {!usageData.isPremium && usageData.limit && usageData.limit !== '무제한' && (
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, (usageData.used / usageData.limit) * 100)}%` }}
-                    ></div>
-                  </div>
-                )}
-                <span className={`text-sm font-medium ${
-                  usageData.isPremium ? 'text-green-600' : 'text-blue-600'
-                }`}>
-                  {usageData.isPremium ? '✨ 무제한' : `월 ${usageData.limit}회`}
+    <div className="min-h-screen bg-gray-50 py-8 md:py-12">
+      <div className="container mx-auto px-4 max-w-5xl">
+        
+        {/* 사용량 표시 바 */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  usageData.isPremium ? 'bg-green-500' : 'bg-blue-500'
+                }`}></div>
+                <span className="font-medium text-gray-900 text-sm">
+                  {usageData.isPremium ? '무제한 플랜' : '베타 테스트'}
                 </span>
+              </div>
+              <div className="text-sm text-gray-500">
+                {usageData.limit === null || usageData.limit === '무제한' ? 
+                  `${usageData.used}회 사용` :
+                  `${usageData.used}/${usageData.limit}회 사용`
+                }
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              {!usageData.isPremium && usageData.limit && usageData.limit !== '무제한' && (
+                <div className="w-20 bg-gray-100 rounded-full h-1.5">
+                  <div 
+                    className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (usageData.used / usageData.limit) * 100)}%` }}
+                  ></div>
+                </div>
+              )}
+              <span className={`text-xs font-medium px-2 py-1 rounded-md ${
+                usageData.isPremium 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-blue-100 text-blue-700'
+              }`}>
+                {usageData.isPremium ? '무제한' : `월 ${usageData.limit}회`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 사용량 초과 경고 */}
+        {!usageData.canGenerate && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 mb-8">
+            <div className="flex items-start space-x-3">
+              <div className="text-orange-500 mt-1">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-orange-800 mb-1">
+                  사용량 한도 초과
+                </h3>
+                <p className="text-orange-700 text-sm mb-2">
+                  베타 테스트 한도(월 {usageData.limit}회)를 초과했습니다. 다음 달에 사용량이 리셋됩니다.
+                </p>
+                <p className="text-xs text-orange-600">
+                  더 많은 사용이 필요하시면 관리자에게 문의해주세요.
+                </p>
               </div>
             </div>
           </div>
-
-          {/* 사용량 초과 경고 */}
-          {!usageData.canGenerate && (
-            <div className="bg-gradient-to-r from-orange-100 to-red-100 border border-orange-300 rounded-lg p-6 mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-orange-800 mb-2">
-                    🚫 이번 달 사용량을 모두 사용했습니다!
-                  </h3>
-                  <p className="text-orange-700 mb-4">
-                    베타 테스트 한도(월 {usageData.limit}회)를 초과했습니다. 다음 달에 사용량이 리셋됩니다.
-                  </p>
-                  <p className="text-sm text-orange-600">
-                    더 많은 사용이 필요하시면 관리자에게 문의해주세요.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+        )}
+        
+        {/* 페이지 헤더 */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          {/* 템플릿으로 돌아가기 버튼 */}
+          <div className="flex justify-center mb-8">
+            <button
+              onClick={handleBackToTemplates}
+              className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl transition-colors duration-200 text-sm"
+            >
+              <ArrowRight className="w-4 h-4 rotate-180" />
+              <span>템플릿 선택으로</span>
+            </button>
+          </div>
           
-          {/* 페이지 헤더 */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
-            {/* 템플릿으로 돌아가기 버튼 */}
-            <div className="flex justify-center mb-6">
-              <button
-                onClick={handleBackToTemplates}
-                className="flex items-center space-x-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
-              >
-                <ArrowRight className="w-4 h-4 rotate-180" />
-                <span>템플릿 다시 선택</span>
-              </button>
+          <div className="flex items-center justify-center space-x-4 mb-6">
+            <div className="text-4xl">
+              {selectedTemplate?.icon || '🎭'}
             </div>
-            
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-6 shadow-lg">
-              {selectedTemplate?.icon && (
-                <span className="text-3xl">{selectedTemplate.icon}</span>
-              )}
-              {!selectedTemplate?.icon && <Sparkles className="w-10 h-10 text-white" />}
+            <div className="text-left">
+              <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">
+                {selectedTemplate?.label || 'AI 대본 생성기'}
+              </h1>
+              <p className="text-gray-600 text-sm mt-1">
+                {selectedTemplate?.description || '맞춤형 대본을 생성합니다'}
+              </p>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              {selectedTemplate?.label || 'AI 대본 생성기'}
-            </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              {selectedTemplate?.description || '1인 독백부터 멀티 캐릭터 대화까지, 맞춤형 대본을 생성합니다.'}
-            </p>
-          </motion.div>
+          </div>
+        </motion.div>
 
-          {/* 메인 폼 카드 */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 mb-8"
-          >
+        {/* 메인 폼 카드 */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white border border-gray-200 rounded-3xl p-8 mb-8"
+        >
             <form onSubmit={handleGenerate} className="space-y-8">
               
               {/* 선택된 템플릿 표시 */}
@@ -2117,14 +2109,14 @@ ${animalDetails}
               )}
               
               {/* 등장인물 수 */}
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <Users className="w-6 h-6 mr-3 text-purple-500" />
-                  등장인물 수
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3">
+                  <Users className="w-5 h-5 text-gray-600" />
+                  <h3 className="text-lg font-medium text-gray-900">등장인물 수</h3>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {characterOptions.map((option) => (
-                    <label key={option.value} className="relative">
+                    <label key={option.value} className="relative group">
                       <input
                         type="radio"
                         name="characterCount"
@@ -2133,14 +2125,16 @@ ${animalDetails}
                         className="sr-only peer"
                         disabled={!option.available}
                       />
-                      <div className={`p-4 border-2 rounded-xl transition-all ${
+                      <div className={`p-4 border rounded-2xl transition-all cursor-pointer ${
                         option.available 
-                          ? 'bg-gray-50 border-gray-200 cursor-pointer hover:bg-gray-100 peer-checked:bg-purple-50 peer-checked:border-purple-500 peer-checked:shadow-md'
-                          : 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60'
+                          ? 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:ring-2 peer-checked:ring-blue-100'
+                          : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
                       }`}>
-                        <div className="text-center">
-                          <div className={`text-2xl mb-2 ${!option.available ? 'grayscale' : ''}`}>{option.icon}</div>
-                          <div className={`font-medium ${option.available ? 'text-gray-900' : 'text-gray-500'}`}>
+                        <div className="text-center space-y-2">
+                          <div className={`text-xl ${!option.available ? 'grayscale' : ''}`}>{option.icon}</div>
+                          <div className={`text-sm font-medium ${
+                            option.available ? 'text-gray-900 group-hover:text-blue-600 peer-checked:text-blue-600' : 'text-gray-500'
+                          }`}>
                             {option.label}
                           </div>
                         </div>

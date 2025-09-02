@@ -57,7 +57,8 @@
       "Bash(PORT=3002 npm start)",
       "Bash(PORT=3003 npm start)",
       "Bash(PORT=3004 npm start)",
-      "Bash(PORT=3005 npm start)"
+      "Bash(PORT=3005 npm start)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "additionalDirectories": [

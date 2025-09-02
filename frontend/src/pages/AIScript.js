@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import TemplateSelection from './ai-script/TemplateSelection';
 import ChildrenThemeSelection from './ai-script/ChildrenThemeSelection';
 import AnimalSelection from './ai-script/AnimalSelection';
 import ScriptRenderer from '../components/common/ScriptRenderer';
@@ -93,7 +92,7 @@ const AIScript = () => {
   
   // 템플릿 선택 상태 관리
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [showTemplateSelection, setShowTemplateSelection] = useState(true);
+  const [showTemplateSelection, setShowTemplateSelection] = useState(false);
   const [showChildrenThemeSelection, setShowChildrenThemeSelection] = useState(false);
   const [selectedChildrenTheme, setSelectedChildrenTheme] = useState(null);
   const [showAnimalSelection, setShowAnimalSelection] = useState(false);
@@ -743,7 +742,7 @@ ${animalDetails}
 
   // 어린이 테마 선택 페이지에서 템플릿으로 돌아가기
   const handleBackToTemplatesFromTheme = () => {
-    setShowTemplateSelection(true);
+    setShowTemplateSelection(false);
     setShowChildrenThemeSelection(false);
     setSelectedTemplate(null);
     setSelectedChildrenTheme(null);
@@ -769,7 +768,7 @@ ${animalDetails}
       setShowChildrenThemeSelection(true);
     } else {
       // 다른 템플릿인 경우 템플릿 선택 페이지로
-      setShowTemplateSelection(true);
+      setShowTemplateSelection(false);
       setSelectedTemplate(null);
       setSelectedChildrenTheme(null);
       setFormData({
@@ -1295,16 +1294,6 @@ ${animalDetails}
   );
 
 
-  // 조건부 렌더링을 단순화
-  if (showTemplateSelection) {
-    return (
-      <TemplateSelection 
-        templates={templates}
-        onTemplateSelect={handleTemplateSelect}
-        ageMap={ageMap}
-      />
-    );
-  }
 
   if (showChildrenThemeSelection) {
     return (

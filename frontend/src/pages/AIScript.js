@@ -1791,127 +1791,149 @@ ${animalDetails}
                 exit={{ opacity: 0, y: -20 }}
                 className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8"
               >
-                     <div className="text-center mb-8">
-                       <motion.div
-                         initial={{ scale: 0 }}
-                         animate={{ scale: 1 }}
-                         transition={{ delay: 0.2, type: "spring" }}
-                         className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl mb-4 shadow-lg"
-                       >
-                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                         </svg>
-                       </motion.div>
-                       <h2 className="text-3xl font-bold text-gray-900 mb-2">🎭 어린이 연극 대본 생성 완료!</h2>
-                       <p className="text-gray-600">생성된 동물 친구들 대본을 확인하고 연습에 활용해보세요.</p>
-                     </div>
+                <div className="text-center mb-8">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: "spring" }}
+                    className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl mb-4 shadow-lg"
+                  >
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </motion.div>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">🎭 어린이 연극 대본 생성 완료!</h2>
+                  <p className="text-gray-600">생성된 동물 친구들 대본을 확인하고 연습에 활용해보세요.</p>
+                </div>
 
-                     <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
-                       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
-                         <h3 className="text-lg font-semibold text-gray-800">🐰 동물 친구들 연극 대본</h3>
-                         <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
-                           <span className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
-                             {selectedAnimals.length}마리
-                           </span>
-                           <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
-                             어린이 연극
-                           </span>
-                           <span className="px-2 py-1 sm:px-3 bg-green-100 text-green-700 rounded-full">
-                             {selectedChildrenTheme?.label || '동물 친구들'}
-                           </span>
-                           <span className="px-2 py-1 sm:px-3 bg-orange-100 text-orange-700 rounded-full">
-                             {formData.length === 'short' ? '짧은 대본' : formData.length === 'medium' ? '중간 길이' : '긴 대본'}
-                           </span>
-                         </div>
-                       </div>
-                       
-                       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                         <div className="flex items-start sm:items-center text-blue-700">
-                           <RefreshCw className="w-4 h-4 mr-2 mt-0.5 sm:mt-0 flex-shrink-0" />
-                           <span className="text-xs sm:text-sm font-medium">✨ 리라이팅 기능: 수정하고 싶은 대사나 문장을 드래그로 선택하면 AI가 더 나은 표현으로 바꿔줍니다 (최소 5자 이상)</span>
-                         </div>
-                       </div>
-                       
-                       <div 
-                         className="cursor-text select-text"
-                         onMouseUp={handleTextSelection}
-                       >
-                         <ScriptRenderer script={generatedScript} />
-                       </div>
-                     </div>
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
+                    <h3 className="text-lg font-semibold text-gray-800">🐰 동물 친구들 연극 대본</h3>
+                    <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <span className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
+                        {selectedAnimals.length}마리
+                      </span>
+                      <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
+                        어린이 연극
+                      </span>
+                      <span className="px-2 py-1 sm:px-3 bg-green-100 text-green-700 rounded-full">
+                        {selectedChildrenTheme?.label || '동물 친구들'}
+                      </span>
+                      <span className="px-2 py-1 sm:px-3 bg-orange-100 text-orange-700 rounded-full">
+                        {formData.length === 'short' ? '짧은 대본' : formData.length === 'medium' ? '중간 길이' : '긴 대본'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start sm:items-center text-blue-700">
+                      <RefreshCw className="w-4 h-4 mr-2 mt-0.5 sm:mt-0 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium">✨ 리라이팅 기능: 수정하고 싶은 대사나 문장을 드래그로 선택하면 AI가 더 나은 표현으로 바꿔줍니다 (최소 5자 이상)</span>
+                    </div>
+                  </div>
+                  
+                  <div 
+                    className="cursor-text select-text"
+                    onMouseUp={handleTextSelection}
+                  >
+                    <ScriptRenderer script={generatedScript} />
+                  </div>
+                </div>
 
-                     {/* 입력된 최종 프롬프트 섹션 */}
-                     {finalPrompt && (
-                       <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
-                         <div className="flex items-center justify-between mb-3">
-                           <h3 className="text-lg font-semibold text-gray-800">입력된 최종 프롬프트</h3>
-                           <button
-                             onClick={() => {
-                               navigator.clipboard.writeText(finalPrompt);
-                               toast.success('프롬프트가 클립보드에 복사되었습니다!');
-                             }}
-                             className="flex items-center px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm transition-colors"
-                           >
-                             <Copy className="w-4 h-4 mr-1" />
-                             복사
-                           </button>
-                         </div>
-                         <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 max-h-80 overflow-y-auto">
-                           <pre className="whitespace-pre-wrap text-xs sm:text-sm text-gray-700 font-mono leading-relaxed">
-                             {finalPrompt}
-                           </pre>
-                         </div>
-                       </div>
-                     )}
+                {/* 입력된 최종 프롬프트 섹션 */}
+                {finalPrompt && (
+                  <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-800">입력된 최종 프롬프트</h3>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(finalPrompt);
+                          toast.success('프롬프트가 클립보드에 복사되었습니다!');
+                        }}
+                        className="flex items-center px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm transition-colors"
+                      >
+                        <Copy className="w-4 h-4 mr-1" />
+                        복사
+                      </button>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 max-h-80 overflow-y-auto">
+                      <pre className="whitespace-pre-wrap text-xs sm:text-sm text-gray-700 font-mono leading-relaxed">
+                        {finalPrompt}
+                      </pre>
+                    </div>
+                  </div>
+                )}
 
-                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
-                       <button
-                         onClick={() => {
-                           navigator.clipboard.writeText(generatedScript);
-                           toast.success('대본이 클립보드에 복사되었습니다!');
-                         }}
-                         className="flex items-center justify-center px-3 sm:px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                       >
-                         <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                         복사
-                       </button>
-                       <button
-                         onClick={() => navigate('/script-vault')}
-                         className="flex items-center justify-center px-3 sm:px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                       >
-                         <Archive className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                         <span className="hidden sm:inline">대본함</span>
-                         <span className="sm:hidden">함</span>
-                       </button>
-                       <button
-                         onClick={openMemoModal}
-                         className="flex items-center justify-center px-3 sm:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                       >
-                         <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                         <span className="hidden sm:inline">📝 메모</span>
-                         <span className="sm:hidden">메모</span>
-                       </button>
-                       <button
-                         onClick={() => {
-                           setGeneratedScript('');
-                           setFinalPrompt('');
-                           setError('');
-                           // 동물 선택 화면 새로고침
-                           setSelectedAnimals([]);
-                           window.scrollTo({ top: 0, behavior: 'smooth' });
-                         }}
-                         className="flex items-center justify-center px-3 sm:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
-                       >
-                         <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                         다시 생성
-                       </button>
-                     </div>
-                   </motion.div>
-                 </div>
-               </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedScript);
+                      toast.success('대본이 클립보드에 복사되었습니다!');
+                    }}
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
+                  >
+                    <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                    복사
+                  </button>
+                  <button
+                    onClick={() => navigate('/script-vault')}
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
+                  >
+                    <Archive className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">대본함</span>
+                    <span className="sm:hidden">함</span>
+                  </button>
+                  <button
+                    onClick={openMemoModal}
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
+                  >
+                    <Edit3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">📝 메모</span>
+                    <span className="sm:hidden">메모</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGeneratedScript('');
+                      setFinalPrompt('');
+                      setError('');
+                      // 동물 선택 화면 새로고침
+                      setSelectedAnimals([]);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="flex items-center justify-center px-3 sm:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
+                  >
+                    <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                    다시 생성
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </div>
              )}
            </div>
          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 기본 일반 대본 생성 화면 렌더링
+  if (generatedScript) {
+    return (
+      <div>
+        {/* 일반 대본 결과 화면 */}
+        <div className="container mx-auto px-2 sm:px-4">
+          <div className="max-w-7xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8"
+            >
+              <div className="cursor-text select-text" onMouseUp={handleTextSelection}>
+                <ScriptRenderer script={generatedScript} />
+              </div>
+            </motion.div>
+          </div>
         </div>
       </div>
     );

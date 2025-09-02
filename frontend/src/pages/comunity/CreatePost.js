@@ -3,8 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AuthContext } from '../../contexts/AuthContext';
-import { createCommunityPost } from '../../services/supabaseAPI';
+import { useHistory, useLocation } from 'react-router-dom';
+import { createCommunityPost, actorProfileAPI, actorRecruitmentAPI, modelRecruitmentAPI, communityPostAPI } from '../../services/api';
 import FileUploader from '../../components/FileUploader';
+import { useAuth } from '../../contexts/AuthContext';
 
 const CreatePost = () => {
   const navigate = useNavigate();

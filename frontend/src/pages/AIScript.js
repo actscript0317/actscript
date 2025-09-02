@@ -86,9 +86,10 @@ const AIScript = () => {
   const [loadingUsage, setLoadingUsage] = useState(true);
   
   // 커스텀 프롬프트 태그 관련 상태
-  const [showCharacterPanel, setShowCharacterPanel] = useState(false);
+    const [showCharacterPanel, setShowCharacterPanel] = useState(false);
   const [textareaRef, setTextareaRef] = useState(null);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [showTemplateSelection, setShowTemplateSelection] = useState(true);
   
   // 템플릿 선택 상태 관리
   const [selectedTemplate, setSelectedTemplate] = useState({ value: 'general', label: '일반 대본' });

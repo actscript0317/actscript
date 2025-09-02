@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Plus, Heart, Bookmark, Eye, Calendar, Users, MapPin, MessageCircle } from 'lucide-react';
-import { getActorProfile, getCommunityPostsByActor } from '../../services/supabaseAPI';
-import { AuthContext } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
+import { communityPostAPI, likeAPI, bookmarkAPI } from '../../services/api';
 import PostModal from '../../components/PostModal';
 
 const ActorInfo = () => {

@@ -1997,7 +1997,14 @@ ${animalDetails}
                </div>
              )}
            </div>
-         ) : (
+         )}
+        </div>
+      </div>
+    );
+  }
+
+  // 기본 일반 대본 생성 화면  
+  return (
     <div className="min-h-screen bg-gray-50 py-8 md:py-12">
       <div className="container mx-auto px-4 max-w-5xl">
         
@@ -3141,7 +3148,6 @@ ${animalDetails}
               </motion.div>
             )}
           </AnimatePresence>
-          )}
         </div>
       </div>
     );

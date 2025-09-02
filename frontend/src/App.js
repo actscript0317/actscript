@@ -18,10 +18,10 @@ import ResetPassword from './pages/ResetPassword';
 import MyPage from './pages/MyPage';
 import NotFound from './pages/NotFound';
 // 새로운 배우 관련 페이지들
-import ActorProfile from './pages/ActorProfile';
-import ActorRecruitment from './pages/ActorRecruitment';
+import ActorProfile from './pages/comunity/ActorProfile';
+import ActorRecruitment from './pages/comunity/ActorRecruitment';
 import ModelRecruitment from './pages/ModelRecruitment';
-import ActorInfo from './pages/ActorInfo';
+import ActorInfo from './pages/comunity/ActorInfo';
 // 새로운 게시글 관련 페이지들
 import CreatePost from './pages/CreatePost';
 import PostDetail from './pages/PostDetail';

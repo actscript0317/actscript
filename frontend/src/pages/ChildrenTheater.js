@@ -1010,12 +1010,9 @@ ${animalDetails}
         selectedScriptLength={selectedScriptLength}
         onScriptLengthChange={setSelectedScriptLength}
         lengths={lengths}
-        isGenerating={isGenerating}
-        progress={progress}
-        onComplete={handleAnimalSelectionComplete}
         onBack={handleBackToThemeFromAnimals}
         usageData={usageData}
-        error={error}
+        selectedTheme={selectedChildrenTheme}
       />
     );
   }

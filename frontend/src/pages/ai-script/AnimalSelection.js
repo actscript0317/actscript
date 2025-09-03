@@ -297,16 +297,14 @@ ${animalDetails}
         <div className="container mx-auto px-2 sm:px-4">
           <div className="max-w-7xl mx-auto">
             {/* 뒤로가기 버튼 */}
-            {onBack && (
-              <motion.button
-                onClick={onBack}
-                className="absolute top-8 left-8 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <ArrowLeft className="w-6 h-6 text-gray-600" />
-              </motion.button>
-            )}
+            <motion.button
+              onClick={handleBack}
+              className="absolute top-8 left-8 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <ArrowLeft className="w-6 h-6 text-gray-600" />
+            </motion.button>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}

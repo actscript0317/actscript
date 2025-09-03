@@ -162,7 +162,7 @@ const AIScriptMain = () => {
             </div>
 
             {/* 템플릿 선택 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
               {templates.map((template, index) => (
                 <motion.div
                   key={template.value}
@@ -170,16 +170,25 @@ const AIScriptMain = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   onClick={() => handleTemplateSelect(template.value)}
-                  className={`bg-gradient-to-r ${template.color} rounded-xl p-6 text-white cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 group`}
+                  className="bg-white border border-gray-200 rounded-xl p-6 cursor-pointer transition-all duration-200 hover:border-gray-300 hover:shadow-md group"
                 >
-                  <div className="text-center">
-                    <div className="text-4xl mb-4">{template.icon}</div>
-                    <h3 className="text-xl font-bold mb-2">{template.label}</h3>
-                    <p className="text-sm opacity-90 mb-4">{template.description}</p>
-                    
-                    <div className="flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                      <span className="mr-2">선택하기</span>
-                      <ArrowRight className="w-4 h-4" />
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center group-hover:bg-gray-100 transition-colors">
+                        <span className="text-2xl">{template.icon}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-gray-700 transition-colors">
+                        {template.label}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                        {template.description}
+                      </p>
+                      <div className="flex items-center text-sm text-gray-500 group-hover:text-gray-700 transition-colors">
+                        <span className="mr-1">시작하기</span>
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
                     </div>
                   </div>
                 </motion.div>

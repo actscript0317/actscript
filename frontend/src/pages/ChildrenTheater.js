@@ -202,20 +202,25 @@ const ChildrenTheater = () => {
   ];
 
   // 테마 선택 핸들러
-  const handleChildrenThemeSelect = (themeValue) => {
+  const handleChildrenThemeSelect = (themeValue, scriptLength) => {
     const theme = childrenThemes.find(t => t.value === themeValue);
     if (theme) {
       setSelectedChildrenTheme(theme);
+      setSelectedScriptLength(scriptLength || 'medium');
       setFormData(prev => ({
         ...prev,
         genre: theme.genre,
-        characterCount: '2'
+        characterCount: '2',
+        length: scriptLength || 'medium'
       }));
       setShowChildrenThemeSelection(false);
       
       // 동물 친구들 테마는 동물 선택으로, 다른 테마는 일반 대본 생성으로
       if (theme.value === 'animal-friends') {
         setShowAnimalSelection(true);
+      } else {
+        // 다른 테마들은 바로 대본 생성
+        handleGenerateNonAnimalScript(theme, scriptLength);
       }
     }
   };
@@ -288,6 +293,84 @@ ${animalDetails}
 - 각 동물의 특성을 살린 개성 있는 대화
 - 자연 속에서의 평화로운 일상
 - 교훈: 다름을 인정하고 서로 도우며 살아가는 지혜`;
+  };
+
+  // 동물이 아닌 테마 대본 생성 핸들러
+  const handleGenerateNonAnimalScript = async (theme, scriptLength) => {
+    setError('');
+    setIsGenerating(true);
+    setGeneratedScript('');
+    setProgress(0);
+
+    try {
+      // 테마별 기본 캐릭터 설정
+      const defaultCharacters = [
+        { name: '주인공', gender: 'random', age: 'children', roleType: '주연', percentage: 60 },
+        { name: '친구', gender: 'random', age: 'children', roleType: '조연', percentage: 40 }
+      ];
+
+      // 테마별 전용 프롬프트 생성
+      const themePrompt = `🎭 어린이 연극 "${theme.label}" 테마 대본 생성
+
+📝 기본 설정:
+- 테마: ${theme.label} (${theme.genre})
+- 대본 길이: ${lengths.find(l => l.value === scriptLength)?.label || '중간'}
+- 연령대: 5-12세 어린이 대상
+- 등장인물: 주인공, 친구
+
+🎨 테마 특성:
+- ${theme.description}
+- 어린이들이 이해하기 쉬운 단순하고 명확한 스토리
+- 교훈적이면서도 재미있는 내용
+- 참여형 연극으로 관객도 함께할 수 있는 요소 포함
+- 긍정적이고 희망적인 메시지 전달`;
+
+      setFinalPrompt(themePrompt);
+
+      const requestData = {
+        template: 'children',
+        theme: theme.value,
+        themePrompt: themePrompt,
+        characterCount: '2',
+        characters: defaultCharacters,
+        genre: theme.genre,
+        length: scriptLength,
+        age: 'children',
+        gender: 'random'
+      };
+
+      let currentProgress = 0;
+      const progressInterval = setInterval(() => {
+        currentProgress += Math.random() * 15;
+        if (currentProgress > 90) currentProgress = 90;
+        setProgress(Math.min(currentProgress, 90));
+      }, 500);
+
+      const response = await api.post('/ai-script/generate', requestData);
+      
+      clearInterval(progressInterval);
+      setProgress(100);
+      
+      if (response.data && response.data.success) {
+        const scriptContent = typeof response.data.script === 'object' && response.data.script !== null ? 
+                             response.data.script.content : response.data.script;
+        
+        setGeneratedScript(scriptContent);
+        setGeneratedScriptId(response.data.scriptId);
+        toast.success('🎭 어린이 연극 대본이 생성되었습니다!');
+        
+        setTimeout(() => {
+          setProgress(0);
+          fetchUsageInfo();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('대본 생성 오류:', error);
+      setError('대본 생성 중 오류가 발생했습니다.');
+      setProgress(0);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // 동물 선택 완료 및 대본 생성 핸들러
@@ -540,8 +623,8 @@ ${animalDetails}
     setScriptMemo('');
   };
 
-  // 동물 선택 화면이고 대본이 생성된 경우 렌더링
-  if (showAnimalSelection && generatedScript) {
+  // 대본이 생성된 경우 결과 화면 렌더링 (동물 테마 및 일반 테마 모두)
+  if (generatedScript) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 md:py-12">
         <div className="container mx-auto px-2 sm:px-4">
@@ -570,14 +653,23 @@ ${animalDetails}
 
               <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 mb-4 sm:mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
-                  <h3 className="text-lg font-semibold text-gray-800">🐰 {selectedChildrenTheme?.label} 대본</h3>
-                  <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
-                    {selectedAnimals.map((animal, index) => (
-                      <span key={index} className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
-                        {animal.icon} {animal.name}
+                  <h3 className="text-lg font-semibold text-gray-800">{selectedChildrenTheme?.icon} {selectedChildrenTheme?.label} 대본</h3>
+                  {selectedAnimals.length > 0 && (
+                    <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
+                      {selectedAnimals.map((animal, index) => (
+                        <span key={index} className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
+                          {animal.icon} {animal.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {selectedAnimals.length === 0 && (
+                    <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
+                        {lengths.find(l => l.value === selectedScriptLength)?.label || '중간'} 분량
                       </span>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">

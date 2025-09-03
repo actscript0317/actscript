@@ -257,8 +257,11 @@ ${animalDetails}
         gender: 'random'
       };
 
+      console.log('🚀 대본 생성 요청 데이터:', requestData);
+
       let currentProgress = 0;
-      const progressInterval = setInterval(() => {
+      let progressInterval;
+      progressInterval = setInterval(() => {
         currentProgress += Math.random() * 15;
         if (currentProgress > 90) currentProgress = 90;
         setProgress(Math.min(currentProgress, 90));
@@ -279,12 +282,33 @@ ${animalDetails}
         
         setTimeout(() => {
           setProgress(0);
+          fetchUsageInfo();
         }, 1000);
+      } else {
+        console.error('응답 데이터 구조 확인:', response.data);
+        throw new Error(response.data?.error || '서버에서 올바른 응답을 받지 못했습니다.');
       }
     } catch (error) {
+      // progressInterval 정리
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      
       console.error('대본 생성 오류:', error);
-      setError('대본 생성 중 오류가 발생했습니다.');
+      console.error('에러 상세 정보:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          '대본 생성 중 오류가 발생했습니다.';
+      
+      setError(errorMessage);
       setProgress(0);
+      toast.error(errorMessage);
     } finally {
       setIsGenerating(false);
     }

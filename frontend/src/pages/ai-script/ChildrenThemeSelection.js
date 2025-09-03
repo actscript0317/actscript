@@ -26,6 +26,11 @@ const ChildrenThemeSelection = ({ childrenThemes, onThemeSelect, onBack, usageDa
 
   const handleThemeClick = (theme) => {
     setSelectedTheme(theme);
+    
+    // 동물 친구들 테마는 특별 처리 - onThemeSelect로 넘겨서 동물 선택 페이지로 이동
+    if (theme.value === 'animal-friends') {
+      onThemeSelect(theme.value, 'medium'); // 기본 분량으로 동물 선택 페이지로 이동
+    }
   };
 
   const handleGenerateScript = async () => {
@@ -296,13 +301,25 @@ const ChildrenThemeSelection = ({ childrenThemes, onThemeSelect, onBack, usageDa
                       </span>
                     </div>
                     
-                    {/* 선택 표시 */}
-                    {selectedTheme?.value === theme.value && (
+                    {/* 동물 친구들 테마 특별 표시 또는 선택 표시 */}
+                    {theme.value === 'animal-friends' ? (
+                      <div className="pt-4">
+                        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-medium group-hover:from-orange-600 group-hover:to-red-600 transition-all">
+                          동물 선택 →
+                        </div>
+                      </div>
+                    ) : selectedTheme?.value === theme.value ? (
                       <div className="pt-2">
                         <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center mx-auto">
                           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="pt-4">
+                        <div className="bg-gray-900 text-white px-6 py-3 rounded-full text-sm font-medium group-hover:bg-purple-600 transition-colors">
+                          선택하기
                         </div>
                       </div>
                     )}
@@ -311,8 +328,8 @@ const ChildrenThemeSelection = ({ childrenThemes, onThemeSelect, onBack, usageDa
               ))}
             </div>
 
-            {/* 대본 설정 섹션 */}
-            {selectedTheme && (
+            {/* 대본 설정 섹션 - 동물 친구들이 아닌 테마들만 */}
+            {selectedTheme && selectedTheme.value !== 'animal-friends' && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

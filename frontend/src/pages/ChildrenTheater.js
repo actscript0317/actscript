@@ -1012,7 +1012,7 @@ ${animalDetails}
         lengths={lengths}
         isGenerating={isGenerating}
         progress={progress}
-        onGenerate={handleAnimalSelectionComplete}
+        onComplete={handleAnimalSelectionComplete}
         onBack={handleBackToThemeFromAnimals}
         usageData={usageData}
         error={error}

@@ -1341,7 +1341,7 @@ ${animalDetails}
                   </div>
                   
                   <div 
-                    className="cursor-text select-text"
+                    className="script-content cursor-text select-text"
                     onMouseUp={handleTextSelection}
                   >
                     <ScriptRenderer script={typeof generatedScript === 'object' && generatedScript !== null ? generatedScript.content : generatedScript} />

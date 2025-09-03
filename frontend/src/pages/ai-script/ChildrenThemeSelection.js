@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Wand2, RefreshCw, Copy, Save, Archive, Edit3 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import ScriptRenderer from '../../components/common/ScriptRenderer';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const ChildrenThemeSelection = ({ childrenThemes, onThemeSelect, onBack, usageData = {} }) => {
   const { addSavedScript, user } = useAuth();
+  const navigate = useNavigate();
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [selectedScriptLength, setSelectedScriptLength] = useState('medium');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -27,9 +29,9 @@ const ChildrenThemeSelection = ({ childrenThemes, onThemeSelect, onBack, usageDa
   const handleThemeClick = (theme) => {
     setSelectedTheme(theme);
     
-    // 동물 친구들 테마는 특별 처리 - onThemeSelect로 넘겨서 동물 선택 페이지로 이동
+    // 동물 친구들 테마는 전용 URL로 네비게이션
     if (theme.value === 'animal-friends') {
-      onThemeSelect(theme.value, 'medium'); // 기본 분량으로 동물 선택 페이지로 이동
+      navigate('/ai-script/children/animal-friends');
     }
   };
 

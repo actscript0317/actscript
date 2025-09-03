@@ -1,36 +1,161 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Users, RotateCcw, Wand2, RefreshCw, Copy, Save, Archive, Edit3 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import Dropdown from '../../components/common/Dropdown';
 import ScriptRenderer from '../../components/common/ScriptRenderer';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
-const AnimalSelection = ({
-  availableAnimals,
-  selectedAnimals,
-  selectedScriptLength,
-  lengths,
-  onAnimalToggle,
-  onAnimalPercentageChange,
-  onAnimalRoleChange,
-  onScriptLengthChange,
-  onBack,
-  isLengthDropdownOpen,
-  setIsLengthDropdownOpen,
-  usageData = {},
-  selectedTheme
-}) => {
+const AnimalSelection = () => {
   const { addSavedScript, user } = useAuth();
+  const navigate = useNavigate();
+  
+  // 자체 상태 관리
+  const [selectedAnimals, setSelectedAnimals] = useState([]);
+  const [selectedScriptLength, setSelectedScriptLength] = useState('medium');
+  const [isLengthDropdownOpen, setIsLengthDropdownOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [generatedScript, setGeneratedScript] = useState('');
   const [generatedScriptId, setGeneratedScriptId] = useState(null);
   const [finalPrompt, setFinalPrompt] = useState('');
   const [error, setError] = useState('');
+  const [loadingUsage, setLoadingUsage] = useState(true);
+  
+  // 사용량 관리 상태
+  const [usageData, setUsageData] = useState({
+    used: 0,
+    limit: 10,
+    isPremium: true,
+    isActive: true,
+    canGenerate: true,
+    planType: 'test',
+    nextResetDate: null,
+    daysUntilReset: 0
+  });
+
+  // 동물 친구들 테마 정보
+  const selectedTheme = {
+    value: 'animal-friends',
+    label: '동물 친구들',
+    description: '토끼, 고양이, 강아지 등 귀여운 동물들이 등장하는 따뜻한 이야기',
+    icon: '🐰',
+    genre: '동물 친구들'
+  };
+
+  // 어린이 연극용 동물 캐릭터들
+  const availableAnimals = [
+    { value: 'rabbit', label: '토끼', icon: '🐰', personality: '활발하고 호기심 많은', voiceStyle: '밝고 경쾌한' },
+    { value: 'cat', label: '고양이', icon: '🐱', personality: '영리하고 독립적인', voiceStyle: '우아하고 자신감 있는' },
+    { value: 'dog', label: '강아지', icon: '🐶', personality: '충실하고 친근한', voiceStyle: '따뜻하고 다정한' },
+    { value: 'bear', label: '곰', icon: '🐻', personality: '다정하고 든든한', voiceStyle: '깊고 안정감 있는' },
+    { value: 'fox', label: '여우', icon: '🦊', personality: '영리하고 재치있는', voiceStyle: '똑똑하고 재빠른' },
+    { value: 'lion', label: '사자', icon: '🦁', personality: '용감하고 당당한', voiceStyle: '웅장하고 카리스마 있는' },
+    { value: 'elephant', label: '코끼리', icon: '🐘', personality: '지혜롭고 온화한', voiceStyle: '느리고 심사숙고하는' },
+    { value: 'monkey', label: '원숭이', icon: '🐵', personality: '장난기 많고 활동적인', voiceStyle: '빠르고 장난스러운' },
+    { value: 'panda', label: '판다', icon: '🐼', personality: '평화롭고 느긋한', voiceStyle: '차분하고 온순한' },
+    { value: 'pig', label: '돼지', icon: '🐷', personality: '순수하고 정직한', voiceStyle: '단순하고 진실한' },
+    { value: 'chicken', label: '닭', icon: '🐔', personality: '부지런하고 꼼꼼한', voiceStyle: '정확하고 분명한' },
+    { value: 'duck', label: '오리', icon: '🦆', personality: '쾌활하고 사교적인', voiceStyle: '명랑하고 수다스러운' },
+    { value: 'sheep', label: '양', icon: '🐑', personality: '온순하고 따뜻한', voiceStyle: '부드럽고 다정한' },
+    { value: 'horse', label: '말', icon: '🐴', personality: '자유롭고 역동적인', voiceStyle: '힘차고 활기찬' },
+    { value: 'turtle', label: '거북이', icon: '🐢', personality: '신중하고 끈기있는', voiceStyle: '느리고 차분한' },
+    { value: 'penguin', label: '펭귄', icon: '🐧', personality: '사교적이고 협동적인', voiceStyle: '재미있고 친근한' }
+  ];
+
+  // 대본 길이 옵션
+  const lengths = [
+    { value: 'short', label: '짧게', time: '1~2분 (약 12~16줄)', icon: '⚡', available: true },
+    { value: 'medium', label: '중간', time: '3~5분 (약 25~35줄)', icon: '⏱️', available: true },
+    { value: 'long', label: '길게', time: '5~10분 (약 50~70줄)', icon: '📝', available: true }
+  ];
+
+  // 사용량 정보 가져오기
+  const fetchUsageInfo = async () => {
+    try {
+      setLoadingUsage(true);
+      const response = await api.get('/ai-script/usage');
+      const { usage } = response.data;
+      
+      setUsageData({
+        used: usage.currentMonth,
+        limit: usage.limit,
+        isPremium: true,
+        isActive: true,
+        canGenerate: usage.canGenerate,
+        planType: 'test',
+        nextResetDate: usage.nextResetDate,
+        daysUntilReset: usage.daysUntilReset
+      });
+    } catch (error) {
+      console.error('사용량 정보 로딩 실패:', error);
+      setUsageData(prev => ({
+        ...prev,
+        used: user?.usage?.currentMonth || 0,
+        limit: user?.usage?.monthly_limit || 10,
+        isPremium: true,
+        planType: 'test'
+      }));
+    } finally {
+      setLoadingUsage(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 사용량 정보 로딩
+  useEffect(() => {
+    if (user) {
+      fetchUsageInfo();
+    }
+  }, [user]);
   const totalPercentage = selectedAnimals.reduce((sum, animal) => sum + animal.percentage, 0);
   const isValid = selectedAnimals.length > 0 && totalPercentage === 100;
+
+  // 동물 선택 핸들러
+  const handleAnimalToggle = (animal) => {
+    setSelectedAnimals(prev => {
+      const isSelected = prev.some(a => a.value === animal.value);
+      if (isSelected) {
+        return prev.filter(a => a.value !== animal.value);
+      } else {
+        const newAnimal = {
+          ...animal,
+          name: animal.label,
+          percentage: Math.floor(100 / (prev.length + 1)),
+          roleType: prev.length === 0 ? '주연' : '조연'
+        };
+        // 기존 동물들 비율 재계산
+        const updatedAnimals = prev.map(a => ({
+          ...a,
+          percentage: Math.floor(100 / (prev.length + 1))
+        }));
+        return [...updatedAnimals, newAnimal];
+      }
+    });
+  };
+
+  // 동물 대사 비율 조정 핸들러
+  const handleAnimalPercentageChange = (animalValue, percentage) => {
+    setSelectedAnimals(prev => 
+      prev.map(animal => 
+        animal.value === animalValue 
+          ? { ...animal, percentage: parseInt(percentage) }
+          : animal
+      )
+    );
+  };
+
+  // 동물 역할 변경 핸들러
+  const handleAnimalRoleChange = (animalValue, roleType) => {
+    setSelectedAnimals(prev => 
+      prev.map(animal => 
+        animal.value === animalValue 
+          ? { ...animal, roleType }
+          : animal
+      )
+    );
+  };
 
   // 비율 자동 균등 분배
   const handleAutoDistribute = () => {
@@ -39,10 +164,17 @@ const AnimalSelection = ({
     const equalPercentage = Math.floor(100 / selectedAnimals.length);
     const remainder = 100 % selectedAnimals.length;
     
-    selectedAnimals.forEach((animal, index) => {
-      const percentage = index < remainder ? equalPercentage + 1 : equalPercentage;
-      onAnimalPercentageChange(animal.value, percentage);
-    });
+    setSelectedAnimals(prev => 
+      prev.map((animal, index) => ({
+        ...animal,
+        percentage: index < remainder ? equalPercentage + 1 : equalPercentage
+      }))
+    );
+  };
+
+  // 뒤로가기 핸들러
+  const handleBack = () => {
+    navigate('/ai-script/children');
   };
 
   // 테마별 전용 프롬프트 생성
@@ -303,16 +435,14 @@ ${animalDetails}
           className="text-center mb-12"
         >
           {/* 뒤로가기 버튼 */}
-          {onBack && (
-            <motion.button
-              onClick={onBack}
-              className="absolute top-8 left-8 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
-            </motion.button>
-          )}
+          <motion.button
+            onClick={handleBack}
+            className="absolute top-8 left-8 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+          </motion.button>
 
           <h1 className="text-4xl md:text-5xl font-semibold text-gray-900 mb-4 tracking-tight">
             동물 친구들 선택
@@ -343,7 +473,7 @@ ${animalDetails}
                   return (
                     <motion.div
                       key={animal.value}
-                      onClick={() => onAnimalToggle(animal)}
+                      onClick={() => handleAnimalToggle(animal)}
                       className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                         isSelected
                           ? 'border-purple-400 bg-purple-50'
@@ -412,7 +542,7 @@ ${animalDetails}
                           </label>
                           <select
                             value={animal.roleType || '조연'}
-                            onChange={(e) => onAnimalRoleChange(animal.value, e.target.value)}
+                            onChange={(e) => handleAnimalRoleChange(animal.value, e.target.value)}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           >
                             <option value="주연">주연</option>
@@ -431,7 +561,7 @@ ${animalDetails}
                             min="1"
                             max="100"
                             value={animal.percentage || 0}
-                            onChange={(e) => onAnimalPercentageChange(animal.value, e.target.value)}
+                            onChange={(e) => handleAnimalPercentageChange(animal.value, e.target.value)}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -486,7 +616,7 @@ ${animalDetails}
                   value={selectedScriptLength ? `${lengths.find(l => l.value === selectedScriptLength)?.label} (${lengths.find(l => l.value === selectedScriptLength)?.time})` : ''}
                   onChange={(value) => {
                     const length = lengths.find(l => `${l.label} (${l.time})` === value);
-                    onScriptLengthChange(length?.value || '');
+                    setSelectedScriptLength(length?.value || '');
                   }}
                   placeholder="길이를 선택하세요"
                   isOpen={isLengthDropdownOpen}

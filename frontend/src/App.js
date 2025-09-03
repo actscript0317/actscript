@@ -10,6 +10,7 @@ import AIScript from './pages/AIScript';
 import GeneralScript from './pages/GeneralScript';
 import AIScriptMain from './pages/AIScriptMain';
 import ChildrenTheater from './pages/ChildrenTheater';
+import AnimalSelection from './pages/ai-script/AnimalSelection';
 import ScriptVault from './pages/ScriptVault';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -98,7 +99,7 @@ function App() {
               } />
               <Route path="/ai-script/children/animal-friends" element={
                 <PrivateRoute>
-                  <ChildrenTheater />
+                  <AnimalSelection />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/children/magic-adventure" element={

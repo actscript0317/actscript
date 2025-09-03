@@ -201,10 +201,10 @@ const ChildrenTheater = () => {
     { value: 'long', label: '길게', time: '5~10분 (약 50~70줄)', icon: '📝', available: true }
   ];
 
-  // 테마 선택 핸들러
+  // 테마 선택 핸들러 (동물 친구들 테마만 처리)
   const handleChildrenThemeSelect = (themeValue, scriptLength) => {
     const theme = childrenThemes.find(t => t.value === themeValue);
-    if (theme) {
+    if (theme && theme.value === 'animal-friends') {
       setSelectedChildrenTheme(theme);
       setSelectedScriptLength(scriptLength || 'medium');
       setFormData(prev => ({
@@ -214,14 +214,7 @@ const ChildrenTheater = () => {
         length: scriptLength || 'medium'
       }));
       setShowChildrenThemeSelection(false);
-      
-      // 동물 친구들 테마는 동물 선택으로, 다른 테마는 일반 대본 생성으로
-      if (theme.value === 'animal-friends') {
-        setShowAnimalSelection(true);
-      } else {
-        // 다른 테마들은 바로 대본 생성
-        handleGenerateNonAnimalScript(theme, scriptLength);
-      }
+      setShowAnimalSelection(true);
     }
   };
 
@@ -1000,6 +993,7 @@ ${animalDetails}
         childrenThemes={childrenThemes}
         onThemeSelect={handleChildrenThemeSelect}
         onBack={handleBackToTemplatesFromTheme}
+        usageData={usageData}
       />
     );
   }

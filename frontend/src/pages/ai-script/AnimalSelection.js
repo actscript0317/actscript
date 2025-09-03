@@ -224,6 +224,8 @@ ${animalDetails}
     setGeneratedScript('');
     setProgress(0);
 
+    let progressInterval;
+
     try {
       // 테마별 전용 프롬프트 생성
       const themePrompt = getThemePrompt(
@@ -260,7 +262,6 @@ ${animalDetails}
       console.log('🚀 대본 생성 요청 데이터:', requestData);
 
       let currentProgress = 0;
-      let progressInterval;
       progressInterval = setInterval(() => {
         currentProgress += Math.random() * 15;
         if (currentProgress > 90) currentProgress = 90;

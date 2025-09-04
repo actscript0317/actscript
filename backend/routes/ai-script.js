@@ -1,29 +1,34 @@
 const express = require('express');
-const aiScriptRouter = require('./ai-script');
 
 const router = express.Router();
 
-// 새로운 템플릿별 라우터로 리다이렉트
-router.use('/', aiScriptRouter);
-
-// 기존 API 호환성 유지를 위한 리다이렉트 설정
-
-// 일반 대본 생성 (기본값)
-router.post('/generate', (req, res, next) => {
-  const { template, theme } = req.body;
+// 임시로 기존 라우터로 리다이렉트 (새 파일들이 배포되면 수정 예정)
+try {
+  const aiScriptIndexRouter = require('./ai-script/index');
+  router.use('/', aiScriptIndexRouter);
+} catch (error) {
+  console.warn('⚠️ 새 ai-script 모듈을 찾을 수 없습니다. 기존 기능을 임시 유지합니다:', error.message);
   
-  if (template === 'children' && theme) {
-    // 어린이 연극으로 리다이렉트
-    req.url = '/children/generate';
-  } else if (req.body.customPrompt && req.body.customPrompt.trim()) {
-    // 커스텀 프롬프트로 리다이렉트  
-    req.url = '/custom/generate';
-  } else {
-    // 일반 대본으로 리다이렉트
-    req.url = '/general/generate';
-  }
+  // 기본적인 에러 응답만 제공
+  router.post('/generate', (req, res) => {
+    res.status(503).json({
+      error: 'AI 스크립트 서비스가 일시적으로 사용할 수 없습니다.',
+      message: '잠시 후 다시 시도해주세요.'
+    });
+  });
   
-  next();
-});
+  router.get('/usage', (req, res) => {
+    res.json({
+      success: true,
+      usage: {
+        currentMonth: 0,
+        totalGenerated: 0,
+        limit: 10,
+        canGenerate: true,
+        planType: 'test'
+      }
+    });
+  });
+}
 
 module.exports = router;

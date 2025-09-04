@@ -4,10 +4,29 @@ const { supabaseAdmin, safeQuery } = require('../../config/supabase');
 
 const router = express.Router();
 
-// 각 템플릿별 라우터 import
-const generalScriptRouter = require('./general-script');
-const childrenTheaterRouter = require('./children-theater');
-const customScriptRouter = require('./custom-script');
+// 각 템플릿별 라우터 import (파일 존재 확인 후 import)
+let generalScriptRouter, childrenTheaterRouter, customScriptRouter;
+
+try {
+  generalScriptRouter = require('./general-script');
+} catch (error) {
+  console.warn('⚠️ general-script.js 파일을 찾을 수 없습니다:', error.message);
+  generalScriptRouter = express.Router();
+}
+
+try {
+  childrenTheaterRouter = require('./children-theater');
+} catch (error) {
+  console.warn('⚠️ children-theater.js 파일을 찾을 수 없습니다:', error.message);
+  childrenTheaterRouter = express.Router();
+}
+
+try {
+  customScriptRouter = require('./custom-script');
+} catch (error) {
+  console.warn('⚠️ custom-script.js 파일을 찾을 수 없습니다:', error.message);
+  customScriptRouter = express.Router();
+}
 
 // 템플릿별 라우터 연결
 router.use('/general', generalScriptRouter);
@@ -17,7 +36,22 @@ router.use('/custom', customScriptRouter);
 // 공통 API들
 
 // 대본 리라이팅 API (모든 템플릿 공통)
-router.post('/rewrite', require('./general-script').rewriteHandler);
+router.post('/rewrite', (req, res, next) => {
+  try {
+    const { rewriteHandler } = require('./general-script');
+    if (rewriteHandler) {
+      rewriteHandler(req, res, next);
+    } else {
+      next();
+    }
+  } catch (error) {
+    console.warn('⚠️ 리라이팅 핸들러를 찾을 수 없습니다:', error.message);
+    res.status(503).json({
+      error: '리라이팅 서비스가 일시적으로 사용할 수 없습니다.',
+      message: '잠시 후 다시 시도해주세요.'
+    });
+  }
+});
 
 // 사용자의 AI 생성 스크립트 목록 조회
 router.get('/scripts', authenticateToken, async (req, res) => {

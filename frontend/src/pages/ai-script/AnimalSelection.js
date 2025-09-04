@@ -443,8 +443,7 @@ ${animals.map(animal => {
         selectedScriptLength
       );
 
-      setFinalPrompt(themePrompt);
-
+      // themePrompt는 백엔드로 전송만 하고, 실제 finalPrompt는 응답에서 받음
       const requestData = {
         template: 'children',
         theme: selectedTheme?.value || 'animal-friends',
@@ -488,7 +487,13 @@ ${animals.map(animal => {
                              response.data.script.content : response.data.script;
         
         setGeneratedScript(scriptContent);
-        setGeneratedScriptId(response.data.scriptId);
+        setGeneratedScriptId(response.data.script?.id || response.data.scriptId);
+        
+        // 백엔드에서 RAG로 향상된 최종 프롬프트 설정
+        if (response.data.finalPrompt) {
+          setFinalPrompt(response.data.finalPrompt);
+        }
+        
         toast.success('🎭 어린이 연극 대본이 생성되었습니다!');
         
         setTimeout(() => {

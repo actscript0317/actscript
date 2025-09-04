@@ -63,7 +63,14 @@
       "Read(/D:\\carcor\\actscript\\frontend\\src/**)",
       "Read(/D:\\carcor\\actscript\\frontend\\src/**)",
       "Read(/D:\\carcor\\actscript\\frontend\\src\\components/**)",
-      "Read(/D:\\carcor\\actscript\\frontend\\src\\contexts/**)"
+      "Read(/D:\\carcor\\actscript\\frontend\\src\\contexts/**)",
+      "Read(/D:\\carcor\\actscript\\frontend\\src\\pages\\ai-script/**)",
+      "Read(/D:\\carcor\\actscript\\backend/**)",
+      "Read(/D:\\carcor\\actscript\\backend/**)",
+      "Read(/D:\\carcor\\actscript\\backend\\routes\\ai-script/**)",
+      "Read(/D:\\carcor\\actscript\\backend\\routes\\ai-script/**)",
+      "Read(/D:\\carcor\\actscript\\backend\\routes\\ai-script/**)",
+      "Read(/D:\\carcor\\actscript\\frontend\\src\\pages\\ai-script/**)"
     ],
     "deny": [],
     "additionalDirectories": [

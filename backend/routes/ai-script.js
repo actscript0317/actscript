@@ -719,57 +719,42 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
     
     const enhancedPrompt = await enhancePromptWithRAG(prompt, ragCriteria);
 
-    // OpenAI API 호출 with 재시도 및 대본 검증 루프
+    // OpenAI API 호출 (단일 시도로 변경하여 성능 최적화)
     console.log('🚀 OpenAI API 호출 시작');
-    let generatedScript;
-    let attempts = 0;
-    const maxAttempts = 3;
+    
+    const completion = await callOpenAIWithRetry(openai, [
+      {
+        role: "system",
+        content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
 
-    while (attempts < maxAttempts) {
-      attempts++;
-      console.log(`📝 대본 생성 시도 ${attempts}/${maxAttempts}`);
-
-      const completion = await callOpenAIWithRetry(openai, [
-        {
-          role: "system",
-          content: `당신은 전문적인 한국 대본 작가입니다. 다음 원칙을 따라 고품질 연기용 대본을 작성하세요:
-
-1. **분량 준수 최우선**: 정확한 대사 줄 수를 지켜야 합니다. 이는 가장 중요한 요구사항입니다.
-2. **인물별 정확한 분량**: 각 인물의 할당된 대사 줄 수를 1줄도 틀리지 말고 정확히 맞춰야 합니다.
-3. **검증 필수**: 대본 완성 후 각 인물의 대사 줄 수를 세어 할당량과 정확히 일치하는지 반드시 확인하세요.
-4. **재시도 가능**: 분량이 맞지 않으면 다시 작성을 요청받을 수 있습니다.
+1. **분량 준수**: 지정된 대사 줄 수에 최대한 맞춰 작성하세요.
+2. **자연스러운 대사**: 각 인물의 특성에 맞는 자연스러운 대화를 작성하세요.
+3. **연기 가능한 지시문**: 배우가 실제로 연기할 수 있는 구체적인 지시문을 포함하세요.
 
 대본은 반드시 한국어로 작성하며, 표준 대본 형식을 따르세요.`
-        },
-        {
-          role: "user",
-          content: enhancedPrompt
-        }
-      ], {
-        model: MODEL_FINAL,
-        max_completion_tokens: MAX_COMPLETION_TOKENS,
-        temperature: TEMPERATURE_FINAL
-      });
-      
-      generatedScript = completion.choices[0].message.content;
-      
-      // 대본 검증: 각 인물의 대사 줄 수 확인
-      const validation = validateScriptDialogueLines(generatedScript, characterDialogueLines);
-      
-      if (validation.isValid) {
-        console.log(`✅ 대본 검증 성공 (시도 ${attempts}/${maxAttempts})`);
-        console.log('📊 검증 결과:', validation.actualLines);
-        break;
-      } else {
-        console.log(`⚠️  대본 검증 실패 (시도 ${attempts}/${maxAttempts})`);
-        console.log('📊 예상 줄 수:', characterDialogueLines);
-        console.log('📊 실제 줄 수:', validation.actualLines);
-        console.log('🔄 재생성 중...');
-        
-        if (attempts === maxAttempts) {
-          console.log('❌ 최대 재시도 횟수 초과, 현재 대본으로 진행');
-        }
+      },
+      {
+        role: "user",
+        content: enhancedPrompt
       }
+    ], {
+      model: MODEL_FINAL,
+      max_completion_tokens: MAX_COMPLETION_TOKENS,
+      temperature: TEMPERATURE_FINAL
+    });
+    
+    const generatedScript = completion.choices[0].message.content;
+    
+    // 대본 검증 (참고용으로만 사용, 재생성하지 않음)
+    const validation = validateScriptDialogueLines(generatedScript, characterDialogueLines);
+    
+    if (validation.isValid) {
+      console.log('✅ 대본 분량 검증 성공');
+      console.log('📊 검증 결과:', validation.actualLines);
+    } else {
+      console.log('⚠️  대본 분량이 예상과 다름 (성능 최적화를 위해 그대로 진행)');
+      console.log('📊 예상 줄 수:', characterDialogueLines);
+      console.log('📊 실제 줄 수:', validation.actualLines);
     }
 
     console.log('✅ OpenAI API 응답 완료');

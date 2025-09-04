@@ -1,7 +1,7 @@
 const express = require('express');
 const OpenAI = require('openai');
 const config = require('../../config/env');
-const { supabaseAdmin, safeQuery } = require('../../config/supabase');
+const { supabase, supabaseAdmin, safeQuery } = require('../../config/supabase');
 const { authenticateToken } = require('../../middleware/supabaseAuth');
 const { reserveUsage, commitUsage, rollbackUsage } = require('../../helpers/usage');
 const { parseOpenAIError, callOpenAIWithRetry, logRequestData, MODEL_FINAL, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../../helpers/aiHelpers');
@@ -19,6 +19,54 @@ if (config.OPENAI_API_KEY) {
   });
 } else {
   console.warn('⚠️ OPENAI_API_KEY가 설정되지 않았습니다. AI 기능이 비활성화됩니다.');
+}
+
+// 어린이 연극 전용 스크립트 저장 함수 (구 버전에서 통합)
+async function saveChildrenScript(userId, scriptContent, metadata = {}) {
+  const extractedTitle = extractTitleFromScript(scriptContent);
+  const title = metadata.title || extractedTitle || '어린이 연극 대본';
+  
+  // ai_scripts 테이블 구조에 맞게 데이터 구성
+  const aiScriptData = {
+    user_id: userId,
+    title: title,
+    content: scriptContent,
+    character_count: parseInt(metadata.characterCount) || 1,
+    situation: '어린이 연극용 대본',
+    emotions: [`어린이 연극 - ${metadata.theme || '동물 친구들'}`],
+    gender: '전체',
+    mood: metadata.theme || '동물 친구들',
+    duration: metadata.length === 'short' ? '1~3분' : metadata.length === 'medium' ? '3~5분' : '5분 이상',
+    age_group: '어린이',
+    purpose: '연극',
+    script_type: metadata.characterCount > 1 ? '대화' : '독백',
+    generation_params: {
+      template: 'children',
+      theme: metadata.theme,
+      originalGenre: `어린이 연극 - ${metadata.theme}`,
+      originalLength: metadata.length,
+      originalAge: 'children',
+      originalGender: 'random',
+      model: "gpt-4o",
+      generateTime: new Date(),
+      isCustom: false
+    },
+    is_public: false,
+    created_at: new Date().toISOString()
+  };
+
+  console.log('💾 어린이 연극 스크립트 저장 중...');
+  const saveResult = await safeQuery(async () => {
+    return await supabaseAdmin.from('ai_scripts').insert([aiScriptData]).select().single();
+  }, '어린이 연극 스크립트 저장');
+
+  if (!saveResult.success) {
+    console.error('❌ 어린이 연극 스크립트 저장 실패:', saveResult.error);
+    throw new Error('어린이 연극 스크립트 저장에 실패했습니다.');
+  }
+
+  console.log('✅ 어린이 연극 스크립트 저장 완료');
+  return saveResult.data;
 }
 
 // 어린이 연극용 대본 대사 줄 수 검증 함수
@@ -362,19 +410,33 @@ ${characters && characters.map((char, index) =>
     const extractedTitle = extractTitleFromScript(generatedScript);
     const title = extractedTitle || `${theme} 어린이 연극`;
 
-    // 스크립트 저장
+    // 스크립트 저장 (전용 함수와 기본 함수 중 선택)
     console.log('💾 어린이 연극 대본 Supabase에 저장 시작');
-    const savedScript = await saveScript(req.user.id, generatedScript, {
-      title: title,
-      genre: '어린이 연극',
-      characterCount: parseInt(characterCount) || 1,
-      length: length,
-      gender: 'random',
-      age: 'children',
-      isCustom: false,
-      theme: theme,
-      template: 'children'
-    });
+    let savedScript;
+    
+    try {
+      // 어린이 연극 전용 저장 함수 사용
+      savedScript = await saveChildrenScript(req.user.id, generatedScript, {
+        title: title,
+        theme: theme,
+        characterCount: parseInt(characterCount) || 1,
+        length: length
+      });
+    } catch (error) {
+      // 전용 함수 실패 시 기본 함수 사용
+      console.log('⚠️ 전용 저장 함수 실패, 기본 함수로 저장 시도');
+      savedScript = await saveScript(req.user.id, generatedScript, {
+        title: title,
+        genre: '어린이 연극',
+        characterCount: parseInt(characterCount) || 1,
+        length: length,
+        gender: 'random',
+        age: 'children',
+        isCustom: false,
+        theme: theme,
+        template: 'children'
+      });
+    }
 
     // 생성 성공 시 사용량 커밋
     await commitUsage(req.user.id);

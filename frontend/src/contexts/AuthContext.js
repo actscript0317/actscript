@@ -214,27 +214,29 @@ export const AuthProvider = ({ children }) => {
       
       if (authState) {
         try {
-          // 먼저 사용자 정보 설정 (UI 즉시 반영)
+          // 먼저 사용자 정보 설정 및 로딩 상태 즉시 해제 (UI 빠른 반영)
           setUser(authState.user);
+          setLoading(false);
+          setInitialized(true);
           
-          // 토큰이 만료되었거나 갱신이 필요한 경우
+          // 토큰이 만료되었거나 갱신이 필요한 경우 백그라운드에서 처리
           if (authState.needsRefresh || isAccessTokenExpired()) {
-            console.log('🔄 토큰 만료됨, 인증 상태 확인 중...');
+            console.log('🔄 토큰 만료됨, 백그라운드에서 인증 상태 확인 중...');
             
-            // 토큰 유효성 검사를 통해 실제 인증 상태 확인
-            const isValid = await checkAuth();
-            if (!isValid) {
-              // 토큰이 유효하지 않으면 로그아웃 처리
-              console.log('❌ 토큰 검증 실패, 로그아웃 처리');
+            // 백그라운드에서 토큰 유효성 검사
+            checkAuth().then(isValid => {
+              if (!isValid) {
+                console.log('❌ 토큰 검증 실패, 로그아웃 처리');
+                setAuthState(null, null);
+              } else {
+                console.log('✅ 토큰 검증 성공 또는 갱신 완료');
+              }
+            }).catch(error => {
+              console.error('백그라운드 토큰 검증 실패:', error);
               setAuthState(null, null);
-            } else {
-              console.log('✅ 토큰 검증 성공 또는 갱신 완료');
-            }
+            });
           } else {
-            // 토큰이 아직 유효한 경우
             console.log('✅ 토큰이 유효함, 인증 상태 복원 완료');
-            setLoading(false);
-            setInitialized(true);
           }
         } catch (error) {
           console.error('인증 초기화 오류:', error);

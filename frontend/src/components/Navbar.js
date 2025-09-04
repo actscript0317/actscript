@@ -82,7 +82,7 @@ const Navbar = () => {
                 )}
               </div>
               */}
-              {!loading && isAuthenticated && (
+              {isAuthenticated && (
                 <>
                   <Link
                     to="/ai-script"
@@ -101,11 +101,7 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {loading ? (
-              <div className="animate-pulse">
-                <div className="w-20 h-8 bg-gray-200 rounded"></div>
-              </div>
-            ) : isAuthenticated ? (
+            {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <Link
                   to="/mypage"
@@ -219,7 +215,7 @@ const Navbar = () => {
           </div>
           */}
 
-          {!loading && isAuthenticated && (
+          {isAuthenticated && (
             <>
               <Link
                 to="/ai-script"
@@ -239,11 +235,7 @@ const Navbar = () => {
           )}
         </div>
         <div className="pt-4 pb-3 border-t border-gray-200">
-          {loading ? (
-            <div className="animate-pulse">
-              <div className="w-20 h-8 bg-gray-200 rounded"></div>
-            </div>
-          ) : isAuthenticated ? (
+          {isAuthenticated ? (
             <div className="space-y-1">
               <Link
                 to="/mypage"

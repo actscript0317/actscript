@@ -58,7 +58,12 @@
       "Bash(PORT=3003 npm start)",
       "Bash(PORT=3004 npm start)",
       "Bash(PORT=3005 npm start)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Read(/D:\\carcor\\actscript\\frontend\\public/**)",
+      "Read(/D:\\carcor\\actscript\\frontend\\src/**)",
+      "Read(/D:\\carcor\\actscript\\frontend\\src/**)",
+      "Read(/D:\\carcor\\actscript\\frontend\\src\\components/**)",
+      "Read(/D:\\carcor\\actscript\\frontend\\src\\contexts/**)"
     ],
     "deny": [],
     "additionalDirectories": [

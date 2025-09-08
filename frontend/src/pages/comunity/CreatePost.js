@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { AuthContext } from '../../contexts/AuthContext';
-import { useHistory, useLocation } from 'react-router-dom';
-import { createCommunityPost, actorProfileAPI, actorRecruitmentAPI, modelRecruitmentAPI, communityPostAPI } from '../../services/api';
-import FileUploader from '../../components/FileUploader';
 import { useAuth } from '../../contexts/AuthContext';
+import { 
+  communityPostAPI, 
+  actorProfileAPI, 
+  actorRecruitmentAPI, 
+  modelRecruitmentAPI 
+} from '../../services/api';
 
 const CreatePost = () => {
   const navigate = useNavigate();

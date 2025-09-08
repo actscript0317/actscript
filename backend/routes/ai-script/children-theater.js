@@ -231,7 +231,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     console.log('📊 어린이 연극 등장인물별 대사 분량:', characterDialogueLines);
 
-    // 캐릭터별 지시사항 생성 (스니펫 정보 포함)
+    // 캐릭터별 지시사항 생성
     let characterDirectives = '';
     if (parseInt(characterCount) === 1) {
       const mainCharacterName = Object.keys(characterDialogueLines)[0];

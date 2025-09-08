@@ -274,7 +274,7 @@ ${animalDetails}
         setProgress(Math.min(currentProgress, 90));
       }, 500);
 
-      const response = await api.post('/ai-script/generate', requestData);
+      const response = await api.post('/ai-script/children/generate', requestData);
       
       clearInterval(progressInterval);
       setProgress(100);

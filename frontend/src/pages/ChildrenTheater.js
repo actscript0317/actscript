@@ -30,7 +30,7 @@ import ScriptRenderer from '../components/common/ScriptRenderer';
 
 const ChildrenTheater = () => {
   const { addSavedScript, user } = useAuth();
-  const navigate = useNavigate();
+  const navigate = useNavi기ㅅgate();
   const location = useLocation();
   
   // 사용량 관리 상태 (테스트 플랜: 월 10회 제한, 모든 기능 이용 가능)
@@ -1010,9 +1010,12 @@ ${animalDetails}
         selectedScriptLength={selectedScriptLength}
         onScriptLengthChange={setSelectedScriptLength}
         lengths={lengths}
+        isGenerating={isGenerating}
+        progress={progress}
+        onGenerate={handleAnimalSelectionComplete}
         onBack={handleBackToThemeFromAnimals}
         usageData={usageData}
-        selectedTheme={selectedChildrenTheme}
+        error={error}
       />
     );
   }

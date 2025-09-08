@@ -45,216 +45,24 @@ const AnimalSelection = () => {
     genre: '동물 친구들'
   };
 
-  // 어린이 연극용 동물 캐릭터들 (스니펫 포함)
+  // 어린이 연극용 동물 캐릭터들
   const availableAnimals = [
-    { 
-      value: 'rabbit', 
-      label: '토끼', 
-      icon: '🐰', 
-      personality: '활발하고 호기심 많은', 
-      voiceStyle: '밝고 경쾌한',
-      snippet: {
-        exclamations: ['와!', '어?', '정말?'],
-        actions: ['(귀 쫑긋)', '(깡충)', '(뛰어가며)'],
-        characteristics: '빠른 반응으로 단서 발견',
-        speechPattern: '감탄사를 자주 사용하며 빠르게 반응'
-      }
-    },
-    { 
-      value: 'cat', 
-      label: '고양이', 
-      icon: '🐱', 
-      personality: '영리하고 독립적인', 
-      voiceStyle: '우아하고 자신감 있는',
-      snippet: {
-        exclamations: ['흠.', '그래.', '알겠어.'],
-        actions: ['(하품)', '(꼬리 살랑)', '(우아하게)'],
-        characteristics: '건조·도도하지만 마지막에 다정',
-        speechPattern: '짧고 또렷한 문장으로 말함'
-      }
-    },
-    { 
-      value: 'dog', 
-      label: '강아지', 
-      icon: '🐶', 
-      personality: '충실하고 친근한', 
-      voiceStyle: '따뜻하고 다정한',
-      snippet: {
-        exclamations: ['멍!', '아!', '미안해!'],
-        actions: ['(꼬리 흔들며)', '(폴짝)', '(머리 긁적)'],
-        characteristics: '약간의 실수와 사과로 유머 연출',
-        speechPattern: '솔직한 한 문장으로 표현'
-      }
-    },
-    { 
-      value: 'bear', 
-      label: '곰', 
-      icon: '🐻', 
-      personality: '다정하고 든든한', 
-      voiceStyle: '깊고 안정감 있는',
-      snippet: {
-        exclamations: ['음.', '좋아.', '그렇구나.'],
-        actions: ['(느릿 고개 끄덕)', '(따뜻한 미소)', '(든든하게)'],
-        characteristics: '힘이 필요한 순간에 1회 해결',
-        speechPattern: '길게 말하지 않고 간결하게'
-      }
-    },
-    { 
-      value: 'fox', 
-      label: '여우', 
-      icon: '🦊', 
-      personality: '영리하고 재치있는', 
-      voiceStyle: '똑똑하고 재빠른',
-      snippet: {
-        exclamations: ['아하!', '그럼!', '혹시?'],
-        actions: ['(눈 반짝)', '(영리한 미소)', '(재치있게)'],
-        characteristics: '재치 있는 한 줄로 상황 전환',
-        speechPattern: '퀴즈식 제안을 자주 함'
-      }
-    },
-    { 
-      value: 'lion', 
-      label: '사자', 
-      icon: '🦁', 
-      personality: '용감하고 당당한', 
-      voiceStyle: '웅장하고 카리스마 있는',
-      snippet: {
-        exclamations: ['어흠!', '좋다!', '그래!'],
-        actions: ['(가슴 펴며)', '(당당한 보폭)', '(위엄있게)'],
-        characteristics: '선언형 문장으로 분위기 수습',
-        speechPattern: '리더십을 발휘하는 당당한 말투'
-      }
-    },
-    { 
-      value: 'elephant', 
-      label: '코끼리', 
-      icon: '🐘', 
-      personality: '지혜롭고 온화한', 
-      voiceStyle: '느리고 심사숙고하는',
-      snippet: {
-        exclamations: ['음...', '그렇지.', '알겠구나.'],
-        actions: ['(천천히 고개 끄덕)', '(코로 도움)', '(지혜롭게)'],
-        characteristics: '요약·정리 대사를 한 줄로',
-        speechPattern: '천천히 생각하며 지혜로운 조언'
-      }
-    },
-    { 
-      value: 'monkey', 
-      label: '원숭이', 
-      icon: '🐵', 
-      personality: '장난기 많고 활동적인', 
-      voiceStyle: '빠르고 장난스러운',
-      snippet: {
-        exclamations: ['야호!', '우키!', '재밌다!'],
-        actions: ['(손뼉 치며)', '(성큼성큼)', '(장난스럽게)'],
-        characteristics: '리듬을 주도하며 분위기 메이커',
-        speechPattern: '짧은 반복어를 2회씩 사용'
-      }
-    },
-    { 
-      value: 'panda', 
-      label: '판다', 
-      icon: '🐼', 
-      personality: '평화롭고 느긋한', 
-      voiceStyle: '차분하고 온순한',
-      snippet: {
-        exclamations: ['호호.', '그래그래.', '괜찮아.'],
-        actions: ['(배 두드리며)', '(느긋하게 손 흔들며)', '(여유롭게)'],
-        characteristics: '긴장 완화용 유머 한 줄',
-        speechPattern: '느긋하고 평화로운 분위기 조성'
-      }
-    },
-    { 
-      value: 'pig', 
-      label: '돼지', 
-      icon: '🐷', 
-      personality: '순수하고 정직한', 
-      voiceStyle: '단순하고 진실한',
-      snippet: {
-        exclamations: ['꿀꿀!', '배고파!', '맛있겠다!'],
-        actions: ['(꿀꿀)', '(땅 파기)', '(솔직하게)'],
-        characteristics: '솔직한 욕구 표현으로 단서 찾기',
-        speechPattern: '직접적이고 솔직한 욕구 표현'
-      }
-    },
-    { 
-      value: 'chicken', 
-      label: '닭', 
-      icon: '🐔', 
-      personality: '부지런하고 꼼꼼한', 
-      voiceStyle: '정확하고 분명한',
-      snippet: {
-        exclamations: ['꼬끼오!', '시간이야!', '어서어서!'],
-        actions: ['(날개 퍼덕)', '(바쁘게)', '(시계 보듯)'],
-        characteristics: '시간 관리 신호와 큐 대사',
-        speechPattern: '시간과 일정에 대한 명확한 안내'
-      }
-    },
-    { 
-      value: 'duck', 
-      label: '오리', 
-      icon: '🦆', 
-      personality: '쾌활하고 사교적인', 
-      voiceStyle: '명랑하고 수다스러운',
-      snippet: {
-        exclamations: ['꽥꽥!', '모두모두!', '함께해요!'],
-        actions: ['(덩실덩실)', '(퍼덕퍼덕)', '(사교적으로)'],
-        characteristics: '사회자 역할로 콜앤리스폰스 유도',
-        speechPattern: '모두를 참여시키는 사회자 역할'
-      }
-    },
-    { 
-      value: 'sheep', 
-      label: '양', 
-      icon: '🐑', 
-      personality: '온순하고 따뜻한', 
-      voiceStyle: '부드럽고 다정한',
-      snippet: {
-        exclamations: ['메에~', '그래요.', '좋아요.'],
-        actions: ['(끄덕끄덕)', '(가까이 다가가며)', '(따뜻하게)'],
-        characteristics: '화해·연결을 위한 중재 대사',
-        speechPattern: '부드럽고 화합을 이끄는 말투'
-      }
-    },
-    { 
-      value: 'horse', 
-      label: '말', 
-      icon: '🐴', 
-      personality: '자유롭고 역동적인', 
-      voiceStyle: '힘차고 활기찬',
-      snippet: {
-        exclamations: ['히힝!', '달려!', '가자!'],
-        actions: ['(발굽 소리 흉내)', '(달려가는 제스처)', '(역동적으로)'],
-        characteristics: '장면 전환의 에너지 역할',
-        speechPattern: '역동적이고 행동력 있는 표현'
-      }
-    },
-    { 
-      value: 'turtle', 
-      label: '거북이', 
-      icon: '🐢', 
-      personality: '신중하고 끈기있는', 
-      voiceStyle: '느리고 차분한',
-      snippet: {
-        exclamations: ['음... 그래.', '천천히.', '결국은.'],
-        actions: ['(천천히 한 박자 쉬고)', '(신중하게)', '(끈기있게)'],
-        characteristics: '결론을 차분히 정리, 끈기 강조',
-        speechPattern: '한 박자 쉬고 신중한 결론 제시'
-      }
-    },
-    { 
-      value: 'penguin', 
-      label: '펭귄', 
-      icon: '🐧', 
-      personality: '사교적이고 협동적인', 
-      voiceStyle: '재미있고 친근한',
-      snippet: {
-        exclamations: ['뿌뿌!', '함께!', '우리가!'],
-        actions: ['(뒤뚱뒤뚱)', '(손잡기)', '(협동하며)'],
-        characteristics: '협동 시작 신호, 합창 유도',
-        speechPattern: '협동과 단결을 이끄는 표현'
-      }
-    }
+    { value: 'rabbit', label: '토끼', icon: '🐰', personality: '활발하고 호기심 많은', voiceStyle: '밝고 경쾌한' },
+    { value: 'cat', label: '고양이', icon: '🐱', personality: '영리하고 독립적인', voiceStyle: '우아하고 자신감 있는' },
+    { value: 'dog', label: '강아지', icon: '🐶', personality: '충실하고 친근한', voiceStyle: '따뜻하고 다정한' },
+    { value: 'bear', label: '곰', icon: '🐻', personality: '다정하고 든든한', voiceStyle: '깊고 안정감 있는' },
+    { value: 'fox', label: '여우', icon: '🦊', personality: '영리하고 재치있는', voiceStyle: '똑똑하고 재빠른' },
+    { value: 'lion', label: '사자', icon: '🦁', personality: '용감하고 당당한', voiceStyle: '웅장하고 카리스마 있는' },
+    { value: 'elephant', label: '코끼리', icon: '🐘', personality: '지혜롭고 온화한', voiceStyle: '느리고 심사숙고하는' },
+    { value: 'monkey', label: '원숭이', icon: '🐵', personality: '장난기 많고 활동적인', voiceStyle: '빠르고 장난스러운' },
+    { value: 'panda', label: '판다', icon: '🐼', personality: '평화롭고 느긋한', voiceStyle: '차분하고 온순한' },
+    { value: 'pig', label: '돼지', icon: '🐷', personality: '순수하고 정직한', voiceStyle: '단순하고 진실한' },
+    { value: 'chicken', label: '닭', icon: '🐔', personality: '부지런하고 꼼꼼한', voiceStyle: '정확하고 분명한' },
+    { value: 'duck', label: '오리', icon: '🦆', personality: '쾌활하고 사교적인', voiceStyle: '명랑하고 수다스러운' },
+    { value: 'sheep', label: '양', icon: '🐑', personality: '온순하고 따뜻한', voiceStyle: '부드럽고 다정한' },
+    { value: 'horse', label: '말', icon: '🐴', personality: '자유롭고 역동적인', voiceStyle: '힘차고 활기찬' },
+    { value: 'turtle', label: '거북이', icon: '🐢', personality: '신중하고 끈기있는', voiceStyle: '느리고 차분한' },
+    { value: 'penguin', label: '펭귄', icon: '🐧', personality: '사교적이고 협동적인', voiceStyle: '재미있고 친근한' }
   ];
 
   // 대본 길이 옵션
@@ -386,22 +194,11 @@ const AnimalSelection = () => {
 - 무대/소품 제약: {예: 숲 배경 1종, 소품 3개 이내(바구니, 밧줄, 깃발)}
 - 문장 길이: **6~12어절**, 어려운 한자어·은유 최소화, 의성·의태어 활용.
 - 갈등 단계: 시작(일상) → 문제(오해/난관) → 해결(협력/발견) → **메시지 명시**.
-- 마지막 30초: “관객 참여”+“클로징 송” 가사 2연, 간단한 율동 지시 포함.
-- 
+ 
 
 
-🐾 동물 캐릭터 상세 정보 및 스니펫 (반드시 반영):
+🐾 동물 캐릭터 상세 정보(대사+행동으로 드러낼 것):
 ${animalDetails}
-
-📝 각 동물별 필수 스니펫 (대본에 반드시 포함할 것):
-${animals.map(animal => {
-  const snippet = animal.snippet;
-  return `${animal.name}(${animal.label}) 스니펫:
-- 감탄사: ${snippet.exclamations.join(', ')} 
-- 행동 지시문: ${snippet.actions.join(', ')}
-- 캐릭터 특성: ${snippet.characteristics}
-- 말투 패턴: ${snippet.speechPattern}`;
-}).join('\n\n')}
 
 🎨 테마별 특성:
 - 따뜻하고 우호적인 동물 공동체
@@ -443,7 +240,8 @@ ${animals.map(animal => {
         selectedScriptLength
       );
 
-      // themePrompt는 백엔드로 전송만 하고, 실제 finalPrompt는 응답에서 받음
+      setFinalPrompt(themePrompt);
+
       const requestData = {
         template: 'children',
         theme: selectedTheme?.value || 'animal-friends',
@@ -459,8 +257,7 @@ ${animals.map(animal => {
           relationshipType: index > 0 ? '친구' : '',
           animalType: animal.value,
           personality: animal.personality,
-          voiceStyle: animal.voiceStyle,
-          snippet: animal.snippet
+          voiceStyle: animal.voiceStyle
         })),
         genre: selectedTheme?.genre || '동물 친구들',
         length: selectedScriptLength,
@@ -477,7 +274,7 @@ ${animals.map(animal => {
         setProgress(Math.min(currentProgress, 90));
       }, 500);
 
-      const response = await api.post('/ai-script/children/generate', requestData);
+      const response = await api.post('/ai-script/generate', requestData);
       
       clearInterval(progressInterval);
       setProgress(100);
@@ -487,13 +284,7 @@ ${animals.map(animal => {
                              response.data.script.content : response.data.script;
         
         setGeneratedScript(scriptContent);
-        setGeneratedScriptId(response.data.script?.id || response.data.scriptId);
-        
-        // 백엔드에서 RAG로 향상된 최종 프롬프트 설정
-        if (response.data.finalPrompt) {
-          setFinalPrompt(response.data.finalPrompt);
-        }
-        
+        setGeneratedScriptId(response.data.scriptId);
         toast.success('🎭 어린이 연극 대본이 생성되었습니다!');
         
         setTimeout(() => {

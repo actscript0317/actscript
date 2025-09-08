@@ -31,7 +31,7 @@ const aiScriptRoutes = require('./routes/ai-script');
 console.log('✅ [server.js] ai-script (고품질 프롬프트) 임포트 완료');
 
 console.log('📂 [server.js] children-theater 임포트 중...');
-const childrenTheaterRoutes = require('./routes/children-theater');
+const childrenTheaterRoutes = require('./routes/ai-script/children-theater');
 console.log('✅ [server.js] children-theater 임포트 완료');
 
 // Supabase 기반 라우터들 임포트

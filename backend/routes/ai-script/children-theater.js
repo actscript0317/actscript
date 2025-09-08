@@ -6,7 +6,6 @@ const { authenticateToken } = require('../../middleware/supabaseAuth');
 const { reserveUsage, commitUsage, rollbackUsage } = require('../../helpers/usage');
 const { parseOpenAIError, callOpenAIWithRetry, logRequestData, MODEL_FINAL, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../../helpers/aiHelpers');
 const { extractTitleFromScript, saveScript } = require('../../helpers/scriptHelpers');
-const { enhancePromptWithRAG } = require('../../helpers/ragHelpers');
 
 const router = express.Router();
 
@@ -245,22 +244,11 @@ router.post('/generate', authenticateToken, async (req, res) => {
         const relationship = (char.relationshipWith && char.relationshipType) ? 
           `, ${char.relationshipWith}와(과) ${char.relationshipType} 관계` : '';
         
-        // 스니펫 정보 추가 (동물 캐릭터인 경우)
-        let snippetInfo = '';
-        if (char.snippet) {
-          snippetInfo = `
-📝 ${char.name} 전용 스니펫 (반드시 포함):
-- 감탄사: ${char.snippet.exclamations?.join(', ') || '없음'}
-- 행동 지시문: ${char.snippet.actions?.join(', ') || '없음'}
-- 캐릭터 특성: ${char.snippet.characteristics || '없음'}
-- 말투 패턴: ${char.snippet.speechPattern || '없음'}`;
-        }
-        
         return `인물 ${index + 1}: 이름 "${char.name}", 어린이 연극 캐릭터, 역할: ${roleType}${relationship}
 - 동물 종류: ${char.animalType || '없음'}
 - 성격: ${char.personality || '밝고 긍정적'}
 - 말투 스타일: ${char.voiceStyle || '어린이다운'}
-- 대사 분량: 약 ${assignedLines}줄의 대사${snippetInfo}`;
+- 대사 분량: 약 ${assignedLines}줄의 대사`;
       }).join('\n\n');
     }
 
@@ -302,10 +290,9 @@ ${characterDirectives}
    - 긍정적 가치관 전달 (우정, 나눔, 용기, 정직)
    - 다양성과 포용의 가치 포함
 
-5. **스니펫 활용 (동물 캐릭터의 경우)**
-   - 각 동물의 전용 스니펫을 반드시 대본에 포함
-   - 감탄사와 행동 지시문을 자연스럽게 녹여냄
-   - 캐릭터 특성을 일관되게 유지
+5. **캐릭터 일관성**
+   - 각 캐릭터의 성격과 특성을 일관되게 유지
+   - 동물 캐릭터의 경우 해당 동물의 특징을 자연스럽게 반영
 
 **무대 지시문 작성 원칙:**
 - 어린이가 이해하고 실행할 수 있는 구체적 동작
@@ -353,17 +340,8 @@ ${characters && characters.map((char, index) =>
 
 **중요**: 어린이의 안전과 교육적 가치를 최우선으로 하되, 재미있고 참여도 높은 연극으로 작성하세요.`;
 
-    // RAG 기반 프롬프트 향상 (어린이 연극용 기준 적용)
-    console.log('🔍 어린이 연극 RAG 기반 참고 청크 검색 중...');
-    const ragCriteria = {
-      genre: '어린이 연극',
-      ageGroup: 'children',
-      gender: 'random',
-      characterCount: parseInt(characterCount),
-      mood: theme
-    };
-    
-    const enhancedPrompt = await enhancePromptWithRAG(prompt, ragCriteria);
+    // RAG 기능 제거 - 원본 프롬프트 직접 사용
+    console.log('🎭 어린이 연극 프롬프트 준비 완료');
 
     // OpenAI API 호출 (단일 시도)
     console.log('🚀 어린이 연극 대본 OpenAI API 호출 시작');
@@ -382,7 +360,7 @@ ${characters && characters.map((char, index) =>
       },
       {
         role: "user",
-        content: enhancedPrompt
+        content: prompt
       }
     ], {
       model: MODEL_FINAL,
@@ -464,7 +442,7 @@ ${characters && characters.map((char, index) =>
         length: `${length} (어린이용)`,
         generatedAt: new Date().toISOString()
       },
-      finalPrompt: enhancedPrompt
+      finalPrompt: prompt
     });
 
   } catch (error) {

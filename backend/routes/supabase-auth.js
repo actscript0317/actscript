@@ -5,7 +5,7 @@ const { authenticateToken } = require('../middleware/supabaseAuth');
 const { authenticateJWT } = require('../middleware/jwtAuth');
 const { generateTokenPair } = require('../utils/jwt');
 const { createRefreshToken, deleteAllUserRefreshTokens } = require('../utils/refreshTokenManager');
-const { sendVerificationEmail } = require('../config/mailgun');
+// Mailgun removed - email verification disabled
 // MongoDB 관련 의존성 모두 제거
 const router = express.Router();
 
@@ -137,51 +137,20 @@ router.post('/register', registerValidation, async (req, res) => {
       expiresAt: Date.now() + 10 * 60 * 1000
     });
 
-    try {
-      // Mailgun으로 인증 코드 이메일 발송
-      await sendVerificationEmail(email, name, verificationCode);
-      console.log('✅ 인증 코드 이메일 발송 성공');
+    // Mailgun 제거됨 - 개발용으로 콘솔에 인증 코드 출력
+    console.log('🔧 [개발용] 이메일 인증 코드:', verificationCode);
+    console.log('🔧 [개발용] 인증 키:', codeKey);
 
-      res.json({
-        success: true,
-        message: '인증 코드가 이메일로 발송되었습니다. 10분 내에 입력해주세요.',
-        data: {
-          email,
-          needsCodeVerification: true,
-          codeKey
-        }
-      });
-
-    } catch (mailError) {
-      console.error('❌ 인증 코드 이메일 발송 실패:', mailError);
-      
-      // 개발환경에서는 콘솔에 인증 코드 출력 (Mailgun 미설정 시)
-      if (process.env.NODE_ENV === 'development' || !process.env.MAILGUN_API_KEY) {
-        console.log('🔧 [개발/테스트용] 인증 코드:', verificationCode);
-        console.log('🔧 [개발/테스트용] 이메일:', email);
-        
-        res.json({
-          success: true,
-          message: `인증 코드가 콘솔에 출력되었습니다. (개발용) 코드: ${verificationCode}`,
-          data: {
-            email,
-            needsCodeVerification: true,
-            codeKey,
-            devCode: verificationCode // 개발용으로만 노출
-          }
-        });
-        return;
+    res.json({
+      success: true,
+      message: '개발 환경: 인증 코드가 콘솔에 출력되었습니다.',
+      data: {
+        email,
+        needsCodeVerification: true,
+        codeKey,
+        devCode: verificationCode // 개발용으로 코드 노출
       }
-      
-      // 메일 발송 실패시 저장된 코드 삭제 (프로덕션에서만)
-      verificationCodes.delete(codeKey);
-      
-      return res.status(500).json({
-        success: false,
-        message: '인증 이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.',
-        error: 'EMAIL_SEND_FAILED'
-      });
-    }
+    });
 
   } catch (error) {
     console.error('❌ 회원가입 오류:', error);

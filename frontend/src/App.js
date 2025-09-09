@@ -9,7 +9,7 @@ import Home from './pages/Home';
 import AIScript from './pages/AIScript';
 import GeneralScript from './pages/GeneralScript';
 import AIScriptMain from './pages/AIScriptMain';
-import ChildrenTheater from './pages/ChildrenTheater';
+// ChildrenTheater는 AnimalSelection으로 대체됨
 import AnimalSelection from './pages/ai-script/AnimalSelection';
 import ScriptVault from './pages/ScriptVault';
 import Login from './pages/Login';
@@ -94,7 +94,7 @@ function App() {
               } />
               <Route path="/ai-script/children" element={
                 <PrivateRoute>
-                  <ChildrenTheater />
+                  <AnimalSelection />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/children/animal-friends" element={
@@ -104,22 +104,22 @@ function App() {
               } />
               <Route path="/ai-script/children/magic-adventure" element={
                 <PrivateRoute>
-                  <ChildrenTheater />
+                  <AnimalSelection />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/children/friendship" element={
                 <PrivateRoute>
-                  <ChildrenTheater />
+                  <AnimalSelection />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/children/school-life" element={
                 <PrivateRoute>
-                  <ChildrenTheater />
+                  <AnimalSelection />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/children/dreams-imagination" element={
                 <PrivateRoute>
-                  <ChildrenTheater />
+                  <AnimalSelection />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/school" element={

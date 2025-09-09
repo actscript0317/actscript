@@ -166,10 +166,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
     } = req.body;
 
     // 어린이 연극 템플릿 검증
-    if (template !== 'children' || !theme) {
+    if (template !== 'children' || !theme || !themePrompt) {
       return res.status(400).json({
         error: '어린이 연극 템플릿에 필요한 필드를 입력해주세요.',
-        required: ['template: children', 'theme']
+        required: ['template: children', 'theme', 'themePrompt']
       });
     }
 
@@ -231,35 +231,6 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     console.log('📊 어린이 연극 등장인물별 대사 분량:', characterDialogueLines);
 
-    // 테마별 프롬프트 생성
-    const generateThemePrompt = (theme, characters, length) => {
-      if (theme === 'animal-friends') {
-        const animalList = characters?.map(char => `${char.name}(${char.animalType || '동물'})`).join(', ') || '동물 친구들';
-        const animalDetails = characters?.map(char => 
-          `- ${char.name}(${char.animalType || '동물'}): ${char.personality || '친근한'}, ${char.voiceStyle || '밝은 목소리'}, 역할: ${char.roleType || '조연'}`
-        ).join('\n') || '';
-        
-        return `🎭 어린이 연극 "동물 친구들" 테마 대본 생성
-
-🐾 등장 동물: ${animalList}
-📝 대본 길이: ${length === 'short' ? '짧게 (1-2분)' : length === 'long' ? '길게 (5-8분)' : '중간 (3-5분)'}
-🎯 연령대: 5-12세 어린이 대상
-
-🌟 스토리 특성:
-- 따뜻하고 우호적인 동물 공동체
-- 서로 도우며 문제를 해결하는 협력적 스토리  
-- 각 동물의 특성을 살린 개성 있는 대화
-- 자연 속에서의 평화로운 일상
-- 교훈: 다름을 인정하고 서로 도우며 살아가는 지혜
-
-🐾 동물 캐릭터 상세:
-${animalDetails}`;
-      }
-      return `어린이 연극 "${theme}" 테마의 교육적이고 재미있는 이야기`;
-    };
-
-    const generatedThemePrompt = generateThemePrompt(theme, characters, length);
-
     // 캐릭터별 지시사항 생성
     let characterDirectives = '';
     if (parseInt(characterCount) === 1) {
@@ -285,8 +256,8 @@ ${animalDetails}`;
     const prompt = `당신은 어린이 연극 대본을 전문적으로 쓰는 작가입니다.
 다음 조건에 맞춰 5~12세 어린이들이 연기할 수 있는 교육적이고 재미있는 연극 대본을 완성하세요.
 
-**테마 요청:**
-${generatedThemePrompt}
+**사용자 요청:**
+${themePrompt}
 
 **어린이 연극 기본 조건:**
 - 총 대사 분량: 약 ${totalLines}줄 (지시문 제외, 순수 대사만)
@@ -297,34 +268,41 @@ ${generatedThemePrompt}
 ${characterDirectives}
 
 **어린이 연극 작성 지침:**
-1. **언어와 표현**
-   - 5~12세가 이해할 수 있는 쉬운 단어 사용
-   - 한 문장당 6~12어절로 제한
-   - 어려운 한자어, 추상적 표현 최소화
-   - 의성어, 의태어 적극 활용 ("쿵쿵", "반짝반짝" 등)
+1. 언어 스타일:
+   - 대사는 아이들이 발음하기 좋은 어절로 작성해주세요.
+   - 발음하기 좋은 어절의 기준:
+     - 한 대사당 6~12 어절
+     - 쉬운 단어 위주 (초등학교 1~2학년 수준 단어)
+     - 모음 발음이 뚜렷한 단어 사용 (예: 나무, 친구, 밝다, 웃다)
+     - 같은 패턴이나 반복되는 구절을 포함 (예: "우리는 친구야!", "같이 하자!")
 
-
-
-
-
-2. **연기 고려사항**
+  2. **연기 고려사항**
    - 어린이가 실제로 할 수 있는 동작과 표정 지시
    - 과도한 감정 표현보다는 자연스러운 반응
    - 간단한 소품이나 의상으로 표현 가능한 설정
 
-3. **교육적 가치**
+  3. **교육적 가치**
    - 폭력적이거나 무서운 내용 완전 배제
    - 긍정적 가치관 전달 (우정, 나눔, 용기, 정직)
    - 다양성과 포용의 가치 포함
 
-4. **캐릭터 일관성**
+  4. 공연 요소:
+   - 아이들이 함께 부를 수 있는 짧은 노래나 구호를 2개 넣어주세요.
+   - 노래/구호는 한 줄당 5~8 어절로 반복 가능하게 해주세요.
+   - 무대에서 쉽게 표현할 수 있는 동작 지시를 포함해주세요. (박수, 뛰기, 손 흔들기, 원을 그리며 돌기 등)
+
+  5. **캐릭터 일관성**
    - 각 캐릭터의 성격과 특성을 일관되게 유지
    - 동물 캐릭터의 경우 해당 동물의 특징을 자연스럽게 반영
 
-**무대 지시문 작성 원칙:**
-- 어린이가 이해하고 실행할 수 있는 구체적 동작
-- 감정보다는 행동 중심 지시문 (웃으며, 고개 끄덕이며 등)
-- 안전한 동작만 포함 (달리기, 뛰기 등 주의)
+  6. 구조:
+   - [무대 지시문]은 괄호 안에 간단히 작성해주세요. (예: (숲속에서 동물들이 모인다), (모두 함께 노래한다))
+   - 대사는 반드시 "등장인물 이름: 대사" 형식으로 써주세요.
+   - 이야기 전개는 다음 단계를 따라주세요:
+     - 도입 (등장인물 소개, 배경 설정)
+     - 갈등/문제 (작은 도전이나 오해 발생)
+     - 해결 (협동, 친절, 용기로 극복)
+     - 해피엔딩
 
 **대본 생성 형식:**
 다음 형식을 정확히 따라 작성하세요.

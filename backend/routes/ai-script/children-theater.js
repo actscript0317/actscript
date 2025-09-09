@@ -165,11 +165,11 @@ router.post('/generate', authenticateToken, async (req, res) => {
       themePrompt
     } = req.body;
 
-    // 어린이 연극 템플릿 검증
-    if (template !== 'children' || !theme || !themePrompt) {
+    // 어린이 연극 템플릿 검증 (themePrompt는 백엔드에서 생성)
+    if (template !== 'children' || !theme) {
       return res.status(400).json({
         error: '어린이 연극 템플릿에 필요한 필드를 입력해주세요.',
-        required: ['template: children', 'theme', 'themePrompt']
+        required: ['template: children', 'theme']
       });
     }
 
@@ -231,6 +231,36 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     console.log('📊 어린이 연극 등장인물별 대사 분량:', characterDialogueLines);
 
+    // 테마별 프롬프트 생성 함수
+    const generateThemePrompt = (theme, characters, length) => {
+      if (theme === 'animal-friends') {
+        const animalList = characters?.map(char => `${char.name}(${char.animalType || '동물'})`).join(', ') || '동물 친구들';
+        const animalDetails = characters?.map(char => 
+          `- ${char.name}(${char.animalType || '동물'}): ${char.personality || '친근한'}, ${char.voiceStyle || '밝은 목소리'}, 역할: ${char.roleType || '조연'}`
+        ).join('\n') || '';
+        
+        return `🎭 어린이 연극 "동물 친구들" 테마 대본 생성
+
+🐾 등장 동물: ${animalList}
+📝 대본 길이: ${length === 'short' ? '짧게 (1-2분)' : length === 'long' ? '길게 (5-8분)' : '중간 (3-5분)'}
+🎯 연령대: 5-12세 어린이 대상
+
+🌟 스토리 특성:
+- 따뜻하고 우호적인 동물 공동체
+- 서로 도우며 문제를 해결하는 협력적 스토리  
+- 각 동물의 특성을 살린 개성 있는 대화
+- 자연 속에서의 평화로운 일상
+- 교훈: 다름을 인정하고 서로 도우며 살아가는 지혜
+
+🐾 동물 캐릭터 상세:
+${animalDetails}`;
+      }
+      return `어린이 연극 "${theme}" 테마의 교육적이고 재미있는 이야기`;
+    };
+
+    // 백엔드에서 테마 프롬프트 생성
+    const generatedThemePrompt = generateThemePrompt(theme, characters, length);
+
     // 캐릭터별 지시사항 생성
     let characterDirectives = '';
     if (parseInt(characterCount) === 1) {
@@ -256,8 +286,8 @@ router.post('/generate', authenticateToken, async (req, res) => {
     const prompt = `당신은 어린이 연극 대본을 전문적으로 쓰는 작가입니다.
 다음 조건에 맞춰 5~12세 어린이들이 연기할 수 있는 교육적이고 재미있는 연극 대본을 완성하세요.
 
-**사용자 요청:**
-${themePrompt}
+**테마 요청:**
+${generatedThemePrompt}
 
 **어린이 연극 기본 조건:**
 - 총 대사 분량: 약 ${totalLines}줄 (지시문 제외, 순수 대사만)

@@ -177,36 +177,8 @@ const AnimalSelection = () => {
     navigate('/ai-script/children');
   };
 
-  // 테마별 전용 프롬프트 생성
-  const getThemePrompt = (theme, animals, scriptLength) => {
-    const animalList = animals.map(a => `${a.name}(${a.label})`).join(', ');
-    const animalDetails = animals.map(a => 
-      `- ${a.name}(${a.label}): ${a.personality}, ${a.voiceStyle}, 역할: ${a.roleType}, 대사분량: ${a.percentage}%`
-    ).join('\n');
-    
-    return `🎭 어린이 연극 "${theme?.label}" 테마 대본 생성
-
-    당신은 어린이 연극을 전문적으로 작성하는 작가입니다. 아래의 조건에 맞춰서 퀄리티 높은 대본을 완성하세요
-📝 기본 설정:
-- 등장 동물: ${animalList}
-- 대본 길이: ${lengths.find(l => l.value === scriptLength)?.label || '중간'}
-- 연령대: 5-12세 어린이 대상
-- 무대/소품 제약: {예: 숲 배경 1종, 소품 3개 이내(바구니, 밧줄, 깃발)}
-- 문장 길이: **6~12어절**, 어려운 한자어·은유 최소화, 의성·의태어 활용.
-- 갈등 단계: 시작(일상) → 문제(오해/난관) → 해결(협력/발견) → **메시지 명시**.
- 
-
-
-🐾 동물 캐릭터 상세 정보(대사+행동으로 드러낼 것):
-${animalDetails}
-
-🎨 테마별 특성:
-- 따뜻하고 우호적인 동물 공동체
-- 서로 도우며 문제를 해결하는 협력적 스토리
-- 각 동물의 특성을 살린 개성 있는 대화
-- 자연 속에서의 평화로운 일상
-- 교훈: 다름을 인정하고 서로 도우며 살아가는 지혜`;
-  };
+  // TODO(human): 프롬프트 생성을 백엔드로 위임
+  // 기존의 getThemePrompt 함수를 제거하고, 백엔드에서 전문적인 프롬프트를 생성하도록 변경
 
   // 대본 생성 핸들러
   const handleGenerateScript = async () => {
@@ -233,19 +205,10 @@ ${animalDetails}
     let progressInterval;
 
     try {
-      // 테마별 전용 프롬프트 생성
-      const themePrompt = getThemePrompt(
-        selectedTheme, 
-        selectedAnimals, 
-        selectedScriptLength
-      );
-
-      setFinalPrompt(themePrompt);
-
+      // TODO(human): requestData 수정 - themePrompt 제거하고 백엔드에서 프롬프트 생성하도록 변경
       const requestData = {
         template: 'children',
         theme: selectedTheme?.value || 'animal-friends',
-        themePrompt: themePrompt,
         characterCount: selectedAnimals.length.toString(),
         characters: selectedAnimals.map((animal, index) => ({
           name: animal.name,
@@ -285,6 +248,12 @@ ${animalDetails}
         
         setGeneratedScript(scriptContent);
         setGeneratedScriptId(response.data.scriptId);
+        
+        // TODO(human): 백엔드에서 생성된 프롬프트를 받아서 표시
+        if (response.data.finalPrompt) {
+          setFinalPrompt(response.data.finalPrompt);
+        }
+        
         toast.success('🎭 어린이 연극 대본이 생성되었습니다!');
         
         setTimeout(() => {

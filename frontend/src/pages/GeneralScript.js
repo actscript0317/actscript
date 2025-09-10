@@ -424,7 +424,7 @@ const GeneralScript = () => {
   const loadMemo = async () => {
     if (generatedScriptId) {
       try {
-        const response = await api.get(`/ai-script/scripts/${generatedScriptId}/memo`);
+        const response = await api.get(`/general-script/scripts/${generatedScriptId}/memo`);
         if (response.data.success) {
           setScriptMemo(response.data.memo || '');
         }
@@ -440,7 +440,7 @@ const GeneralScript = () => {
     
     setIsSavingMemo(true);
     try {
-      const response = await api.put(`/ai-script/scripts/${generatedScriptId}/memo`, {
+      const response = await api.put(`/general-script/scripts/${generatedScriptId}/memo`, {
         memo: scriptMemo
       });
       
@@ -543,7 +543,7 @@ const GeneralScript = () => {
         template: 'general' // 일반 대본으로 고정
       };
       
-      const response = await api.post('/ai-script/generate', requestData);
+      const response = await api.post('/general-script/generate', requestData);
       
       if (response.data.success) {
         setGeneratedScript(response.data.script);

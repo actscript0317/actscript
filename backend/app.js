@@ -129,6 +129,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/scripts', require('./routes/scripts'));
 app.use('/api/emotions', require('./routes/emotions'));
 app.use('/api/ai-script', require('./routes/ai-script'));
+app.use('/api/general-script', require('./routes/ai-script/general-script'));
 app.use('/api/children-theater', require('./routes/children-theater'));
 app.use('/api/likes', require('./routes/likes'));
 app.use('/api/bookmarks', require('./routes/bookmarks'));

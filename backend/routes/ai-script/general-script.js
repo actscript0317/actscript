@@ -682,5 +682,99 @@ ${selectedIntensity.instruction}
 
 router.post('/rewrite', rewriteHandler);
 
+// AI 스크립트 메모 업데이트
+router.put('/scripts/:id/memo', authenticateToken, async (req, res) => {
+  try {
+    const { memo } = req.body;
+    
+    if (memo !== undefined && memo !== null && memo.length > 1000) {
+      return res.status(400).json({
+        error: '메모는 1000자를 초과할 수 없습니다.'
+      });
+    }
+
+    const { safeQuery, supabaseAdmin } = require('../../config/supabase');
+    
+    const scriptResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .select('id, user_id')
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .single();
+    }, 'AI 스크립트 소유권 확인');
+
+    if (!scriptResult.success) {
+      return res.status(404).json({
+        error: '스크립트를 찾을 수 없거나 접근 권한이 없습니다.'
+      });
+    }
+
+    const updateResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .update({ memo: memo || null })
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .select()
+        .single();
+    }, 'AI 스크립트 메모 업데이트');
+
+    if (!updateResult.success) {
+      return res.status(500).json({
+        error: '메모 업데이트 중 오류가 발생했습니다.',
+        message: updateResult.error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '메모가 성공적으로 저장되었습니다.',
+      script: updateResult.data
+    });
+
+  } catch (error) {
+    console.error('AI 스크립트 메모 업데이트 오류:', error);
+    res.status(500).json({
+      error: '메모 저장 중 오류가 발생했습니다.',
+      message: error.message
+    });
+  }
+});
+
+// AI 스크립트 메모 조회
+router.get('/scripts/:id/memo', authenticateToken, async (req, res) => {
+  try {
+    const { safeQuery, supabaseAdmin } = require('../../config/supabase');
+    
+    const result = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('ai_scripts')
+        .select('id, memo')
+        .eq('id', req.params.id)
+        .eq('user_id', req.user.id)
+        .single();
+    }, 'AI 스크립트 메모 조회');
+
+    if (!result.success) {
+      return res.status(404).json({
+        error: '스크립트를 찾을 수 없거나 접근 권한이 없습니다.'
+      });
+    }
+
+    res.json({
+      success: true,
+      memo: result.data.memo || ''
+    });
+
+  } catch (error) {
+    console.error('AI 스크립트 메모 조회 오류:', error);
+    res.status(500).json({
+      error: '메모 조회 중 오류가 발생했습니다.',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
 module.exports.rewriteHandler = rewriteHandler;

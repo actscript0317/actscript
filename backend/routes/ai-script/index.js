@@ -35,6 +35,9 @@ router.use('/custom', customScriptRouter);
 
 // 공통 API들
 
+// 일반 대본 생성 API (프론트엔드 호환성을 위한 공통 엔드포인트)
+router.use('/generate', generalScriptRouter);
+
 // 대본 리라이팅 API (모든 템플릿 공통)
 router.post('/rewrite', (req, res, next) => {
   try {

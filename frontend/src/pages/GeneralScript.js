@@ -102,7 +102,7 @@ const GeneralScript = () => {
   const fetchUsageInfo = async () => {
     try {
       setLoadingUsage(true);
-      const response = await api.get('/ai-script/usage');
+      const response = await api.get('/admin/usage');
       const { usage } = response.data;
       
       setUsageData({

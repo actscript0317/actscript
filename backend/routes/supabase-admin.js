@@ -415,4 +415,88 @@ router.get('/content', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// 사용량 정보 조회 API (일반 사용자용 - 관리자 권한 불필요)
+router.get('/usage', authenticateToken, async (req, res) => {
+  try {
+    console.log('📊 사용량 정보 조회 요청:', req.user.id);
+    
+    const userResult = await safeQuery(async () => {
+      return await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('id', req.user.id)
+        .single();
+    }, '사용량 조회용 사용자 정보');
+
+    if (!userResult.success) {
+      console.error('❌ 사용량 조회 실패:', userResult.error);
+      return res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      });
+    }
+
+    const user = userResult.data;
+    const usage = user.usage || { currentMonth: 0, lastResetDate: null, totalGenerated: 0 };
+    const subscription = user.subscription || { plan: 'test' };
+
+    // 월이 바뀌었으면 사용량 리셋
+    const now = new Date();
+    const lastReset = usage.lastResetDate ? new Date(usage.lastResetDate) : new Date();
+    
+    let resetUsage = { ...usage };
+    if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+      resetUsage.currentMonth = 0;
+      resetUsage.lastResetDate = now.toISOString();
+      
+      await safeQuery(async () => {
+        return await supabaseAdmin
+          .from('users')
+          .update({ usage: resetUsage })
+          .eq('id', req.user.id);
+      }, '사용량 리셋 저장');
+    }
+
+    const userLimit = user.usage?.monthly_limit || 10;
+    let canGenerate = true;
+    let limit = userLimit;
+
+    if (userLimit === 999999) {
+      limit = '무제한';
+    } else {
+      canGenerate = resetUsage.currentMonth < userLimit;
+    }
+
+    const nextResetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const daysUntilReset = Math.ceil((nextResetDate - now) / (1000 * 60 * 60 * 24));
+
+    res.json({
+      success: true,
+      usage: {
+        currentMonth: resetUsage.currentMonth,
+        totalGenerated: resetUsage.totalGenerated,
+        limit: limit,
+        canGenerate: canGenerate,
+        planType: subscription.plan,
+        nextResetDate: nextResetDate.toISOString(),
+        daysUntilReset: daysUntilReset
+      }
+    });
+
+    console.log('✅ 사용량 정보 조회 완료:', {
+      currentMonth: resetUsage.currentMonth,
+      limit: limit,
+      canGenerate: canGenerate
+    });
+
+  } catch (error) {
+    console.error('❌ 사용량 정보 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '사용량 정보 조회 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

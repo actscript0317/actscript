@@ -149,6 +149,9 @@ app.use('/api/community-posts', require('./routes/community-posts'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/admin-users', require('./routes/admin-users'));
 
+// 관리자 라우트
+app.use('/api/admin', require('./routes/supabase-admin'));
+
 // SPA 라우팅 지원 (모든 환경)
 const buildPath = path.join(__dirname, '../frontend/build');
 

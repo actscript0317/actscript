@@ -108,17 +108,21 @@ function validateChildrenScriptDialogueLines(script, expectedLines) {
     }
     
     let isValid = true;
+    const discrepancies = [];
+    
     for (const [character, expected] of Object.entries(expectedLines)) {
       const actual = actualLines[character] || 0;
-      if (Math.abs(actual - expected) > 2) { // 어린이 연극은 ±2줄 허용
+      if (actual !== expected) { // 정확히 일치해야 함
         isValid = false;
+        discrepancies.push(`${character}: 예상 ${expected}줄, 실제 ${actual}줄`);
       }
     }
     
     return {
       isValid,
       actualLines,
-      expectedLines
+      expectedLines,
+      discrepancies
     };
     
   } catch (error) {
@@ -344,24 +348,56 @@ ${animalDetails}`;
 두 번째 구호 문장!
 세 번째 구호 문장!"
 
+**⚠️ 절대 준수사항 - 캐릭터별 대사 분량:**
+${Object.entries(characterDialogueLines).map(([name, lines]) => 
+  `- ${name}: 정확히 ${lines}줄의 대사 (1줄도 틀리면 안됨)`
+).join('\n')}
+
+**대사 분량 확인 방법:**
+- 각 캐릭터의 대사를 셀 때는 "캐릭터명: 대사내용" 형식으로 된 줄만 계산
+- 무대 지시문 (괄호), 빈 줄, [노래/구호] 섹션은 대사 수에 포함되지 않음
+- 한 캐릭터가 연속으로 말하는 경우 각 줄을 별도로 계산
+- 예시: 
+  토끼: 첫 번째 대사 (1줄)
+  토끼: 두 번째 대사 (2줄)
+
 **작성 시 주의사항:**
 - 제공된 참고 대본과 동일한 스타일과 구조 사용
 - 무대 지시문은 괄호 안에 간결하게
 - 각 캐릭터마다 고유한 말투와 성격 반영
-- 대사 줄 수: ${totalLines}줄 (±2줄 허용)
+- 총 대사 줄 수: 정확히 ${totalLines}줄 (오차 허용 안함)
 - 마지막에 반드시 [노래/구호] 섹션 포함
-- 교육적 메시지와 협동의 가치 전달`;
+- 교육적 메시지와 협동의 가치 전달
+
+**최종 검토 필수:**
+대본 작성 완료 후 각 캐릭터의 대사를 다시 세어보고 지정된 분량과 정확히 일치하는지 확인하세요.`;
 
     // RAG 기능 제거 - 원본 프롬프트 직접 사용
     console.log('🎭 어린이 연극 프롬프트 준비 완료');
 
-    // OpenAI API 호출 (단일 시도)
+    // OpenAI API 호출 (대사 분량 검증과 함께 최대 2회 시도)
     console.log('🚀 어린이 연극 대본 OpenAI API 호출 시작');
     
-    const completion = await callOpenAIWithRetry(openai, [
-      {
-        role: "system",
-        content: `당신은 어린이 연극 전문 대본 작가입니다. 
+    let generatedScript = null;
+    let validation = null;
+    
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      console.log(`📝 대본 생성 시도 ${attempt}/2`);
+      
+      const completion = await callOpenAIWithRetry(openai, [
+        {
+          role: "system",
+          content: `당신은 어린이 연극 전문 대본 작가입니다. 
+
+⚠️ 중요: 각 캐릭터별 대사 분량을 정확히 지켜야 합니다.
+${Object.entries(characterDialogueLines).map(([name, lines]) => 
+  `- ${name}: 정확히 ${lines}줄의 대사`
+).join('\n')}
+
+대사 분량 계산 규칙:
+1. "캐릭터명: 대사내용" 형식의 줄만 계산
+2. 무대 지시문 (괄호), 빈 줄, [노래/구호]는 대사 수에 미포함
+3. 연속 대사도 각 줄을 별도 계산
 
 제공된 참고 대본 스타일을 정확히 따라 작성하세요:
 - 무대 지시문: (괄호 안에 간결하게)
@@ -369,30 +405,43 @@ ${animalDetails}`;
 - 줄 띄움: 캐릭터별로 줄 바꿈, 장면 전환 시 한 줄 공백
 - 마지막: [노래/구호] 섹션으로 마무리
 
-각 캐릭터마다 고유한 말투와 성격을 부여하고, 협동과 우정의 교육적 메시지를 자연스럽게 전달하세요.`
-      },
-      {
-        role: "user",
-        content: prompt
+각 캐릭터마다 고유한 말투와 성격을 부여하고, 협동과 우정의 교육적 메시지를 자연스럽게 전달하세요.
+
+작성 완료 후 반드시 각 캐릭터의 대사 수를 다시 확인하여 정확히 일치하는지 검토하세요.${attempt > 1 ? '\n\n⚠️ 이전 시도에서 대사 분량이 맞지 않았습니다. 이번에는 반드시 정확한 분량으로 작성해주세요.' : ''}`
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ], {
+        model: MODEL_FINAL,
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
+        temperature: TEMPERATURE_FINAL
+      });
+      
+      generatedScript = completion.choices[0].message.content;
+      
+      // 대본 검증
+      validation = validateChildrenScriptDialogueLines(generatedScript, characterDialogueLines);
+      
+      if (validation.isValid) {
+        console.log(`✅ 시도 ${attempt}: 어린이 연극 대본 분량 검증 성공`);
+        console.log('📊 검증 결과:', validation.actualLines);
+        break;
+      } else {
+        console.log(`⚠️  시도 ${attempt}: 어린이 연극 대본 분량이 예상과 다름`);
+        console.log('📊 예상 줄 수:', characterDialogueLines);
+        console.log('📊 실제 줄 수:', validation.actualLines);
+        if (validation.discrepancies) {
+          console.log('🔍 불일치 상세:', validation.discrepancies);
+        }
+        
+        if (attempt < 2) {
+          console.log('🔄 대본 생성을 다시 시도합니다...');
+        } else {
+          console.log('⚠️  2회 시도 모두 실패. 현재 대본으로 진행합니다.');
+        }
       }
-    ], {
-      model: MODEL_FINAL,
-      max_completion_tokens: MAX_COMPLETION_TOKENS,
-      temperature: TEMPERATURE_FINAL
-    });
-    
-    const generatedScript = completion.choices[0].message.content;
-    
-    // 대본 검증 (참고용, 어린이 연극은 유연하게)
-    const validation = validateChildrenScriptDialogueLines(generatedScript, characterDialogueLines);
-    
-    if (validation.isValid) {
-      console.log('✅ 어린이 연극 대본 분량 검증 성공');
-      console.log('📊 검증 결과:', validation.actualLines);
-    } else {
-      console.log('⚠️  어린이 연극 대본 분량이 예상과 다름 (교육적 가치를 위해 그대로 진행)');
-      console.log('📊 예상 줄 수:', characterDialogueLines);
-      console.log('📊 실제 줄 수:', validation.actualLines);
     }
 
     console.log('✅ 어린이 연극 OpenAI API 응답 완료');

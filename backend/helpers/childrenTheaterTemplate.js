@@ -58,7 +58,7 @@ ${characters && characters.map((char, index) =>
     
     const enhancedChildrenPrompt = await enhancePromptWithRAG(prompt, childrenRagCriteria);
 
-    console.log('🎭 어린이 연극 대본 생성 중 (GPT-4o 모델 사용)');
+    console.log('🎭 어린이 연극 대본 생성 중 (GPT-5 모델 사용)');
     const completion = await callOpenAIWithRetry(openai, [
       {
         role: "user",

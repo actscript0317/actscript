@@ -46,7 +46,7 @@ async function saveChildrenScript(userId, scriptContent, metadata = {}) {
       originalLength: metadata.length,
       originalAge: 'children',
       originalGender: 'random',
-      model: "gpt-4o",
+      model: "gpt-5",
       generateTime: new Date(),
       isCustom: false
     },

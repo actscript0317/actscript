@@ -55,7 +55,7 @@ async function saveScript(userId, scriptContent, metadata = {}) {
       originalLength: metadata.length,
       originalAge: metadata.age,
       originalGender: metadata.gender,
-      model: "gpt-4o",
+      model: "gpt-5",
       generateTime: new Date(),
       isCustom: metadata.isCustom || false,
       ...(metadata.prompt && { originalCustomPrompt: metadata.prompt })

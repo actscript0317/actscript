@@ -21,7 +21,7 @@ if (config.OPENAI_API_KEY) {
   console.warn('⚠️ OPENAI_API_KEY가 설정되지 않았습니다. AI 기능이 비활성화됩니다.');
 }
 
-// 일반 대본 대사 줄 수 검증 함수
+// 번호 기반 대본 대사 줄 수 검증 함수
 function validateScriptDialogueLines(script, expectedLines) {
   try {
     const scriptSection = script.split('===대본===')[1];
@@ -31,32 +31,19 @@ function validateScriptDialogueLines(script, expectedLines) {
 
     const actualLines = {};
     const lines = scriptSection.split('\n');
-    let currentCharacter = null;
     
     for (const line of lines) {
       const trimmedLine = line.trim();
       
-      if (!trimmedLine || 
-          trimmedLine.startsWith('===') || 
-          trimmedLine.startsWith('**') ||
-          trimmedLine.startsWith('[') ||
-          trimmedLine.startsWith('(')) {
-        continue;
-      }
-      
-      const characterMatch = trimmedLine.match(/^([^:]+):\s*(.+)$/);
-      if (characterMatch) {
-        currentCharacter = characterMatch[1].trim();
-        const dialogue = characterMatch[2].trim();
+      // 번호가 있는 대사 라인만 카운트: "숫자. 캐릭터명: 대사" 형식
+      const numberedDialogueMatch = trimmedLine.match(/^\d+\.\s*([^:]+):\s*(.+)$/);
+      if (numberedDialogueMatch) {
+        const character = numberedDialogueMatch[1].trim();
+        const dialogue = numberedDialogueMatch[2].trim();
         
         if (dialogue && !dialogue.startsWith('[') && !dialogue.startsWith('(')) {
-          actualLines[currentCharacter] = (actualLines[currentCharacter] || 0) + 1;
+          actualLines[character] = (actualLines[character] || 0) + 1;
         }
-      } else if (currentCharacter && trimmedLine && 
-                !trimmedLine.startsWith('[') && 
-                !trimmedLine.startsWith('(') &&
-                !trimmedLine.includes('===')) {
-        actualLines[currentCharacter] = (actualLines[currentCharacter] || 0) + 1;
       }
     }
     
@@ -77,6 +64,16 @@ function validateScriptDialogueLines(script, expectedLines) {
   } catch (error) {
     console.error('대본 검증 중 오류:', error);
     return { isValid: false, actualLines: {}, error: error.message };
+  }
+}
+
+// 대본에서 번호 제거 함수 (사용자에게 보여줄 때)
+function removeDialogueNumbers(script) {
+  try {
+    return script.replace(/^\d+\.\s*([^:]+:)/gm, '$1');
+  } catch (error) {
+    console.error('번호 제거 중 오류:', error);
+    return script;
   }
 }
 
@@ -417,10 +414,14 @@ ${characters && characters.map((char, index) =>
   `${char.name}: [약 ${characterDialogueLines[char.name] || 0}줄의 대사 담당]`
 ).join('\n')}
 
-**절대 규칙**: 
-- 총 대사 줄 수: 약 ${totalLines}줄
-- 각 인물별 할당 줄 수를 대략적으로 맞춰야 함
-- 지시문, 인물명, 빈 줄은 줄 수에 포함되지 않음 (순수 대사만 카운트)`
+**절대 규칙 - 번호 기반 정확한 분량 제어**: 
+- 총 대사 줄 수: 정확히 ${totalLines}줄 (1줄도 틀리면 안됨)
+- 모든 대사 앞에 번호를 붙여서 "번호. 캐릭터명: 대사" 형식으로 작성
+- 번호는 1부터 ${totalLines}까지 연속으로 작성
+- 각 인물별 번호가 있는 대사 개수가 정확히 일치해야 함
+- 지시문, 빈 줄은 번호 없이 작성 (대사 수에 미포함)
+
+TODO(human)`
 }
 
 ===연기 팁===
@@ -473,10 +474,13 @@ ${characters && characters.map((char, index) =>
       temperature: TEMPERATURE_FINAL
     });
     
-    const generatedScript = completion.choices[0].message.content;
+    const rawScript = completion.choices[0].message.content;
     
-    // 대본 검증 (참고용으로만 사용, 재생성하지 않음)
-    const validation = validateScriptDialogueLines(generatedScript, characterDialogueLines);
+    // 대본 검증 (번호 기반)
+    const validation = validateScriptDialogueLines(rawScript, characterDialogueLines);
+    
+    // 사용자에게 보여줄 대본에서 번호 제거
+    const generatedScript = removeDialogueNumbers(rawScript);
     
     if (validation.isValid) {
       console.log('✅ 대본 분량 검증 성공');

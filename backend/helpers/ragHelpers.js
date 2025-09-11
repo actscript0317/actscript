@@ -67,37 +67,47 @@ async function getRelevantChunks(criteria, limit = 3) {
       console.log(`🎭 장르 필터링 후: ${filteredChunks.length}개 (조건: ${searchGenres.join(', ')})`);
     }
     
-    // 연령대 필터링
+    // 개선된 연령대 필터링 - 실제 데이터 형태에 맞춰 유연하게 매칭
     if (criteria.ageGroup) {
       const ageMap = {
-        'teens': ['청소년', '10대', '고등학생'],
-        '20s': ['20대', '대학생', '청년'],
-        '30s-40s': ['30대', '40대', '중년'],
-        '50s': ['50대', '장년'],
-        '70s+': ['70대', '노년', '할머니', '할아버지']
+        'teens': ['10대', '청소년', '고등학생', '학생'],
+        '20s': ['20대', '청년', '대학생', '젊은'], 
+        '30s-40s': ['30대', '40대', '중년', '성인'], // "성인"은 주로 30-40대를 의미
+        '50s': ['50대', '장년', '성인'],
+        '70s+': ['70대', '노년', '할머니', '할아버지', '고령']
       };
       
       const searchAges = ageMap[criteria.ageGroup] || [criteria.ageGroup];
       filteredChunks = filteredChunks.filter(chunk => {
-        const ageGroup = chunk.age_group || '';
-        return searchAges.some(a => ageGroup.toLowerCase().includes(a.toLowerCase()));
+        const ageGroup = (chunk.age_group || '').toLowerCase();
+        return searchAges.some(a => 
+          ageGroup.includes(a.toLowerCase()) || 
+          a.toLowerCase().includes(ageGroup)
+        );
       });
       console.log(`👶 연령대 필터링 후: ${filteredChunks.length}개 (조건: ${searchAges.join(', ')})`);
     }
     
-    // 성별 필터링
+    // 개선된 성별 필터링 - "혼합" 데이터도 포함하도록 유연하게 매칭
     if (criteria.gender && criteria.gender !== 'random') {
-      const genderMap = {
-        'male': ['남성', '남자'],
-        'female': ['여성', '여자']
-      };
-      
-      const searchGenders = genderMap[criteria.gender] || [criteria.gender];
       filteredChunks = filteredChunks.filter(chunk => {
-        const gender = chunk.gender || '';
-        return searchGenders.some(g => gender.toLowerCase().includes(g.toLowerCase()));
+        const gender = (chunk.gender || '').toLowerCase();
+        
+        // "혼합"이나 비어있는 경우는 모든 성별 요청에 매칭
+        if (gender === '혼합' || gender === '' || gender === 'mixed') {
+          return true;
+        }
+        
+        // 구체적 성별 매칭
+        if (criteria.gender === 'male') {
+          return gender.includes('남') || gender.includes('male');
+        } else if (criteria.gender === 'female') {
+          return gender.includes('여') || gender.includes('female');
+        }
+        
+        return false;
       });
-      console.log(`👫 성별 필터링 후: ${filteredChunks.length}개 (조건: ${searchGenders.join(', ')})`);
+      console.log(`👫 성별 필터링 후: ${filteredChunks.length}개 (조건: ${criteria.gender})`);
     }
     
     // 필터링 결과가 없으면 전체 청크에서 랜덤 선택 (폴백)

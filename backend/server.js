@@ -34,6 +34,10 @@ console.log('📂 [server.js] children-theater 임포트 중...');
 const childrenTheaterRoutes = require('./routes/ai-script/children-theater');
 console.log('✅ [server.js] children-theater 임포트 완료');
 
+console.log('📂 [server.js] general-script 임포트 중...');
+const generalScriptRoutes = require('./routes/ai-script/general-script');
+console.log('✅ [server.js] general-script 임포트 완료');
+
 // Supabase 기반 라우터들 임포트
 console.log('📂 [server.js] Supabase 기반 라우터들 임포트 중...');
 const supabaseActorProfileRoutes = require('./routes/supabase-actor-profiles');
@@ -426,6 +430,7 @@ console.log('📝 [server.js] 기타 라우트들 등록 중...');
 app.use('/api/emotions', emotionRoutes);
 app.use('/api/ai-script', aiScriptRoutes);
 app.use('/api/children-theater', childrenTheaterRoutes);
+app.use('/api/general-script', generalScriptRoutes);
 
 // Supabase 기반 라우터들 등록
 console.log('📝 [server.js] Supabase 기반 라우터들 등록 중...');

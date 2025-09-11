@@ -372,7 +372,7 @@ const GeneralScript = () => {
       const contextBefore = generatedScript.substring(Math.max(0, selectedTextStart - 200), selectedTextStart);
       const contextAfter = generatedScript.substring(selectedTextEnd, Math.min(generatedScript.length, selectedTextEnd + 200));
       
-      const response = await api.post('/ai-script/rewrite', {
+      const response = await api.post('/api/general-script/rewrite', {
         originalText: selectedText,
         intensity: rewriteIntensity,
         contextBefore,
@@ -383,7 +383,7 @@ const GeneralScript = () => {
       if (response.data.success) {
         setRewriteResult({
           original: selectedText,
-          rewritten: response.data.rewrittenText
+          rewritten: response.data.rewritten
         });
       } else {
         throw new Error(response.data.error || '리라이팅에 실패했습니다.');
@@ -424,7 +424,7 @@ const GeneralScript = () => {
   const loadMemo = async () => {
     if (generatedScriptId) {
       try {
-        const response = await api.get(`/general-script/scripts/${generatedScriptId}/memo`);
+        const response = await api.get(`/api/general-script/scripts/${generatedScriptId}/memo`);
         if (response.data.success) {
           setScriptMemo(response.data.memo || '');
         }
@@ -440,7 +440,7 @@ const GeneralScript = () => {
     
     setIsSavingMemo(true);
     try {
-      const response = await api.put(`/general-script/scripts/${generatedScriptId}/memo`, {
+      const response = await api.put(`/api/general-script/scripts/${generatedScriptId}/memo`, {
         memo: scriptMemo
       });
       
@@ -543,11 +543,11 @@ const GeneralScript = () => {
         template: 'general' // 일반 대본으로 고정
       };
       
-      const response = await api.post('/general-script/generate', requestData);
+      const response = await api.post('/api/general-script/generate', requestData);
       
       if (response.data.success) {
-        setGeneratedScript(response.data.script);
-        setGeneratedScriptId(response.data.scriptId);
+        setGeneratedScript(response.data.script.content);
+        setGeneratedScriptId(response.data.script.id);
         setFinalPrompt(response.data.finalPrompt || '');
         
         // 사용량 업데이트

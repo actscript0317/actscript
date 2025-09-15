@@ -416,8 +416,8 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
       ], {
         model: MODEL_FINAL,
         max_completion_tokens: MAX_COMPLETION_TOKENS,
-        temperature: TEMPERATURE_FINAL
-      });
+      temperature: TEMPERATURE_FINAL
+    }, { tries: 1, base: 60000 });
       
       generatedScript = completion.choices[0].message.content;
       

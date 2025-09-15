@@ -503,7 +503,7 @@ ${characters && characters.map((char, index) =>
       model: MODEL_FINAL,
       max_completion_tokens: MAX_COMPLETION_TOKENS,
       temperature: TEMPERATURE_FINAL
-    });
+    }, { tries: 1, base: 60000 });
     
     const rawScript = completion.choices[0].message.content;
     

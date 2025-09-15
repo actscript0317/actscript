@@ -415,7 +415,7 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
         }
       ], {
         model: MODEL_FINAL,
-        max_completion_tokens: MAX_COMPLETION_TOKENS,
+      max_completion_tokens: (length === 'short' ? 900 : (length === 'medium' ? 1500 : (length === 'long' ? 2500 : Math.min(MAX_COMPLETION_TOKENS, 1500)))),
       temperature: TEMPERATURE_FINAL
     }, { tries: 1, base: 60000 });
       

@@ -109,7 +109,18 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 3, base 
         setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
       );
       
-      return await Promise.race([apiCall, timeoutPromise]);
+      const result = await Promise.race([apiCall, timeoutPromise]);
+      // 빈 응답 방지: content가 비었으면 재시도 트리거
+      try {
+        const text = result?.choices?.[0]?.message?.content;
+        if (typeof text === 'string' && text.trim().length === 0) {
+          console.warn('[AI] 빈 응답 감지 – 재시도 시도');
+          throw new Error('Empty AI response');
+        }
+      } catch (e) {
+        // choices 구조가 없으면 그대로 반환(상위에서 처리)
+      }
+      return result;
     } catch (e) {
       console.log(`API 호출 시도 ${i + 1}/${tries} 실패:`, e.message);
       

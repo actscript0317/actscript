@@ -55,19 +55,29 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 1, base 
 
       let apiCall;
       if (modelName.toLowerCase().startsWith('gpt-5')) {
-        // gpt-5: Responses API 사용 (권장 형식: role+content 파츠)
-        const toInput = (m) => {
-          if (!m) return { role: 'user', content: [{ type: 'text', text: '' }] };
-          const role = m.role || 'user';
-          const text = Array.isArray(m.content)
+        // gpt-5: Responses API 사용 (권장: instructions + input 문자열)
+        const msgs = Array.isArray(messages) ? messages : [messages];
+        let instructions = '';
+        const textParts = [];
+        for (const m of msgs) {
+          if (!m) continue;
+          const content = Array.isArray(m.content)
             ? m.content.map(c => (typeof c === 'string' ? c : (c?.text || ''))).join('\n')
-            : (typeof m.content === 'string' ? m.content : '');
-          return { role, content: [{ type: 'text', text }] };
-        };
-        const input = Array.isArray(messages) ? messages.map(toInput) : [toInput(messages)];
+            : (typeof m.content === 'string' ? m.content : (m?.toString?.() || ''));
+          if ((m.role || '').toLowerCase() === 'system') {
+            instructions += (instructions ? '\n\n' : '') + content;
+          } else {
+            // 간단한 구분자 포함해 맥락 유지
+            const label = (m.role || 'user').toUpperCase();
+            textParts.push(`[${label}]\n${content}`);
+          }
+        }
+        const inputText = textParts.join('\n\n');
+
         apiCall = openai.responses.create({
           model: modelName,
-          input,
+          input: inputText,
+          ...(instructions && { instructions }),
           temperature,
           max_output_tokens: maxTokens,
         }).then(r => {
@@ -79,7 +89,6 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 1, base 
             for (const item of r.output) {
               if (Array.isArray(item?.content)) {
                 for (const c of item.content) {
-                  // 최신 SDK 포맷: { type: 'output_text', text: { value } } 또는 { text: '...' }
                   if (typeof c?.text?.value === 'string') parts.push(c.text.value);
                   else if (typeof c?.text === 'string') parts.push(c.text);
                 }

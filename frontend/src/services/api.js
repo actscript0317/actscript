@@ -30,7 +30,7 @@ const getApiBaseUrl = () => {
   }
   
   // 로컬 개발 환경
-  return 'http://localhost:10000/api';
+  return 'http://localhost:10001/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();

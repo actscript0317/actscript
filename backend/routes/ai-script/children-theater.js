@@ -485,6 +485,7 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
 
     res.json({
       success: true,
+      scriptId: savedScript.id,
       script: {
         id: savedScript.id,
         title: title,

@@ -538,7 +538,9 @@ ${characters && characters.map((char, index) =>
 
     // 스크립트 저장
     console.log('💾 Supabase에 대본 저장 시작');
-    const savedScript = await saveScript(req.user.id, generatedScript, {
+    let savedScript;
+    try {
+      savedScript = await saveScript(req.user.id, generatedScript, {
       title: title,
       genre: genre,
       characterCount: parseInt(characterCount) || 1,
@@ -546,18 +548,26 @@ ${characters && characters.map((char, index) =>
       gender: gender,
       age: age,
       isCustom: false
-    });
+      });
+    } catch (saveErr) {
+      console.error('⚠️ 스크립트 저장 실패(생성 결과는 반환):', saveErr?.message || saveErr);
+      savedScript = { id: null };
+    }
 
     // 생성 성공 시 사용량 커밋
-    await commitUsage(req.user.id);
+    try {
+      await commitUsage(req.user.id);
+    } catch (uErr) {
+      console.warn('⚠️ 사용량 커밋 경고:', uErr?.message || uErr);
+    }
 
-    console.log('✅ Supabase 저장 완료, ID:', savedScript.id);
+    console.log('✅ Supabase 저장 완료, ID:', savedScript?.id || null);
 
     res.json({
       success: true,
       scriptId: savedScript.id,
       script: {
-        id: savedScript.id,
+        id: savedScript?.id || null,
         title: title,
         content: generatedScript,
         characterCount: parseInt(characterCount),

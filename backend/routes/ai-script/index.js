@@ -35,8 +35,9 @@ router.use('/custom', customScriptRouter);
 
 // 공통 API들
 
-// 일반 대본 생성 API (프론트엔드 호환성을 위한 공통 엔드포인트)
-router.use('/generate', generalScriptRouter);
+// 일반 대본 생성 및 관련 엔드포인트를 루트에 연결
+// 이렇게 해야 /api/ai-script/generate 가 general-script 라우터의 /generate 와 정확히 매핑됩니다.
+router.use('/', generalScriptRouter);
 
 // 대본 리라이팅 API (모든 템플릿 공통)
 router.post('/rewrite', (req, res, next) => {

@@ -533,4 +533,12 @@ ${Object.entries(characterDialogueLines).map(([name, lines]) =>
   }
 });
 
+// GET 메서드로 접근 시 안내 (잘못된 호출 방지)
+router.get('/generate', (req, res) => {
+  return res.status(405).json({
+    success: false,
+    message: '이 엔드포인트는 POST만 지원합니다. POST /api/ai-script/children/generate를 사용하세요.'
+  });
+});
+
 module.exports = router;

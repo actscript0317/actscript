@@ -603,6 +603,14 @@ ${characters && characters.map((char, index) =>
   }
 });
 
+// GET 메서드로 접근 시 안내 (일부 브라우저/크롤러의 잘못된 호출 대응)
+router.get('/generate', (req, res) => {
+  return res.status(405).json({
+    success: false,
+    message: '이 엔드포인트는 POST만 지원합니다. POST /api/general-script/generate를 사용하세요.'
+  });
+});
+
 // 대본 리라이팅 핸들러 (공통으로 사용됨)
 const rewriteHandler = async (req, res) => {
   try {

@@ -467,6 +467,17 @@ app.get('/', (req, res) => {
   });
 });
 
+// favicon 요청 처리: 빌드 아이콘이 없으면 204로 응답하여 오류 로그 방지
+app.get('/favicon.ico', (req, res) => {
+  try {
+    const buildIcon = path.join(__dirname, '../frontend/build/favicon.ico');
+    if (fs.existsSync(buildIcon)) {
+      return res.sendFile(buildIcon);
+    }
+  } catch (e) {}
+  return res.status(204).end();
+});
+
 app.get('/api', (req, res) => {
   res.json({
     message: 'ActScript API is working!',

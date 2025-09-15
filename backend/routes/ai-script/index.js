@@ -57,6 +57,24 @@ router.post('/rewrite', (req, res, next) => {
 });
 
 // 사용자의 AI 생성 스크립트 목록 조회
+// Supabase row -> 프론트엔드 기대 형태로 변환 (camelCase 등)
+function toClientScript(row) {
+  if (!row) return null;
+  const gp = row.generation_params || {};
+  const genre = gp.originalGenre || (Array.isArray(row.emotions) ? row.emotions[0] : row.mood) || null;
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    characterCount: row.character_count,
+    createdAt: row.created_at,
+    genre: genre,
+    gender: gp.originalGender || row.gender || null,
+    length: gp.originalLength || row.duration || null,
+    age: gp.originalAge || row.age_group || null
+  };
+}
+
 router.get('/scripts', authenticateToken, async (req, res) => {
   try {
     const result = await safeQuery(async () => {
@@ -74,10 +92,8 @@ router.get('/scripts', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({
-      success: true,
-      scripts: result.data
-    });
+    const scripts = (result.data || []).map(toClientScript).filter(Boolean);
+    res.json({ success: true, scripts });
   } catch (error) {
     console.error('AI 스크립트 조회 오류:', error);
     res.status(500).json({
@@ -105,10 +121,7 @@ router.get('/scripts/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({
-      success: true,
-      script: result.data
-    });
+    res.json({ success: true, script: toClientScript(result.data) });
   } catch (error) {
     console.error('AI 스크립트 조회 오류:', error);
     res.status(500).json({
@@ -269,7 +282,7 @@ router.get('/saved', authenticateToken, async (req, res) => {
     const { page = 1, limit = 12 } = req.query;
     const offset = (page - 1) * limit;
     
-    const result = await safeQuery(async () => {
+  const result = await safeQuery(async () => {
       return await supabaseAdmin
         .from('ai_scripts')
         .select('*')
@@ -286,10 +299,8 @@ router.get('/saved', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({
-      success: true,
-      scripts: result.data || []
-    });
+    const scripts = (result.data || []).map(toClientScript).filter(Boolean);
+    res.json({ success: true, scripts });
   } catch (error) {
     console.error('저장된 AI 스크립트 조회 오류:', error);
     res.status(500).json({

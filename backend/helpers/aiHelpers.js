@@ -50,7 +50,7 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 3, base 
       const timeoutMs = base + i * 60000; // 180s, 240s, 300s
       const modelName = normalizeModelName((options && options.model) || MODEL_FINAL);
       const temperature = (options && options.temperature) ?? TEMPERATURE_FINAL;
-      const maxTokens = (options && (options.max_output_tokens || options.max_tokens)) ?? MAX_COMPLETION_TOKENS;
+      const maxTokens = (options && (options.max_output_tokens || options.max_tokens || options.max_completion_tokens)) ?? MAX_COMPLETION_TOKENS;
 
       let apiCall;
       if (modelName.toLowerCase().startsWith('gpt-5')) {

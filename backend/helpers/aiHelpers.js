@@ -72,7 +72,29 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 3, base 
           input: inputText,
           temperature,
           max_output_tokens: maxTokens,
-        }).then(r => ({ choices: [{ message: { content: r.output_text || '' } }] }));
+        }).then(r => {
+          // Responses API 텍스트 안전 추출
+          let text = '';
+          if (r && typeof r.output_text === 'string' && r.output_text.length > 0) {
+            text = r.output_text;
+          } else if (Array.isArray(r.output)) {
+            try {
+              const parts = [];
+              for (const item of r.output) {
+                if (Array.isArray(item?.content)) {
+                  for (const c of item.content) {
+                    if (typeof c?.text?.value === 'string') parts.push(c.text.value);
+                    else if (typeof c?.text === 'string') parts.push(c.text);
+                  }
+                }
+              }
+              text = parts.join('\n').trim();
+            } catch (_) {
+              text = '';
+            }
+          }
+          return { choices: [{ message: { content: text } }] };
+        });
       } else {
         // 기존 Chat Completions 경로
         const payload = {

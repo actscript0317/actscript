@@ -555,6 +555,7 @@ ${characters && characters.map((char, index) =>
 
     res.json({
       success: true,
+      scriptId: savedScript.id,
       script: {
         id: savedScript.id,
         title: title,

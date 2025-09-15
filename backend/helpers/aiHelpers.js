@@ -55,26 +55,22 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 1, base 
 
       let apiCall;
       if (modelName.toLowerCase().startsWith('gpt-5')) {
-        // gpt-5: Responses API 사용
-        const toText = (m) => {
-          if (typeof m === 'string') return m;
-          if (!m) return '';
-          const role = m.role ? String(m.role).toUpperCase() : 'USER';
-          if (typeof m.content === 'string') return `[${role}]\n${m.content}`;
-          if (Array.isArray(m.content)) {
-            const joined = m.content.map(c => typeof c === 'string' ? c : (c?.text || '')).join('\n');
-            return `[${role}]\n${joined}`;
-          }
-          return `[${role}]`;
+        // gpt-5: Responses API 사용 (권장 형식: role+content 파츠)
+        const toInput = (m) => {
+          if (!m) return { role: 'user', content: [{ type: 'text', text: '' }] };
+          const role = m.role || 'user';
+          const text = Array.isArray(m.content)
+            ? m.content.map(c => (typeof c === 'string' ? c : (c?.text || ''))).join('\n')
+            : (typeof m.content === 'string' ? m.content : '');
+          return { role, content: [{ type: 'text', text }] };
         };
-        const inputText = Array.isArray(messages) ? messages.map(toText).join('\n\n') : String(messages || '');
+        const input = Array.isArray(messages) ? messages.map(toInput) : [toInput(messages)];
         apiCall = openai.responses.create({
           model: modelName,
-          input: inputText,
+          input,
           temperature,
           max_output_tokens: maxTokens,
         }).then(r => {
-          // 텍스트 안전 추출
           let text = '';
           if (typeof r?.output_text === 'string' && r.output_text.length > 0) {
             text = r.output_text;
@@ -83,6 +79,7 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 1, base 
             for (const item of r.output) {
               if (Array.isArray(item?.content)) {
                 for (const c of item.content) {
+                  // 최신 SDK 포맷: { type: 'output_text', text: { value } } 또는 { text: '...' }
                   if (typeof c?.text?.value === 'string') parts.push(c.text.value);
                   else if (typeof c?.text === 'string') parts.push(c.text);
                 }

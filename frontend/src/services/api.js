@@ -40,7 +40,7 @@ console.log('🌐 API Base URL:', API_BASE_URL);
 // axios 인스턴스 생성
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 120000, // 타임아웃을 120초로 증가 (Render 환경 고려)
+  timeout: 300000, // 타임아웃을 300초(5분)로 증가 (GPT-5 응답 시간 고려)
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

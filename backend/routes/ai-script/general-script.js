@@ -507,11 +507,19 @@ ${characters && characters.map((char, index) =>
     
     const rawScript = completion.choices[0].message.content;
     
+    // 디버깅: 생성된 대본 내용 로깅
+    console.log('🎭 생성된 원본 대본 길이:', rawScript?.length || 0);
+    console.log('🎭 생성된 원본 대본 미리보기:', rawScript?.substring(0, 200) || 'NULL');
+    
     // 대본 검증 (번호 기반)
     const validation = validateScriptDialogueLines(rawScript, characterDialogueLines);
     
     // 사용자에게 보여줄 대본에서 번호 제거
     const generatedScript = removeDialogueNumbers(rawScript);
+    
+    // 디버깅: 처리된 대본 내용 로깅
+    console.log('📝 처리된 대본 길이:', generatedScript?.length || 0);
+    console.log('📝 처리된 대본 미리보기:', generatedScript?.substring(0, 200) || 'NULL');
     
     if (validation.isValid) {
       console.log('✅ 대본 분량 검증 성공');

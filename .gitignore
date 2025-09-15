@@ -86,3 +86,7 @@ frontend/dist/
 # Backend build
 backend/build/
 backend/dist/ 
+
+# Windows 예약어 파일 무시 (git add 오류 방지)
+# 예: error: open("CON"): No such file or directory
+/CON

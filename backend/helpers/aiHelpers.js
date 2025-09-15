@@ -1,5 +1,14 @@
 const { MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../config/ai');
 
+// 모델명 정규화: gpt-5 사용을 우선으로 유지
+function normalizeModelName(name) {
+  const raw = (name || '').trim();
+  const lower = raw.toLowerCase();
+  if (!raw) return 'gpt-5';
+  if (lower === 'gpt5') return 'gpt-5';
+  return raw;
+}
+
 function getGenreDirective(genre) {
   return ({
     '로맨스': '감정적인 교감과 로맨틱한 분위기를 강조하고, 캐릭터 간의 미묘한 감정 변화를 섬세하게 표현해줘.',
@@ -39,11 +48,41 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 3, base 
     try {
       // Promise.race를 사용한 타임아웃 구현
       const timeoutMs = base + i * 60000; // 180s, 240s, 300s
-      const payload = {
-        messages: messages,
-        ...options
-      };
-      const apiCall = openai.chat.completions.create(payload);
+      const modelName = normalizeModelName((options && options.model) || MODEL_FINAL);
+      const temperature = (options && options.temperature) ?? TEMPERATURE_FINAL;
+      const maxTokens = (options && (options.max_output_tokens || options.max_tokens)) ?? MAX_COMPLETION_TOKENS;
+
+      let apiCall;
+      if (modelName.toLowerCase().startsWith('gpt-5')) {
+        // gpt-5: Responses API 사용
+        const toText = (m) => {
+          if (typeof m === 'string') return m;
+          if (!m) return '';
+          const role = m.role ? m.role.toUpperCase() : 'USER';
+          if (typeof m.content === 'string') return `[${role}]\n${m.content}`;
+          if (Array.isArray(m.content)) {
+            const joined = m.content.map(c => typeof c === 'string' ? c : (c?.text || '')).join('\n');
+            return `[${role}]\n${joined}`;
+          }
+          return `[${role}]`;
+        };
+        const inputText = Array.isArray(messages) ? messages.map(toText).join('\n\n') : String(messages || '');
+        apiCall = openai.responses.create({
+          model: modelName,
+          input: inputText,
+          temperature,
+          max_output_tokens: maxTokens,
+        }).then(r => ({ choices: [{ message: { content: r.output_text || '' } }] }));
+      } else {
+        // 기존 Chat Completions 경로
+        const payload = {
+          model: modelName,
+          messages: messages,
+          temperature,
+          max_tokens: maxTokens,
+        };
+        apiCall = openai.chat.completions.create(payload);
+      }
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
       );

@@ -1,6 +1,6 @@
-const { MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../config/ai');
+﻿const { MODEL_DRAFT, MODEL_FINAL, TEMPERATURE_DRAFT, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../config/ai');
 
-// 모델�??�규?? gpt-5 ?�용???�선?�로 ?��?
+// 모델명 정규화
 function normalizeModelName(name) {
   const raw = (name || '').trim();
   const lower = raw.toLowerCase();
@@ -9,56 +9,57 @@ function normalizeModelName(name) {
   return raw;
 }
 
+// 장르 지시문(선택적 사용) - 구문 오류 방지를 위해 간단화
 function getGenreDirective(genre) {
-  return ({
-    '로맨??: '감정?�인 교감�?로맨?�한 분위기�? 강조?�고, 캐릭??간의 미묘??감정 변?��? ?�세?�게 ?�현?�줘.',
-    '비극': '깊�? 갈등�?비극???�명???�루�? ?�물???�면??고뇌?� ?�픔??진중?�게 ?�현?�줘.',
-    '코�???: '?�머?�스?�고 경쾌??분위기�? ?��??�며, ?�치 ?�는 ?�?��? ?�황??만들?�줘.',
-    '?�릴??: '긴장�??�는 분위기�? ?�측불�????�개�?긴장감을 지?�시켜줘.',
-    '?�션': '?�이?��??�고 ??��?�인 ?�면???�출?�며, ?�릴 ?�치???�션 ?�퀀?��? ?�함?�줘.',
-    '공포': '?�뜩?�고 불안??분위기�? 조성?�며, 공포감을 ?�아?�는 ?�황??만들?�줘.',
-    '?��?지': '?�상?�이�?마법?�인 ?�계관??바탕?�로 ?�상???�치???�정???�용?�줘.',
-    'SF': '미래?�이�?과학?�인 ?�정???�용?�여 기술�??�간??관계�? ?�구?�줘.',
-    '?��?�?: '?�당 ?��???배경�?문화�?고증?�여 ?��????�색?????�려�?'
-  }[genre]) || '?�택???�르??맞게 ?�과 분위기�? ?��??�줘.';
+  const map = {
+    '로맨스': '잔잔한 감정의 흐름과 교감을 강조해줘.',
+    '비극': '무거운 톤과 깊은 갈등, 절제된 표현을 유지해줘.',
+    '코미디': '경쾌하고 유머러스한 상황과 대사를 활용해줘.',
+    '스릴러': '긴장감과 불확실성을 유지하며 점진적으로 고조시켜줘.',
+    '액션': '긴박한 전개와 명료한 지시문으로 속도감을 살려줘.',
+    '공포': '불안과 공포감을 서서히 조성하고 여운을 남겨줘.',
+    '판타지': '상상력과 세계관을 자연스럽게 녹여 현실감 있게 표현해줘.',
+    'SF': '과학적 상상력과 기술적 디테일을 균형 있게 담아줘.',
+    '사극': '시대 배경과 어휘를 고려해 격조 있는 말투로 써줘.'
+  };
+  return map[genre] || '선택한 장르에 맞는 톤과 분위기를 유지해줘.';
 }
 
 function parseOpenAIError(err) {
-  const status = err.status || err.response?.status;
-  const type = err.type || err.response?.data?.error?.type || err.code;
-  const message = err.message || err.response?.data?.error?.message;
+  const status = err?.status || err?.response?.status;
+  const type = err?.type || err?.response?.data?.error?.type || err?.code;
 
   if (type === 'insufficient_quota' || status === 402) {
-    return { http: 402, code: 'insufficient_quota', msg: 'OpenAI API ?�당?�이 부족합?�다. ?�레?�을 ?�인?�주?�요.' };
+    return { http: 402, code: 'insufficient_quota', msg: 'OpenAI API 할당량이 부족합니다. 크레딧을 확인해주세요.' };
   }
   if (type === 'invalid_api_key' || status === 401) {
-    return { http: 401, code: 'invalid_api_key', msg: 'OpenAI API ?��? ?�효?��? ?�습?�다.' };
+    return { http: 401, code: 'invalid_api_key', msg: 'OpenAI API 키가 유효하지 않습니다.' };
   }
   if (status === 429 || type === 'rate_limit_exceeded') {
-    return { http: 429, code: 'rate_limit_exceeded', msg: 'API ?�청 ?�도�?초과?�습?�다. ?�시 ???�시 ?�도?�주?�요.' };
+    return { http: 429, code: 'rate_limit_exceeded', msg: 'API 요청 빈도가 높습니다. 잠시 후 다시 시도해주세요.' };
   }
-  if (type === 'unsupported_parameter' || type === 'invalid_request_error') {
-    return { http: 400, code: 'invalid_request', msg: 'API ?�청 ?�식???�류가 ?�습?�다. ?�시 ???�시 ?�도?�주?�요.' };
+  if (type === 'unsupported_parameter' || type === 'invalid_request_error' || status === 400) {
+    return { http: 400, code: 'invalid_request', msg: 'API 요청 형식에 오류가 있습니다. 입력을 확인 후 다시 시도해주세요.' };
   }
-  return { http: 500, code: 'server_error', msg: '?��??�성 �??�류가 발생?�습?�다. ?�시 ???�시 ?�도?�주?�요.' };
+  return { http: 500, code: 'server_error', msg: 'AI 생성 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' };
 }
 
-async function callOpenAIWithRetry(openai, messages, options, { tries = 3, base = 180000 } = {}) {
+// Cloudflare/Render 게이트웨이 한계(~100s)를 고려하여 기본 타임아웃 60s, 필요 시 호출부에서 조정
+async function callOpenAIWithRetry(openai, messages, options, { tries = 1, base = 60000 } = {}) {
   for (let i = 0; i < tries; i++) {
     try {
-      // Promise.race�??�용???�?�아??구현
-      const timeoutMs = base + i * 60000; // 180s, 240s, 300s
+      const timeoutMs = base + i * 15000; // 60s, 75s
       const modelName = normalizeModelName((options && options.model) || MODEL_FINAL);
       const temperature = (options && options.temperature) ?? TEMPERATURE_FINAL;
       const maxTokens = (options && (options.max_output_tokens || options.max_tokens || options.max_completion_tokens)) ?? MAX_COMPLETION_TOKENS;
 
       let apiCall;
       if (modelName.toLowerCase().startsWith('gpt-5')) {
-        // gpt-5: Responses API ?�용
+        // gpt-5: Responses API 사용
         const toText = (m) => {
           if (typeof m === 'string') return m;
           if (!m) return '';
-          const role = m.role ? m.role.toUpperCase() : 'USER';
+          const role = m.role ? String(m.role).toUpperCase() : 'USER';
           if (typeof m.content === 'string') return `[${role}]\n${m.content}`;
           if (Array.isArray(m.content)) {
             const joined = m.content.map(c => typeof c === 'string' ? c : (c?.text || '')).join('\n');
@@ -73,25 +74,21 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 3, base 
           temperature,
           max_output_tokens: maxTokens,
         }).then(r => {
-          // Responses API ?�스???�전 추출
+          // 텍스트 안전 추출
           let text = '';
-          if (r && typeof r.output_text === 'string' && r.output_text.length > 0) {
+          if (typeof r?.output_text === 'string' && r.output_text.length > 0) {
             text = r.output_text;
-          } else if (Array.isArray(r.output)) {
-            try {
-              const parts = [];
-              for (const item of r.output) {
-                if (Array.isArray(item?.content)) {
-                  for (const c of item.content) {
-                    if (typeof c?.text?.value === 'string') parts.push(c.text.value);
-                    else if (typeof c?.text === 'string') parts.push(c.text);
-                  }
+          } else if (Array.isArray(r?.output)) {
+            const parts = [];
+            for (const item of r.output) {
+              if (Array.isArray(item?.content)) {
+                for (const c of item.content) {
+                  if (typeof c?.text?.value === 'string') parts.push(c.text.value);
+                  else if (typeof c?.text === 'string') parts.push(c.text);
                 }
               }
-              text = parts.join('\n').trim();
-            } catch (_) {
-              text = '';
             }
+            text = parts.join('\n').trim();
           }
           return { choices: [{ message: { content: text } }] };
         });
@@ -105,52 +102,43 @@ async function callOpenAIWithRetry(openai, messages, options, { tries = 3, base 
         };
         apiCall = openai.chat.completions.create(payload);
       }
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
-      );
-      
+
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), timeoutMs));
       const result = await Promise.race([apiCall, timeoutPromise]);
-      // �??�답 방�?: content가 비었?�면 ?�시???�리�?      try {
+
+      // 빈 응답 방지: content가 비면 재시도 유도
+      try {
         const text = result?.choices?.[0]?.message?.content;
         if (typeof text === 'string' && text.trim().length === 0) {
-          console.warn('[AI] �??�답 감�? ???�시???�도');
           throw new Error('Empty AI response');
         }
-      } catch (e) {
-        // choices 구조가 ?�으�?그�?�?반환(?�위?�서 처리)
-      }
+      } catch (_) {}
+
       return result;
     } catch (e) {
-      console.log(`API ?�출 ?�도 ${i + 1}/${tries} ?�패:`, e.message);
-      
       if (i === tries - 1) throw e;
-      
-      const status = e.status || e.response?.status;
-      const type = e.type || e.response?.data?.error?.type || e.code;
-      const isRetriable = [429, 500, 502, 503, 504].includes(status) || e.message === 'Request timeout';
-      
-      // ?�라미터 ?�류???�청 ?�식 ?�류???�시?�하지 ?�음
+      const status = e?.status || e?.response?.status;
+      const type = e?.type || e?.response?.data?.error?.type || e?.code;
+      const isRetriable = [429, 500, 502, 503, 504].includes(status) || e?.message === 'Request timeout' || e?.message === 'Empty AI response';
       if (type === 'unsupported_parameter' || type === 'invalid_request_error' || status === 400) {
-        throw e;
+        throw e; // 비재시도 오류
       }
-      
       if (!isRetriable) throw e;
-      
-      // 지??백오?�로 ?��?
       const delay = Math.min(1000 * Math.pow(2, i), 10000);
-      console.log(`${delay}ms ???�시??..`);
       await new Promise(r => setTimeout(r, delay));
     }
   }
 }
 
 function logRequestData(req) {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('?�� ?�청 ?�이??개발):', req.body);
-  } else {
-    const { characterCount, genre, length, gender, age } = req.body || {};
-    console.log('?�� ?�청 ?�약(?�영):', { characterCount, genre, length, gender, age });
-  }
+  try {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('요청 데이터(개발):', req.body);
+    } else {
+      const { characterCount, genre, length, gender, age } = req.body || {};
+      console.log('요청 요약(운영):', { characterCount, genre, length, gender, age });
+    }
+  } catch (_) {}
 }
 
 module.exports = {
@@ -164,4 +152,3 @@ module.exports = {
   TEMPERATURE_FINAL,
   MAX_COMPLETION_TOKENS
 };
-

@@ -4,8 +4,8 @@
 function normalizeModelName(name) {
   const raw = (name || '').trim();
   const lower = raw.toLowerCase();
-  if (!raw) return 'gpt-5';
-  if (lower === 'gpt5') return 'gpt-5';
+  if (!raw) return 'gpt-4o';
+  if (lower === 'gpt5' || lower === 'gpt-5') return 'gpt-4o';
   return raw;
 }
 

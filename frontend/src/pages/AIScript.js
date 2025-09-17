@@ -19,8 +19,7 @@ import {
   RotateCcw,
   AlertCircle,
   Edit3,
-  FileText,
-  ArrowLeft
+  FileText
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,11 +34,11 @@ const AIScript = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
 
-  // 사용량 관리 상태
+  // 사용량 관리 상태 (테스트 플랜: 월 10회 제한, 모든 기능 이용 가능)
   const [usageData, setUsageData] = useState({
     used: 0,
     limit: 10,
-    isPremium: true,
+    isPremium: true, // 모든 사용자에게 프리미엄 기능 제공
     isActive: true,
     canGenerate: true,
     planType: 'test',
@@ -47,13 +46,9 @@ const AIScript = () => {
     daysUntilReset: 0
   });
 
-  // 템플릿 선택 상태
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [currentStep, setCurrentStep] = useState('template'); // 'template' | 'configure' | 'result'
-
-  // 폼 상태 관리 (GeneralScript에서 가져옴)
+  // 폼 상태 관리
   const [formData, setFormData] = useState({
-    template: 'general',
+    template: 'school',
     characterCount: '1',
     genre: '',
     length: '',
@@ -69,7 +64,6 @@ const AIScript = () => {
   const [generatedScriptId, setGeneratedScriptId] = useState(null);
   const [finalPrompt, setFinalPrompt] = useState('');
   const [error, setError] = useState('');
-  const [showGenreDropdown, setShowGenreDropdown] = useState(false);
 
   // 리라이팅 관련 상태
   const [selectedText, setSelectedText] = useState('');
@@ -93,42 +87,6 @@ const AIScript = () => {
   const [textareaRef, setTextareaRef] = useState(null);
   const [cursorPosition, setCursorPosition] = useState(0);
 
-  // 템플릿 데이터
-  const templates = [
-    {
-      value: 'children',
-      label: '어린이 연극',
-      description: '5~12세 어린이를 위한 교육적이고 재미있는 연극',
-      icon: '🧒',
-      color: 'from-green-400 to-blue-500',
-      path: '/ai-script/children'
-    },
-    {
-      value: 'school',
-      label: '학교 연극',
-      description: '학교 발표회나 축제에 적합한 연극',
-      icon: '🎒',
-      color: 'from-blue-400 to-purple-500',
-      path: '/ai-script/school'
-    },
-    {
-      value: 'family',
-      label: '가족 연극',
-      description: '온 가족이 함께 즐길 수 있는 연극',
-      icon: '👨‍👩‍👧‍👦',
-      color: 'from-purple-400 to-pink-500',
-      path: '/ai-script/family'
-    },
-    {
-      value: 'general',
-      label: '일반 대본',
-      description: '자유로운 설정으로 다양한 상황의 대본',
-      icon: '🎭',
-      color: 'from-pink-400 to-orange-500',
-      path: '/ai-script/general'
-    }
-  ];
-
   // 사용량 정보 가져오기
   const fetchUsageInfo = async () => {
     try {
@@ -139,7 +97,7 @@ const AIScript = () => {
       setUsageData({
         used: usage.currentMonth,
         limit: usage.limit,
-        isPremium: true,
+        isPremium: true, // 현재 모든 사용자 무료 프리미엄
         isActive: true,
         canGenerate: usage.canGenerate,
         planType: 'test',
@@ -148,11 +106,12 @@ const AIScript = () => {
       });
     } catch (error) {
       console.error('사용량 정보 로딩 실패:', error);
+      // 기본값으로 설정
       setUsageData(prev => ({
         ...prev,
         used: user?.usage?.currentMonth || 0,
         limit: user?.usage?.monthly_limit || 10,
-        isPremium: true,
+        isPremium: true, // 현재 모든 사용자 무료 프리미엄
         planType: 'test'
       }));
     } finally {
@@ -167,29 +126,18 @@ const AIScript = () => {
     }
   }, [user]);
 
-  // URL 파라미터에 따른 템플릿 자동 선택
+  // URL 파라미터에서 템플릿 정보 확인
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes('/children')) {
-      const childrenTemplate = templates.find(t => t.value === 'children');
-      setSelectedTemplate(childrenTemplate);
-      setFormData(prev => ({ ...prev, template: 'children' }));
-      setCurrentStep('configure');
-    } else if (path.includes('/school')) {
-      const schoolTemplate = templates.find(t => t.value === 'school');
-      setSelectedTemplate(schoolTemplate);
+
+    if (path.includes('/school')) {
       setFormData(prev => ({ ...prev, template: 'school' }));
-      setCurrentStep('configure');
     } else if (path.includes('/family')) {
-      const familyTemplate = templates.find(t => t.value === 'family');
-      setSelectedTemplate(familyTemplate);
       setFormData(prev => ({ ...prev, template: 'family' }));
-      setCurrentStep('configure');
-    } else if (path.includes('/general')) {
-      const generalTemplate = templates.find(t => t.value === 'general');
-      setSelectedTemplate(generalTemplate);
-      setFormData(prev => ({ ...prev, template: 'general' }));
-      setCurrentStep('configure');
+    } else if (path.includes('/children')) {
+      setFormData(prev => ({ ...prev, template: 'children' }));
+    } else {
+      setFormData(prev => ({ ...prev, template: 'school' }));
     }
   }, [location.pathname]);
 
@@ -228,36 +176,6 @@ const AIScript = () => {
     { value: 'random', label: '랜덤', description: '10대, 20대, 30대, 40대, 50대, 70+대 중 랜덤', icon: '🎲' }
   ];
 
-  // TODO(human) - 템플릿 선택 로직 구현
-  // 현재 AIScriptMain.js의 템플릿 선택 기능과 GeneralScript.js의 상세 설정 기능을 통합
-  // selectedTemplate 상태를 활용하여 조건부 렌더링 구현
-
-  // 템플릿 선택 처리
-  const handleTemplateSelect = (templateValue) => {
-    const template = templates.find(t => t.value === templateValue);
-    setSelectedTemplate(template);
-    setFormData(prev => ({ ...prev, template: templateValue }));
-    setCurrentStep('configure');
-  };
-
-  // 뒤로가기
-  const handleBackToTemplates = () => {
-    setSelectedTemplate(null);
-    setCurrentStep('template');
-    setFormData({
-      template: 'general',
-      characterCount: '1',
-      genre: '',
-      length: '',
-      gender: '',
-      age: '',
-      characters: [],
-      characterRelationships: '',
-      customPrompt: ''
-    });
-    navigate('/ai-script');
-  };
-
   // 입력 변경 처리
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -293,6 +211,43 @@ const AIScript = () => {
         i === index ? { ...char, [field]: value } : char
       )
     }));
+  };
+
+  // 퍼센트 자동 조정
+  const handlePercentageChange = (index, value) => {
+    const newValue = Math.max(0, Math.min(100, parseInt(value) || 0));
+
+    setFormData(prev => {
+      const newCharacters = [...prev.characters];
+      const oldValue = newCharacters[index].percentage;
+      newCharacters[index].percentage = newValue;
+
+      const difference = newValue - oldValue;
+      const otherIndices = newCharacters
+        .map((_, i) => i)
+        .filter(i => i !== index && newCharacters[i].percentage > 0);
+
+      if (otherIndices.length > 0 && difference !== 0) {
+        const adjustmentPerOther = Math.floor(difference / otherIndices.length);
+        let remainder = difference - (adjustmentPerOther * otherIndices.length);
+
+        otherIndices.forEach((i, idx) => {
+          const adjustment = adjustmentPerOther + (idx < remainder ? 1 : 0);
+          newCharacters[i].percentage = Math.max(0, newCharacters[i].percentage - adjustment);
+        });
+      }
+
+      const total = newCharacters.reduce((sum, char) => sum + char.percentage, 0);
+      if (total !== 100 && newCharacters.length > 1) {
+        const firstIndex = newCharacters.findIndex((_, i) => i !== index);
+        if (firstIndex !== -1) {
+          newCharacters[firstIndex].percentage += (100 - total);
+          newCharacters[firstIndex].percentage = Math.max(0, newCharacters[firstIndex].percentage);
+        }
+      }
+
+      return { ...prev, characters: newCharacters };
+    });
   };
 
   // 대본 생성 처리
@@ -358,22 +313,17 @@ const AIScript = () => {
     try {
       const requestData = { ...formData };
 
-      // 템플릿에 따라 다른 엔드포인트 호출
-      let endpoint = '/general-script/generate';
-      if (selectedTemplate?.value === 'children') {
-        endpoint = '/children-theater/generate';
-      }
-
-      const response = await api.post(endpoint, requestData);
+      const response = await api.post('/general-script/generate', requestData);
 
       if (response.data.success) {
         setGeneratedScript(response.data.script.content);
         setGeneratedScriptId(response.data.script.id);
         setFinalPrompt(response.data.finalPrompt || '');
-        setCurrentStep('result');
 
+        // 사용량 정보 다시 로딩
         await fetchUsageInfo();
 
+        // 스크롤을 맨 위로
         setTimeout(() => {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }, 100);
@@ -390,53 +340,13 @@ const AIScript = () => {
     }
   };
 
-  // 드롭다운 컴포넌트
-  const DropdownComponent = ({ options, value, onChange, placeholder, isOpen, setIsOpen }) => (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors flex items-center justify-between hover:border-gray-300"
-      >
-        <span className={value ? 'text-gray-900' : 'text-gray-500'}>
-          {value || placeholder}
-        </span>
-        <ChevronDown className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto"
-          >
-            {options.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => {
-                  onChange(option);
-                  setIsOpen(false);
-                }}
-                className="w-full px-4 py-3 text-left transition-colors first:rounded-t-xl last:rounded-b-xl flex items-center justify-between hover:bg-gray-50"
-              >
-                <span>{option}</span>
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-
-  // 어린이 연극 템플릿인 경우 특별 처리
-  if (selectedTemplate?.value === 'children') {
+  // 어린이 연극 템플릿인 경우 AnimalSelection 컴포넌트로 이동
+  if (formData.template === 'children') {
     return <AnimalSelection />;
   }
 
   // 결과 화면 렌더링
-  if (currentStep === 'result' && generatedScript) {
+  if (generatedScript) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 md:py-12">
         <div className="container mx-auto px-2 sm:px-4">
@@ -467,7 +377,7 @@ const AIScript = () => {
                   <h3 className="text-lg font-semibold text-gray-800">생성된 대본</h3>
                   <div className="flex flex-wrap gap-1 sm:gap-2 text-xs sm:text-sm">
                     <span className="px-2 py-1 sm:px-3 bg-purple-100 text-purple-700 rounded-full">
-                      {selectedTemplate?.label}
+                      {formData.template === 'school' ? '학교 연극' : '가족 연극'}
                     </span>
                     {formData.genre && (
                       <span className="px-2 py-1 sm:px-3 bg-blue-100 text-blue-700 rounded-full">
@@ -501,18 +411,17 @@ const AIScript = () => {
                   대본함
                 </button>
                 <button
-                  onClick={handleBackToTemplates}
+                  onClick={() => navigate('/ai-script')}
                   className="flex items-center justify-center px-3 sm:px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                 >
-                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                  템플릿 선택
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  다른 템플릿
                 </button>
                 <button
                   onClick={() => {
                     setGeneratedScript('');
                     setFinalPrompt('');
                     setError('');
-                    setCurrentStep('configure');
                   }}
                   className="flex items-center justify-center px-3 sm:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors shadow-md text-sm sm:text-base"
                 >
@@ -527,339 +436,9 @@ const AIScript = () => {
     );
   }
 
-  // 템플릿 선택 화면
-  if (currentStep === 'template') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 py-4 sm:py-8 md:py-12">
-        <div className="container mx-auto px-2 sm:px-4">
-          <div className="max-w-4xl mx-auto">
-
-            {/* 사용량 표시 바 */}
-            <div className={`bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 ${
-              usageData.isPremium ? 'border-green-500' : 'border-blue-500'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2">
-                    <Sparkles className={`w-5 h-5 ${
-                      usageData.isPremium ? 'text-green-600' : 'text-blue-600'
-                    }`} />
-                    <span className="font-medium text-gray-900">
-                      {usageData.isPremium ? '무제한 플랜' : '베타 테스트 플랜'}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {usageData.limit === null || usageData.limit === '무제한' ?
-                      `${usageData.used}회 사용 (무제한)` :
-                      `${usageData.used}/${usageData.limit}회 사용`
-                    }
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-8"
-            >
-              <div className="text-center mb-8">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring" }}
-                  className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-4 shadow-lg"
-                >
-                  <Wand2 className="w-8 h-8 text-white" />
-                </motion.div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-                  AI 대본 생성기
-                </h1>
-                <p className="text-gray-600 text-lg">
-                  상황에 맞는 템플릿을 선택하여 맞춤형 대본을 생성하세요
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {templates.map((template) => (
-                  <motion.div
-                    key={template.value}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="relative overflow-hidden"
-                  >
-                    <button
-                      onClick={() => handleTemplateSelect(template.value)}
-                      className="w-full p-6 bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all duration-300 group text-left"
-                    >
-                      <div className={`inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r ${template.color} rounded-xl mb-4 text-2xl`}>
-                        {template.icon}
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
-                        {template.label}
-                      </h3>
-                      <p className="text-gray-600 mb-4">
-                        {template.description}
-                      </p>
-                      <div className="flex items-center text-purple-600 font-medium">
-                        <span>시작하기</span>
-                        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 설정 화면 (일반 대본용)
-  return (
-    <div className="min-h-screen bg-gray-50 py-8 md:py-12">
-      <div className="container mx-auto px-4 max-w-5xl">
-
-        {/* 뒤로가기 버튼 */}
-        <button
-          onClick={handleBackToTemplates}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          템플릿 선택으로 돌아가기
-        </button>
-
-        {/* 선택된 템플릿 표시 */}
-        {selectedTemplate && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-8">
-            <div className="flex items-center">
-              <div className={`w-12 h-12 bg-gradient-to-r ${selectedTemplate.color} rounded-xl flex items-center justify-center text-2xl mr-4`}>
-                {selectedTemplate.icon}
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">{selectedTemplate.label}</h2>
-                <p className="text-gray-600">{selectedTemplate.description}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 메인 폼 카드 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white border border-gray-200 rounded-3xl p-8 mb-8"
-        >
-          <form onSubmit={handleGenerate} className="space-y-8">
-
-            {/* 등장인물 수 */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-3">
-                <Users className="w-5 h-5 text-gray-600" />
-                <h3 className="text-lg font-medium text-gray-900">등장인물 수</h3>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {characterOptions.map((option) => (
-                  <label key={option.value} className="relative group">
-                    <input
-                      type="radio"
-                      name="characterCount"
-                      value={option.value}
-                      checked={formData.characterCount === option.value}
-                      onChange={(e) => handleInputChange('characterCount', e.target.value)}
-                      className="sr-only peer"
-                      disabled={!option.available}
-                    />
-                    <div className={`p-4 border rounded-2xl transition-all cursor-pointer ${
-                      option.available
-                        ? 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:ring-2 peer-checked:ring-blue-100'
-                        : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
-                    }`}>
-                      <div className="text-center space-y-2">
-                        <div className={`text-xl ${!option.available ? 'grayscale' : ''}`}>{option.icon}</div>
-                        <div className={`text-sm font-medium ${
-                          option.available ? 'text-gray-900 group-hover:text-blue-600 peer-checked:text-blue-600' : 'text-gray-500'
-                        }`}>
-                          {option.label}
-                        </div>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* 장르 선택 */}
-            <div className="space-y-4">
-              <label className="flex items-center text-lg font-semibold text-gray-800">
-                <Film className="w-6 h-6 mr-3 text-purple-500" />
-                장르
-              </label>
-              <DropdownComponent
-                options={genres}
-                value={formData.genre}
-                onChange={(value) => handleInputChange('genre', value)}
-                placeholder="장르를 선택하세요"
-                isOpen={showGenreDropdown}
-                setIsOpen={setShowGenreDropdown}
-              />
-            </div>
-
-            {/* 대본 길이 */}
-            <div className="space-y-4">
-              <label className="flex items-center text-lg font-semibold text-gray-800">
-                <Clock className="w-6 h-6 mr-3 text-purple-500" />
-                대본 길이
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {lengths.map((length) => (
-                  <label key={length.value} className="relative">
-                    <input
-                      type="radio"
-                      name="length"
-                      value={length.value}
-                      checked={formData.length === length.value}
-                      onChange={(e) => handleInputChange('length', e.target.value)}
-                      className="sr-only peer"
-                    />
-                    <div className="p-4 border-2 rounded-xl cursor-pointer transition-all relative bg-gray-50 border-gray-200 hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:border-purple-500 peer-checked:shadow-md">
-                      <div className="text-center">
-                        <div className="text-2xl mb-2">{length.icon}</div>
-                        <div className="font-medium text-gray-900">{length.label}</div>
-                        <div className="text-sm text-gray-500">{length.time}</div>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* 성별 선택 (1인 독백일 때만) */}
-            {parseInt(formData.characterCount) === 1 && (
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <Users className="w-6 h-6 mr-3 text-purple-500" />
-                  성별
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {genders.map((gender) => (
-                    <label key={gender.value} className="relative">
-                      <input
-                        type="radio"
-                        name="gender"
-                        value={gender.value}
-                        checked={formData.gender === gender.value}
-                        onChange={(e) => handleInputChange('gender', e.target.value)}
-                        className="sr-only peer"
-                      />
-                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-blue-50 peer-checked:to-indigo-50 peer-checked:border-blue-500 peer-checked:shadow-md">
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">{gender.icon}</div>
-                          <div className="font-medium text-gray-900">{gender.label}</div>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 연령대 선택 (1인 독백일 때만) */}
-            {parseInt(formData.characterCount) === 1 && (
-              <div className="space-y-4">
-                <label className="flex items-center text-lg font-semibold text-gray-800">
-                  <Clock className="w-6 h-6 mr-3 text-indigo-500" />
-                  연령대
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {ages.map((age) => (
-                    <label key={age.value} className="cursor-pointer">
-                      <input
-                        type="radio"
-                        name="age"
-                        value={age.value}
-                        checked={formData.age === age.value}
-                        onChange={(e) => handleInputChange('age', e.target.value)}
-                        className="sr-only peer"
-                      />
-                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:bg-gray-100 peer-checked:bg-gradient-to-r peer-checked:from-indigo-50 peer-checked:to-purple-50 peer-checked:border-indigo-500 peer-checked:shadow-md">
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">{age.icon}</div>
-                          <div className="font-medium text-gray-900 mb-1">{age.label}</div>
-                          <div className="text-xs text-gray-600">{age.description}</div>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 생성 버튼 */}
-            <div className="pt-6">
-              <button
-                type="submit"
-                disabled={isGenerating || !usageData.canGenerate}
-                className={`w-full py-4 px-8 text-xl font-semibold rounded-xl transition-all duration-300 ${
-                  isGenerating || !usageData.canGenerate
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 hover:shadow-lg hover:scale-[1.02]'
-                } text-white shadow-md`}
-              >
-                {isGenerating ? (
-                  <div className="flex items-center justify-center space-x-3">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-6 h-6 border-2 border-white border-t-transparent rounded-full"
-                    />
-                    <span>AI가 대본을 생성하고 있습니다...</span>
-                  </div>
-                ) : !usageData.canGenerate ? (
-                  <div className="flex items-center justify-center space-x-3">
-                    <AlertCircle className="w-6 h-6" />
-                    <span>사용량 초과 ({usageData.daysUntilReset}일 후 리셋)</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center space-x-3">
-                    <Wand2 className="w-6 h-6" />
-                    <span>🎭 대본 생성하기</span>
-                  </div>
-                )}
-              </button>
-            </div>
-          </form>
-        </motion.div>
-
-        {/* 에러 메시지 */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mb-8 bg-red-50 border border-red-200 rounded-xl p-6"
-            >
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <X className="h-5 w-5 text-red-400" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">오류가 발생했습니다</h3>
-                  <div className="mt-2 text-sm text-red-700">
-                    <p>{error}</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-      </div>
-    </div>
-  );
+  // 기존 학교/가족 연극 설정 폼은 GeneralScript.js로 이동하도록 유도
+  // 이 페이지는 실제로는 사용되지 않음 (라우팅에서 AIScriptMain을 사용)
+  return null;
 };
 
 export default AIScript;

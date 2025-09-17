@@ -7,6 +7,8 @@ import PrivateRoute from './components/PrivateRoute';
 import PublicRoute from './components/PublicRoute';
 import Home from './pages/Home';
 import AIScript from './pages/AIScript';
+import GeneralScript from './pages/GeneralScript';
+import AIScriptMain from './pages/AIScriptMain';
 // ChildrenTheater는 AnimalSelection으로 대체됨
 import AnimalSelection from './pages/ai-script/AnimalSelection';
 import ScriptVault from './pages/ScriptVault';
@@ -82,17 +84,17 @@ function App() {
               {/* 인증이 필요한 사용자만 접근 가능한 라우트 */}
               <Route path="/ai-script" element={
                 <PrivateRoute>
-                  <AIScript />
+                  <AIScriptMain />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/general" element={
                 <PrivateRoute>
-                  <AIScript />
+                  <GeneralScript />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/children" element={
                 <PrivateRoute>
-                  <AIScript />
+                  <AnimalSelection />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/children/animal-friends" element={
@@ -122,12 +124,12 @@ function App() {
               } />
               <Route path="/ai-script/school" element={
                 <PrivateRoute>
-                  <AIScript />
+                  <GeneralScript />
                 </PrivateRoute>
               } />
               <Route path="/ai-script/family" element={
                 <PrivateRoute>
-                  <AIScript />
+                  <GeneralScript />
                 </PrivateRoute>
               } />
               <Route path="/script-vault" element={

@@ -123,10 +123,13 @@ async function getRelevantChunks(criteria, limit = 3) {
       console.log(`👥 등장인물 수 필터링 후: ${filteredChunks.length}개 (조건: ${criteria.characterCount}명)`);
     }
 
-    // 필터링 결과가 없으면 전체 청크에서 랜덤 선택 (폴백)
+    // 필터링 결과가 없으면 스타일 유사성 기반 선택 (폴백)
     if (filteredChunks.length === 0 && allChunks && allChunks.length > 0) {
-      console.log('🔄 필터링된 청크가 없어서 전체 청크에서 랜덤 선택');
-      filteredChunks = allChunks;
+      console.log('🔄 필터링된 청크가 없어서 스타일 유사성 기반 선택');
+      filteredChunks = selectSimilarStyleChunks(allChunks, criteria);
+    } else if (filteredChunks.length > 0) {
+      // 필터링된 청크 중에서도 스타일 유사성 기준으로 정렬
+      filteredChunks = selectSimilarStyleChunks(filteredChunks, criteria);
     }
 
     // 결과 제한
@@ -204,7 +207,7 @@ function extractReferencePatterns(chunks) {
         age: chunk.age,
         gender: chunk.gender,
         numCharacters: chunk.num_characters,
-        originalText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+        fullText: text,
         toneAnalysis: toneAnalysis,
         styleFingerprint: generateStyleFingerprint(toneAnalysis)
       };
@@ -400,6 +403,77 @@ function generateStyleFingerprint(toneAnalysis) {
 }
 
 /**
+ * 요청 조건과 유사한 스타일의 청크들을 우선 선택
+ * @param {Array} chunks - 선택할 청크들
+ * @param {Object} criteria - 요청 조건
+ * @returns {Array} 스타일 유사성 순으로 정렬된 청크들
+ */
+function selectSimilarStyleChunks(chunks, criteria) {
+  if (!chunks || chunks.length === 0) return [];
+
+  console.log('🎯 스타일 유사성 기반 청크 선택 중...');
+
+  // 각 청크의 대사 스타일 분석 및 점수 계산
+  const scoredChunks = chunks.map(chunk => {
+    const text = chunk.text || '';
+    if (!text.trim()) return { chunk, score: 0 };
+
+    // 간단한 스타일 분석
+    const styleScore = calculateStyleSimilarity(text, chunk, criteria);
+
+    return { chunk, score: styleScore };
+  });
+
+  // 점수 순으로 정렬 (높은 점수부터)
+  const sortedChunks = scoredChunks
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.chunk);
+
+  console.log('📊 스타일 유사성 점수 계산 완료');
+  return sortedChunks;
+}
+
+/**
+ * 스타일 유사성 점수 계산
+ * @param {string} text - 대사 텍스트
+ * @param {Object} chunk - 청크 정보
+ * @param {Object} criteria - 요청 조건
+ * @returns {number} 유사성 점수 (0-100)
+ */
+function calculateStyleSimilarity(text, chunk, criteria) {
+  let score = 0;
+
+  // 기본 매칭 점수
+  if (chunk.genre === criteria.genre) score += 30;
+  if (chunk.age === criteria.age || String(chunk.age).includes(String(criteria.age))) score += 20;
+  if (chunk.gender === criteria.gender) score += 15;
+
+  // 대사 복잡도 유사성 (요청된 캐릭터 수에 따른)
+  const sentences = text.split(/[.!?]/).filter(s => s.trim());
+  const avgWordsPerSentence = text.split(/\s+/).length / sentences.length;
+
+  if (criteria.characterCount) {
+    // 등장인물이 많을수록 복잡한 대사를 선호
+    if (criteria.characterCount >= 3 && avgWordsPerSentence > 6) score += 15;
+    else if (criteria.characterCount <= 2 && avgWordsPerSentence <= 6) score += 15;
+  }
+
+  // 감정적 강도 유사성
+  const emotionalMarkers = (text.match(/[!?]/g) || []).length;
+  if (emotionalMarkers > 2) score += 10; // 감정이 풍부한 대사 선호
+
+  // 대화적 특성 (연기용 대본에 적합한지)
+  if (text.includes('..') || text.includes('음') || text.includes('어')) {
+    score += 5; // 자연스러운 대화체
+  }
+
+  // 적절한 길이의 대사인지 (너무 짧거나 길지 않은)
+  if (text.length >= 50 && text.length <= 200) score += 10;
+
+  return Math.min(score, 100); // 최대 100점으로 제한
+}
+
+/**
  * RAG 참고 정보를 프롬프트에 통합 (새로운 스키마 대응)
  * @param {Array} chunks - 검색된 청크들
  * @returns {string} RAG 참고 섹션
@@ -414,10 +488,10 @@ function buildRAGReference(chunks) {
   // 대사 스타일 패턴 분석
   const stylePatterns = extractReferencePatterns(chunks);
 
-  let ragSection = '\n\n**🎭 [대사 스타일 참고] - 실제 연기 대본의 말투와 톤 분석**\n';
-  ragSection += '아래 분석된 **대사 스타일과 말투 패턴**을 참고하여 새로운 대본을 작성하세요.\n';
-  ragSection += '⚠️ **중요**: 원문을 복사하지 말고, **말투와 어조의 패턴만** 활용해 완전히 새로운 대본을 만드세요.\n';
-  ragSection += '각 캐릭터의 나이, 성별, 상황에 맞는 **자연스러운 한국어 대사**를 작성해주세요.\n\n';
+  let ragSection = '\n\n**🎭 [대사 스타일 참고] - 실제 연기 대본 전문과 스타일 분석**\n';
+  ragSection += '아래 **전체 대사**와 **스타일 분석**을 참고하여 **비슷한 스타일의 새로운 대본**을 작성하세요.\n';
+  ragSection += '⚠️ **중요**: 내용은 절대 복사하지 말고, **말투, 리듬감, 대화 흐름**만 참고해서 완전히 새로운 상황의 대본을 만드세요.\n';
+  ragSection += '특히 **문장의 길이, 말하는 방식, 감정 표현 방법**을 유사하게 따라해보세요.\n\n';
 
   // 스타일별 그룹핑
   const styleGroups = {};
@@ -427,28 +501,32 @@ function buildRAGReference(chunks) {
     styleGroups[key].push(pattern);
   });
 
-  // 대사 스타일 패턴 상세 제시
-  ragSection += '**📋 대사 톤 & 스타일 가이드:**\n\n';
+  // 전체 대사 섹션 먼저 제시
+  ragSection += '**📜 참고 대사 전문:**\n\n';
+
+  stylePatterns.dialogueStylePatterns.forEach((pattern, index) => {
+    ragSection += `**참고 대사 ${index + 1}** (${pattern.genre} | ${pattern.age} ${pattern.gender}):\n`;
+    ragSection += `"${pattern.fullText}"\n\n`;
+
+    // 이 대사의 스타일 특성 요약
+    ragSection += `📝 **이 대사의 스타일 특징:**\n`;
+    ragSection += `- 말투: ${pattern.toneAnalysis.formalityLevel}, ${pattern.toneAnalysis.emotionalTone}\n`;
+    ragSection += `- 패턴: ${pattern.toneAnalysis.speechPattern}\n`;
+    ragSection += `- 대화방식: ${pattern.toneAnalysis.conversationStyle}\n`;
+    ragSection += `- 캐릭터: ${pattern.toneAnalysis.characterVoice}\n`;
+    ragSection += `- 문장구조: 평균 ${pattern.toneAnalysis.averageWordsPerSentence}단어/문장, ${pattern.toneAnalysis.sentenceVariety}\n\n`;
+    ragSection += `💡 **이렇게 따라해보세요:** 위 대사와 **같은 리듬감, 말하는 방식, 문장 길이**로 새로운 상황의 대본을 작성하세요.\n\n`;
+  });
+
+  // 스타일 패턴 요약
+  ragSection += '**🎯 전체 스타일 패턴 요약:**\n\n';
 
   Object.values(styleGroups).forEach((group, groupIndex) => {
     const representative = group[0];
-    ragSection += `**스타일 패턴 ${groupIndex + 1}: ${representative.toneAnalysis.formalityLevel} × ${representative.toneAnalysis.emotionalTone}**\n`;
-
-    // 말투 특성
-    ragSection += `- 격식도: ${representative.toneAnalysis.formalityLevel}\n`;
-    ragSection += `- 감정 톤: ${representative.toneAnalysis.emotionalTone}\n`;
-    ragSection += `- 말하기 패턴: ${representative.toneAnalysis.speechPattern}\n`;
-    ragSection += `- 대화 스타일: ${representative.toneAnalysis.conversationStyle}\n`;
-    ragSection += `- 어휘 스타일: ${representative.toneAnalysis.vocabularyStyle}\n`;
-    ragSection += `- 수사법: ${representative.toneAnalysis.rhetoricalDevices}\n`;
-
-    // 연령/성별 특성
-    ragSection += `- 캐릭터 목소리: ${representative.toneAnalysis.characterVoice}\n`;
-    ragSection += `- 문장 구조: 평균 ${representative.toneAnalysis.averageWordsPerSentence}단어/문장, ${representative.toneAnalysis.sentenceVariety} 패턴\n`;
-
-    // 실제 대사 예시 (패턴 참고용)
-    ragSection += `- 말투 예시: "${representative.originalText}"\n`;
-    ragSection += `  👆 이 말투의 ${representative.toneAnalysis.formalityLevel} 톤과 ${representative.toneAnalysis.speechPattern} 패턴을 참고하세요\n\n`;
+    ragSection += `**공통 스타일 ${groupIndex + 1}: ${representative.toneAnalysis.formalityLevel} × ${representative.toneAnalysis.emotionalTone}**\n`;
+    ragSection += `- 이 스타일의 대사들은 ${representative.toneAnalysis.speechPattern} 특성을 가지고 있습니다.\n`;
+    ragSection += `- ${representative.toneAnalysis.conversationStyle} 대화 방식을 사용합니다.\n`;
+    ragSection += `- ${representative.toneAnalysis.characterVoice} 캐릭터 특성을 보입니다.\n\n`;
   });
 
   // 연령대별/성별 말투 가이드
@@ -468,13 +546,14 @@ function buildRAGReference(chunks) {
     ragSection += `  어휘 선택: ${representative.toneAnalysis.vocabularyStyle}\n`;
   });
 
-  ragSection += '\n**✨ 대본 작성 시 주의사항:**\n';
-  ragSection += '1. 위 패턴을 **참고만** 하고 원문은 절대 복사하지 마세요\n';
-  ragSection += '2. 각 캐릭터의 나이와 성별에 맞는 **자연스러운 말투**를 사용하세요\n';
-  ragSection += '3. 감정적 톤과 격식도를 **일관되게** 유지하세요\n';
-  ragSection += '4. 실제 배우가 연기할 수 있는 **현실적인 대사**를 작성하세요\n\n';
+  ragSection += '\n**✨ 비슷한 스타일 대본 작성 가이드:**\n';
+  ragSection += '1. **전체 대사의 리듬감과 흐름**을 파악하여 비슷한 템포로 작성하세요\n';
+  ragSection += '2. **문장 길이와 구조**를 참고하여 유사한 패턴으로 구성하세요\n';
+  ragSection += '3. **말투와 어조의 일관성**을 유지하여 캐릭터성을 살리세요\n';
+  ragSection += '4. **감정 표현 방식**을 참고하되 새로운 상황에 맞게 적용하세요\n';
+  ragSection += '5. 위 대사들과 **비슷한 느낌**이지만 **완전히 다른 내용**의 대본을 만드세요\n\n';
 
-  ragSection += '**❗ 중요:** 위 참고 자료는 스타일과 패턴 이해용입니다. 원문을 복사하지 말고, 패턴을 참고하여 완전히 새로운 대본을 창작하세요.\n\n';
+  ragSection += '**🚨 절대 금지:** 위 대사의 내용이나 상황을 복사하지 마세요. **스타일과 말하는 방식만** 참고해주세요!\n\n';
 
   console.log('✅ RAG 참고 정보 구성 완료 (새 스키마)');
   return ragSection;

@@ -488,72 +488,17 @@ function buildRAGReference(chunks) {
   // 대사 스타일 패턴 분석
   const stylePatterns = extractReferencePatterns(chunks);
 
-  let ragSection = '\n\n**🎭 [대사 스타일 참고] - 실제 연기 대본 전문과 스타일 분석**\n';
-  ragSection += '아래 **전체 대사**와 **스타일 분석**을 참고하여 **비슷한 스타일의 새로운 대본**을 작성하세요.\n';
-  ragSection += '⚠️ **중요**: 내용은 절대 복사하지 말고, **말투, 리듬감, 대화 흐름**만 참고해서 완전히 새로운 상황의 대본을 만드세요.\n';
-  ragSection += '특히 **문장의 길이, 말하는 방식, 감정 표현 방법**을 유사하게 따라해보세요.\n\n';
+  let ragSection = '\n\n**📚 [참고 대본] 이 스타일대로 대본을 작성하세요**\n\n';
 
-  // 스타일별 그룹핑
-  const styleGroups = {};
-  stylePatterns.dialogueStylePatterns.forEach(pattern => {
-    const key = pattern.styleFingerprint;
-    if (!styleGroups[key]) styleGroups[key] = [];
-    styleGroups[key].push(pattern);
+  // 청크에서 직접 대본 추출
+  chunks.forEach((chunk, index) => {
+    ragSection += `**참고 대본 ${index + 1}** (${chunk.genre} | ${chunk.age} ${chunk.gender}):\n`;
+    ragSection += `"${chunk.text}"\n\n`;
   });
 
-  // 전체 대사 섹션 먼저 제시
-  ragSection += '**📜 참고 대사 전문:**\n\n';
-
-  stylePatterns.dialogueStylePatterns.forEach((pattern, index) => {
-    ragSection += `**참고 대사 ${index + 1}** (${pattern.genre} | ${pattern.age} ${pattern.gender}):\n`;
-    ragSection += `"${pattern.fullText}"\n\n`;
-
-    // 이 대사의 스타일 특성 요약
-    ragSection += `📝 **이 대사의 스타일 특징:**\n`;
-    ragSection += `- 말투: ${pattern.toneAnalysis.formalityLevel}, ${pattern.toneAnalysis.emotionalTone}\n`;
-    ragSection += `- 패턴: ${pattern.toneAnalysis.speechPattern}\n`;
-    ragSection += `- 대화방식: ${pattern.toneAnalysis.conversationStyle}\n`;
-    ragSection += `- 캐릭터: ${pattern.toneAnalysis.characterVoice}\n`;
-    ragSection += `- 문장구조: 평균 ${pattern.toneAnalysis.averageWordsPerSentence}단어/문장, ${pattern.toneAnalysis.sentenceVariety}\n\n`;
-    ragSection += `💡 **이렇게 따라해보세요:** 위 대사와 **같은 리듬감, 말하는 방식, 문장 길이**로 새로운 상황의 대본을 작성하세요.\n\n`;
-  });
-
-  // 스타일 패턴 요약
-  ragSection += '**🎯 전체 스타일 패턴 요약:**\n\n';
-
-  Object.values(styleGroups).forEach((group, groupIndex) => {
-    const representative = group[0];
-    ragSection += `**공통 스타일 ${groupIndex + 1}: ${representative.toneAnalysis.formalityLevel} × ${representative.toneAnalysis.emotionalTone}**\n`;
-    ragSection += `- 이 스타일의 대사들은 ${representative.toneAnalysis.speechPattern} 특성을 가지고 있습니다.\n`;
-    ragSection += `- ${representative.toneAnalysis.conversationStyle} 대화 방식을 사용합니다.\n`;
-    ragSection += `- ${representative.toneAnalysis.characterVoice} 캐릭터 특성을 보입니다.\n\n`;
-  });
-
-  // 연령대별/성별 말투 가이드
-  ragSection += '**👥 연령대별 말투 특성:**\n';
-  const ageGenderGroups = {};
-  stylePatterns.dialogueStylePatterns.forEach(pattern => {
-    const key = `${pattern.age}_${pattern.gender}`;
-    if (!ageGenderGroups[key]) ageGenderGroups[key] = [];
-    ageGenderGroups[key].push(pattern);
-  });
-
-  Object.entries(ageGenderGroups).forEach(([key, patterns]) => {
-    const [age, gender] = key.split('_');
-    const representative = patterns[0];
-    ragSection += `- ${age} ${gender}: ${representative.toneAnalysis.characterVoice} 특성\n`;
-    ragSection += `  말투 패턴: ${representative.toneAnalysis.speechPattern}\n`;
-    ragSection += `  어휘 선택: ${representative.toneAnalysis.vocabularyStyle}\n`;
-  });
-
-  ragSection += '\n**✨ 비슷한 스타일 대본 작성 가이드:**\n';
-  ragSection += '1. **전체 대사의 리듬감과 흐름**을 파악하여 비슷한 템포로 작성하세요\n';
-  ragSection += '2. **문장 길이와 구조**를 참고하여 유사한 패턴으로 구성하세요\n';
-  ragSection += '3. **말투와 어조의 일관성**을 유지하여 캐릭터성을 살리세요\n';
-  ragSection += '4. **감정 표현 방식**을 참고하되 새로운 상황에 맞게 적용하세요\n';
-  ragSection += '5. 위 대사들과 **비슷한 느낌**이지만 **완전히 다른 내용**의 대본을 만드세요\n\n';
-
-  ragSection += '**🚨 절대 금지:** 위 대사의 내용이나 상황을 복사하지 마세요. **스타일과 말하는 방식만** 참고해주세요!\n\n';
+  ragSection += '**💡 작성 방법:**\n';
+  ragSection += '위 대본들과 **똑같은 스타일과 말투**로 새로운 대본을 작성하세요.\n';
+  ragSection += '내용만 다르게 하고, 말하는 방식은 위와 비슷하게 해주세요.\n\n';
 
   console.log('✅ RAG 참고 정보 구성 완료 (새 스키마)');
   return ragSection;

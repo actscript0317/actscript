@@ -392,6 +392,33 @@ const AIScript = () => {
                 </div>
               </div>
 
+              {/* 최종 프롬프트 표시 섹션 */}
+              {finalPrompt && (
+                <div className="bg-blue-50 rounded-xl p-3 sm:p-4 md:p-6 border border-blue-200 mb-4 sm:mb-6">
+                  <div className="flex items-center mb-3">
+                    <FileText className="w-5 h-5 text-blue-600 mr-2" />
+                    <h3 className="text-lg font-semibold text-blue-800">최종 프롬프트</h3>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">
+                      {finalPrompt}
+                    </pre>
+                  </div>
+                  <div className="mt-3">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(finalPrompt);
+                        toast.success('최종 프롬프트가 클립보드에 복사되었습니다!');
+                      }}
+                      className="flex items-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors text-sm"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      프롬프트 복사
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-4">
                 <button
                   onClick={() => {

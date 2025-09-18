@@ -145,7 +145,7 @@ export const getTokenStatus = () => {
   const refreshToken = getRefreshToken();
   const expiry = getTokenExpiry();
   const user = getUser();
-  
+
   return {
     hasAccessToken: !!accessToken,
     hasRefreshToken: !!refreshToken,
@@ -155,4 +155,56 @@ export const getTokenStatus = () => {
     expiryTime: expiry ? new Date(expiry).toLocaleString() : null,
     timeUntilExpiry: getTimeUntilExpiry()
   };
+};
+
+// 토큰 갱신 타이머 ID 저장
+let refreshTimeoutId = null;
+
+// 토큰 만료 전 자동 갱신 스케줄링
+export const scheduleTokenRefresh = (refreshCallback) => {
+  // 기존 타이머가 있으면 제거
+  if (refreshTimeoutId) {
+    clearTimeout(refreshTimeoutId);
+    refreshTimeoutId = null;
+  }
+
+  const timeUntilExpiry = getTimeUntilExpiry();
+
+  // 토큰이 이미 만료되었거나 없으면 스케줄링하지 않음
+  if (timeUntilExpiry <= 0) {
+    console.log('⚠️ 토큰이 이미 만료됨, 갱신 스케줄링 안함');
+    return;
+  }
+
+  // 만료 10분 전 또는 즉시 갱신 (남은 시간이 10분 미만인 경우)
+  const refreshTime = Math.max(0, timeUntilExpiry - (10 * 60 * 1000));
+
+  console.log('⏰ 토큰 갱신 스케줄링:', {
+    timeUntilExpiry: Math.floor(timeUntilExpiry / 1000 / 60) + '분',
+    refreshInMinutes: Math.floor(refreshTime / 1000 / 60) + '분 후'
+  });
+
+  refreshTimeoutId = setTimeout(async () => {
+    try {
+      console.log('🔄 자동 토큰 갱신 시작');
+      if (refreshCallback && typeof refreshCallback === 'function') {
+        await refreshCallback();
+        console.log('✅ 자동 토큰 갱신 완료');
+
+        // 갱신 후 다음 갱신 스케줄링
+        scheduleTokenRefresh(refreshCallback);
+      }
+    } catch (error) {
+      console.error('❌ 자동 토큰 갱신 실패:', error);
+    }
+  }, refreshTime);
+};
+
+// 토큰 갱신 스케줄링 취소
+export const cancelTokenRefresh = () => {
+  if (refreshTimeoutId) {
+    clearTimeout(refreshTimeoutId);
+    refreshTimeoutId = null;
+    console.log('🗑️ 토큰 갱신 스케줄링 취소');
+  }
 };

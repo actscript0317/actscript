@@ -2,12 +2,14 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { authAPI, scriptAPI } from '../services/api';
 import { supabase } from '../utils/supabase';
 import { toast } from 'react-hot-toast';
-import { 
-  setAuthData, 
-  clearAuthData, 
-  getAuthState, 
+import {
+  setAuthData,
+  clearAuthData,
+  getAuthState,
   isAccessTokenExpired,
-  getTokenStatus
+  getTokenStatus,
+  scheduleTokenRefresh,
+  cancelTokenRefresh
 } from '../utils/tokenManager';
 
 const AuthContext = createContext(null);
@@ -20,15 +22,43 @@ export const AuthProvider = ({ children }) => {
   const [aiGeneratedScripts, setAIGeneratedScripts] = useState([]);
   const [savedScripts, setSavedScripts] = useState([]);
 
+  // 토큰 자동 갱신 콜백 함수
+  const handleTokenRefresh = useCallback(async () => {
+    try {
+      const authState = getAuthState();
+      if (!authState?.refreshToken) {
+        throw new Error('Refresh token not available');
+      }
+
+      // API를 통해 토큰 갱신 (기존 api.js의 refreshToken 로직 활용)
+      const response = await authAPI.getMe();
+      if (response.data.success && response.data.user) {
+        console.log('✅ 자동 토큰 갱신 중 사용자 정보 확인 완료');
+        return true;
+      } else {
+        throw new Error('Token refresh validation failed');
+      }
+    } catch (error) {
+      console.error('❌ 자동 토큰 갱신 실패:', error);
+      // 갱신 실패 시 로그아웃 처리
+      setAuthState(null, null);
+      throw error;
+    }
+  }, []);
+
   // 인증 상태 설정 (새로운 JWT 토큰 시스템용)
   const setAuthState = useCallback((userData, tokens = null) => {
     if (userData && tokens) {
       // 새로운 JWT 토큰 시스템 사용
       setAuthData(tokens, userData);
       setUser(userData);
+
+      // 자동 토큰 갱신 스케줄링 시작
+      scheduleTokenRefresh(handleTokenRefresh);
     } else {
       // 로그아웃 처리
       clearAuthData();
+      cancelTokenRefresh(); // 자동 갱신 취소
       setUser(null);
       setAIGeneratedScripts([]);
       setSavedScripts([]);
@@ -36,7 +66,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
     setInitialized(true);
     setError(null);
-  }, []);
+  }, [handleTokenRefresh]);
 
   // 로그인 상태 확인
   const checkAuth = useCallback(async () => {
@@ -218,11 +248,14 @@ export const AuthProvider = ({ children }) => {
           setUser(authState.user);
           setLoading(false);
           setInitialized(true);
-          
+
+          // 자동 토큰 갱신 스케줄링 시작
+          scheduleTokenRefresh(handleTokenRefresh);
+
           // 토큰이 만료되었거나 갱신이 필요한 경우 백그라운드에서 처리
           if (authState.needsRefresh || isAccessTokenExpired()) {
             console.log('🔄 토큰 만료됨, 백그라운드에서 인증 상태 확인 중...');
-            
+
             // 백그라운드에서 토큰 유효성 검사
             checkAuth().then(isValid => {
               if (!isValid) {
@@ -287,6 +320,13 @@ export const AuthProvider = ({ children }) => {
 
     return () => subscription.unsubscribe();
   }, [user, setAuthState]);
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      cancelTokenRefresh();
+    };
+  }, []);
 
   const value = {
     user,

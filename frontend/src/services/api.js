@@ -8,29 +8,41 @@ import {
   getTokenStatus 
 } from '../utils/tokenManager';
 
-// API 기본 설정 - 환경에 따른 동적 URL 설정
+// API 기본 설정 - 개선된 환경 감지
 const getApiBaseUrl = () => {
-  // 운영 환경에서는 환경 변수 사용
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
-  
-  // 배포된 도메인 기반 자동 감지
+  // 환경 정보 수집
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const apiUrl = process.env.REACT_APP_API_URL;
   const hostname = window.location.hostname;
-  
-  if (hostname.includes('actscript-frontend.onrender.com')) {
-    return 'https://actscript-backend.onrender.com/api';
-  } else if (hostname.includes('actscript-1.onrender.com')) {
-    return 'https://actscript.onrender.com/api';
-  } else if (hostname.includes('actscript.onrender.com')) {
-    // actscript.onrender.com도 actscript-1로 리다이렉트
-    return 'https://actscript-1.onrender.com/api';
-  } else if (hostname.includes('actpiece.com')) {
-    return 'https://actscript.onrender.com/api';
+
+  console.log('🔍 환경 정보:', {
+    NODE_ENV: process.env.NODE_ENV,
+    REACT_APP_ENV: process.env.REACT_APP_ENV,
+    REACT_APP_API_URL: apiUrl,
+    hostname: hostname,
+    isDevelopment: isDevelopment
+  });
+
+  // 1순위: 환경 변수 사용 (명시적 설정)
+  if (apiUrl && apiUrl.trim() !== '') {
+    console.log('✅ 환경 변수에서 API URL 사용:', apiUrl);
+    return apiUrl;
   }
-  
-  // 로컬 개발 환경
-  return 'http://localhost:10000/api';
+
+  // 2순위: 로컬호스트 감지 (자동 감지)
+  const isLocalhost = hostname === 'localhost' ||
+                     hostname === '127.0.0.1' ||
+                     hostname.startsWith('192.168.') ||
+                     hostname.endsWith('.local');
+
+  if (isLocalhost || isDevelopment) {
+    console.log('🏠 로컬 개발 환경 감지 - localhost API 사용');
+    return 'http://localhost:10000/api';
+  }
+
+  // 3순위: 운영 환경 기본값
+  console.log('🌐 운영 환경 감지 - 운영 API 사용');
+  return 'https://actscript-backend.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();

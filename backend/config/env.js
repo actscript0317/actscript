@@ -18,7 +18,7 @@ if (!process.env.NODE_ENV) {
 }
 
 if (!process.env.CORS_ORIGIN) {
-  process.env.CORS_ORIGIN = 'https://actscript-frontend.onrender.com,https://actscript-1.onrender.com,https://www.actpiece.com,https://actpiece.com';
+  process.env.CORS_ORIGIN = 'https://actscript-frontend.onrender.com,https://www.actpiece.com,https://actpiece.com,http://localhost:3000';
 }
 
 if (!process.env.CLIENT_URL) {
@@ -54,11 +54,11 @@ const config = {
   PORT: process.env.PORT || 10000,
   MONGODB_URI: process.env.MONGODB_URI,
   NODE_ENV: process.env.NODE_ENV || 'production',
-  CORS_ORIGIN: process.env.CORS_ORIGIN || 'https://actscript-1.onrender.com',
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'https://actscript-frontend.onrender.com',
   JWT_SECRET: process.env.JWT_SECRET,
   JWT_EXPIRE: process.env.JWT_EXPIRE || '7d',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  CLIENT_URL: process.env.CLIENT_URL || 'https://actscript-1.onrender.com',
+  CLIENT_URL: process.env.CLIENT_URL || 'https://actscript-frontend.onrender.com',
   
   // Supabase 설정
   SUPABASE_URL: process.env.SUPABASE_URL || 'https://stuaaylkugnbcedjjaei.supabase.co',

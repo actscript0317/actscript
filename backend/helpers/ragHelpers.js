@@ -499,7 +499,7 @@ function buildRAGReference(chunks) {
   ragSection += '**💡 작성 방법:**\n';
   ragSection += '위 대본들과 **똑같은 스타일과 말투**로 새로운 대본을 작성하세요.\n';
   ragSection += '내용만 다르게 하고, 말하는 방식은 위와 비슷하게 해주세요.\n';
-  ragSection += '**사건/계기 (Scene Trigger)**  
+  ragSection += '**사건/계기 (Scene Trigger)**  \n';
   ragSection += '주인공이 독백을 하게 되는 구체적 상황을 반드시 포함하세요. \n';
   ragSection += '예: 연락이 오지 않음, 약속 파기, 부모와 갈등, 물건 분실 등.\n'; 
 
@@ -518,7 +518,7 @@ function buildRAGReference(chunks) {
 
   ragSection +='5. **엔딩멘트 (Ending Line)**  \n';
   ragSection +='- 마지막은 담백하지만 여운이 남는 한두 줄로 마무리하세요.  \n';
-  ragSection += '- (예: “나, 너 좋아해. 나는 네가 오기만 하면 돼.”)\n';
+  ragSection += '- (예: “나, 너 좋아해. 나는 네가 오기만 하면 돼.”)\n\n';
 
   console.log('✅ RAG 참고 정보 구성 완료 (새 스키마)');
   return ragSection;

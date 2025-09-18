@@ -171,22 +171,32 @@ function extractReferencePatterns(chunks) {
     .filter(context => context)
     .filter((context, index, arr) => arr.indexOf(context) === index); // 중복 제거
 
-  // 대사 스타일 분석 (새 스키마: text 칼럼 활용)
-  const dialoguePatterns = chunks.map(chunk => {
+  // 대사 톤/스타일 심화 분석 (새 스키마: text 칼럼 활용)
+  const dialogueStylePatterns = chunks.map(chunk => {
     const text = chunk.text || '';
     if (text.trim()) {
+      // 기본 문장 분석
       const sentences = text.split(/[.!?]/).filter(s => s.trim());
-      const totalSentences = sentences.length;
+      const words = text.split(/\s+/).filter(w => w.trim());
 
-      // 대사의 구조 분석
-      const textAnalysis = {
-        length: text.length,
-        sentenceCount: totalSentences,
-        hasQuestion: text.includes('?'),
-        hasExclamation: text.includes('!'),
-        emotionalIntensity: (text.match(/[!?]/g) || []).length,
-        firstSentence: sentences[0]?.trim() || '',
-        lastSentence: sentences[sentences.length - 1]?.trim() || ''
+      // 대사 톤 분석
+      const toneAnalysis = {
+        // 문체 특성
+        formalityLevel: analyzeFormalityLevel(text),
+        speechPattern: analyzeSpeechPattern(text),
+        emotionalTone: analyzeEmotionalTone(text),
+
+        // 구조적 특성
+        averageWordsPerSentence: Math.round(words.length / sentences.length) || 0,
+        sentenceVariety: analyzeSentenceVariety(sentences),
+
+        // 언어적 특성
+        vocabularyStyle: analyzeVocabularyStyle(text),
+        rhetoricalDevices: analyzeRhetoricalDevices(text),
+
+        // 대화 특성
+        conversationStyle: analyzeConversationStyle(text),
+        characterVoice: analyzeCharacterVoice(text, chunk.age, chunk.gender)
       };
 
       return {
@@ -194,8 +204,9 @@ function extractReferencePatterns(chunks) {
         age: chunk.age,
         gender: chunk.gender,
         numCharacters: chunk.num_characters,
-        emotionalContext: chunk.emotional_context,
-        textAnalysis: textAnalysis
+        originalText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+        toneAnalysis: toneAnalysis,
+        styleFingerprint: generateStyleFingerprint(toneAnalysis)
       };
     }
     return null;
@@ -220,17 +231,172 @@ function extractReferencePatterns(chunks) {
 
   console.log('✅ 패턴 추출 완료 (새 스키마):', {
     emotional: emotionalPatterns.length,
-    dialogue: dialoguePatterns.length,
+    dialogueStyle: dialogueStylePatterns.length,
     scene: scenePatterns.length,
     demographic: demographicPatterns.length
   });
 
   return {
     emotionalPatterns,
-    dialoguePatterns,
+    dialogueStylePatterns,
     scenePatterns,
     demographicPatterns
   };
+}
+
+// === 대사 스타일 분석 헬퍼 함수들 ===
+
+/**
+ * 격식도/정중함 수준 분석
+ */
+function analyzeFormalityLevel(text) {
+  const formalMarkers = ['습니다', '하세요', '합시다', '하십시오', '되십시다'];
+  const informalMarkers = ['해', '야', '지', '어', '가'];
+  const veryInformalMarkers = ['ㅋㅋ', '헐', '와', '엄청', '진짜'];
+
+  const formalCount = formalMarkers.reduce((count, marker) =>
+    count + (text.split(marker).length - 1), 0);
+  const informalCount = informalMarkers.reduce((count, marker) =>
+    count + (text.split(marker).length - 1), 0);
+  const veryInformalCount = veryInformalMarkers.reduce((count, marker) =>
+    count + (text.split(marker).length - 1), 0);
+
+  if (formalCount > informalCount + veryInformalCount) return '정중한';
+  if (veryInformalCount > 0) return '친근한';
+  if (informalCount > formalCount) return '편안한';
+  return '중립적';
+}
+
+/**
+ * 말하기 패턴 분석
+ */
+function analyzeSpeechPattern(text) {
+  const patterns = [];
+
+  // 반복 패턴
+  if (text.includes('...') || text.includes('··')) patterns.push('망설임');
+  if ((text.match(/[!]/g) || []).length > 2) patterns.push('열정적');
+  if ((text.match(/[?]/g) || []).length > 1) patterns.push('의문형');
+  if (text.includes('아니') || text.includes('그런데')) patterns.push('대화적');
+  if (text.includes('음') || text.includes('어') || text.includes('그')) patterns.push('자연스러운');
+
+  return patterns.length > 0 ? patterns.join(', ') : '단조로운';
+}
+
+/**
+ * 감정 톤 분석
+ */
+function analyzeEmotionalTone(text) {
+  const emotionMarkers = {
+    '기쁨': ['좋아', '행복', '기뻐', '웃', '하하', 'ㅎㅎ'],
+    '슬픔': ['슬프', '아쉽', '안타깝', '눈물', '울', '흑흑'],
+    '분노': ['화나', '짜증', '분하', '억울', '뭐야', '그만'],
+    '놀람': ['깜짝', '어머', '세상에', '헐', '와', '대박'],
+    '걱정': ['걱정', '불안', '두렵', '무서', '조심', '혹시'],
+    '사랑': ['사랑', '좋아해', '예뻐', '멋져', '소중', '감사']
+  };
+
+  for (const [emotion, markers] of Object.entries(emotionMarkers)) {
+    if (markers.some(marker => text.includes(marker))) {
+      return emotion;
+    }
+  }
+  return '중성적';
+}
+
+/**
+ * 문장 다양성 분석
+ */
+function analyzeSentenceVariety(sentences) {
+  if (sentences.length <= 1) return '단순';
+
+  const lengths = sentences.map(s => s.trim().length);
+  const avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+  const variance = lengths.reduce((sum, len) => sum + Math.pow(len - avgLength, 2), 0) / lengths.length;
+
+  if (variance > 100) return '다양함';
+  if (variance > 50) return '보통';
+  return '균등함';
+}
+
+/**
+ * 어휘 스타일 분석
+ */
+function analyzeVocabularyStyle(text) {
+  const styles = [];
+
+  // 한자어 vs 순우리말
+  const difficultWords = ['상황', '문제', '해결', '관계', '결과', '과정'];
+  const simpleWords = ['일', '때문', '같이', '이제', '그냥', '진짜'];
+
+  const difficultCount = difficultWords.reduce((count, word) =>
+    count + (text.split(word).length - 1), 0);
+  const simpleCount = simpleWords.reduce((count, word) =>
+    count + (text.split(word).length - 1), 0);
+
+  if (difficultCount > simpleCount) styles.push('격식적');
+  else if (simpleCount > difficultCount) styles.push('일상적');
+
+  // 특수 표현
+  if (text.includes('그런') || text.includes('이런')) styles.push('설명적');
+  if (text.includes('뭔가') || text.includes('좀')) styles.push('모호한');
+
+  return styles.length > 0 ? styles.join(', ') : '평범한';
+}
+
+/**
+ * 수사법 분석
+ */
+function analyzeRhetoricalDevices(text) {
+  const devices = [];
+
+  if ((text.match(/[?]/g) || []).length > 0) devices.push('의문법');
+  if ((text.match(/[!]/g) || []).length > 0) devices.push('감탄법');
+  if (text.includes('마치') || text.includes('같은')) devices.push('비유법');
+  if (text.includes('정말') || text.includes('너무')) devices.push('강조법');
+
+  return devices.length > 0 ? devices.join(', ') : '평서법';
+}
+
+/**
+ * 대화 스타일 분석
+ */
+function analyzeConversationStyle(text) {
+  if (text.includes('그래?') || text.includes('정말?')) return '반응형';
+  if (text.includes('하지만') || text.includes('그런데')) return '논리적';
+  if (text.includes('음') || text.includes('어')) return '사색적';
+  if ((text.match(/[!]/g) || []).length > 2) return '적극적';
+  return '차분한';
+}
+
+/**
+ * 캐릭터 목소리 분석 (나이/성별 고려)
+ */
+function analyzeCharacterVoice(text, age, gender) {
+  const ageGroup = typeof age === 'string' ? age : `${age}대`;
+
+  // 연령대별 특성
+  const ageCharacteristics = {
+    '10대': text.includes('완전') || text.includes('대박') ? '10대다운' : '성숙한',
+    '20대': text.includes('진짜') || text.includes('그냥') ? '20대다운' : '어른스러운',
+    '30대': text.includes('아이고') || text.includes('그러게') ? '30대다운' : '젊은',
+    '40대': text.includes('자네') || text.includes('허허') ? '40대다운' : '젊은',
+    '50대': text.includes('그래') || text.includes('아이고') ? '50대다운' : '젊은'
+  };
+
+  // 성별 특성
+  const genderStyle = gender === '여자' ?
+    (text.includes('아') || text.includes('어머') ? '여성스러운' : '중성적') :
+    (text.includes('야') || text.includes('어') ? '남성스러운' : '중성적');
+
+  return `${ageCharacteristics[ageGroup] || '일반적'}, ${genderStyle}`;
+}
+
+/**
+ * 스타일 지문 생성 (유사한 스타일끼리 그룹핑하기 위함)
+ */
+function generateStyleFingerprint(toneAnalysis) {
+  return `${toneAnalysis.formalityLevel}_${toneAnalysis.emotionalTone}_${toneAnalysis.conversationStyle}`;
 }
 
 /**
@@ -243,52 +409,70 @@ function buildRAGReference(chunks) {
     return '';
   }
 
-  console.log('📝 RAG 참고 정보 구성 중 (새 스키마)...');
+  console.log('📝 RAG 참고 정보 구성 중 (대사 스타일 중심)...');
 
-  let ragSection = '\n\n**📚 [참고 청크] - 기존 대본 패턴 분석**\n';
-  ragSection += '[참고 청크]들은 기존 대본들을 분석하여 패턴화한 데이터입니다.\n';
-  ragSection += '이 청크들의 **감정 흐름과 대사 스타일만 참고**하여 새로운 대본을 작성하세요.\n';
-  ragSection += '단, 원문을 그대로 쓰지 말고 **패턴만 활용해 완전히 새로운 대본**을 만드세요.\n';
-  ragSection += '⚠️ **중요**: 참고 청크의 내용을 복사하지 말고, 반드시 요청된 표준 대본 형식을 사용하세요.\n';
-  ragSection += '대본은 반드시 한국어로 출력하고, 배우들이 연습할 수 있도록 현실적인 말투와 무대 지시문을 포함해야 합니다.\n\n';
+  // 대사 스타일 패턴 분석
+  const stylePatterns = extractReferencePatterns(chunks);
 
-  // 참고 청크 예시들
-  chunks.forEach((chunk, index) => {
-    ragSection += `**참고 청크 ${index + 1}:**\n`;
-    ragSection += `- 장르: ${chunk.genre}\n`;
-    ragSection += `- 연령대: ${chunk.age} / 성별: ${chunk.gender}\n`;
-    ragSection += `- 등장인물 수: ${chunk.num_characters}명\n`;
-    ragSection += `- 감정적 맥락: ${chunk.emotional_context}\n`;
-    ragSection += `- 장면 설명: ${chunk.scene_content}\n`;
+  let ragSection = '\n\n**🎭 [대사 스타일 참고] - 실제 연기 대본의 말투와 톤 분석**\n';
+  ragSection += '아래 분석된 **대사 스타일과 말투 패턴**을 참고하여 새로운 대본을 작성하세요.\n';
+  ragSection += '⚠️ **중요**: 원문을 복사하지 말고, **말투와 어조의 패턴만** 활용해 완전히 새로운 대본을 만드세요.\n';
+  ragSection += '각 캐릭터의 나이, 성별, 상황에 맞는 **자연스러운 한국어 대사**를 작성해주세요.\n\n';
 
-    // 대사 텍스트 참고 (새 스키마: text 칼럼)
-    const text = chunk.text || '';
-    if (text.trim()) {
-      ragSection += `- 대사 스타일 참고:\n`;
-
-      // 텍스트를 문장 단위로 분리하여 구조 분석
-      const sentences = text.split(/[.!?]/).filter(s => s.trim());
-      const totalSentences = sentences.length;
-
-      if (totalSentences <= 3) {
-        // 짧은 텍스트는 전체 표시
-        ragSection += `  "${text.trim()}"\n`;
-      } else {
-        // 긴 텍스트는 시작과 끝 부분만 표시
-        const firstPart = sentences.slice(0, 2).join('. ') + '.';
-        const lastPart = sentences.slice(-1)[0] + '.';
-        ragSection += `  시작: "${firstPart}"\n`;
-        ragSection += `  마무리: "${lastPart}"\n`;
-      }
-
-      // 감정 강도 분석
-      const emotionalMarkers = (text.match(/[!?]/g) || []).length;
-      if (emotionalMarkers > 0) {
-        ragSection += `  감정 강도: ${emotionalMarkers > 2 ? '높음' : '보통'} (${emotionalMarkers}개 감정 표현)\n`;
-      }
-    }
-    ragSection += '\n';
+  // 스타일별 그룹핑
+  const styleGroups = {};
+  stylePatterns.dialogueStylePatterns.forEach(pattern => {
+    const key = pattern.styleFingerprint;
+    if (!styleGroups[key]) styleGroups[key] = [];
+    styleGroups[key].push(pattern);
   });
+
+  // 대사 스타일 패턴 상세 제시
+  ragSection += '**📋 대사 톤 & 스타일 가이드:**\n\n';
+
+  Object.values(styleGroups).forEach((group, groupIndex) => {
+    const representative = group[0];
+    ragSection += `**스타일 패턴 ${groupIndex + 1}: ${representative.toneAnalysis.formalityLevel} × ${representative.toneAnalysis.emotionalTone}**\n`;
+
+    // 말투 특성
+    ragSection += `- 격식도: ${representative.toneAnalysis.formalityLevel}\n`;
+    ragSection += `- 감정 톤: ${representative.toneAnalysis.emotionalTone}\n`;
+    ragSection += `- 말하기 패턴: ${representative.toneAnalysis.speechPattern}\n`;
+    ragSection += `- 대화 스타일: ${representative.toneAnalysis.conversationStyle}\n`;
+    ragSection += `- 어휘 스타일: ${representative.toneAnalysis.vocabularyStyle}\n`;
+    ragSection += `- 수사법: ${representative.toneAnalysis.rhetoricalDevices}\n`;
+
+    // 연령/성별 특성
+    ragSection += `- 캐릭터 목소리: ${representative.toneAnalysis.characterVoice}\n`;
+    ragSection += `- 문장 구조: 평균 ${representative.toneAnalysis.averageWordsPerSentence}단어/문장, ${representative.toneAnalysis.sentenceVariety} 패턴\n`;
+
+    // 실제 대사 예시 (패턴 참고용)
+    ragSection += `- 말투 예시: "${representative.originalText}"\n`;
+    ragSection += `  👆 이 말투의 ${representative.toneAnalysis.formalityLevel} 톤과 ${representative.toneAnalysis.speechPattern} 패턴을 참고하세요\n\n`;
+  });
+
+  // 연령대별/성별 말투 가이드
+  ragSection += '**👥 연령대별 말투 특성:**\n';
+  const ageGenderGroups = {};
+  stylePatterns.dialogueStylePatterns.forEach(pattern => {
+    const key = `${pattern.age}_${pattern.gender}`;
+    if (!ageGenderGroups[key]) ageGenderGroups[key] = [];
+    ageGenderGroups[key].push(pattern);
+  });
+
+  Object.entries(ageGenderGroups).forEach(([key, patterns]) => {
+    const [age, gender] = key.split('_');
+    const representative = patterns[0];
+    ragSection += `- ${age} ${gender}: ${representative.toneAnalysis.characterVoice} 특성\n`;
+    ragSection += `  말투 패턴: ${representative.toneAnalysis.speechPattern}\n`;
+    ragSection += `  어휘 선택: ${representative.toneAnalysis.vocabularyStyle}\n`;
+  });
+
+  ragSection += '\n**✨ 대본 작성 시 주의사항:**\n';
+  ragSection += '1. 위 패턴을 **참고만** 하고 원문은 절대 복사하지 마세요\n';
+  ragSection += '2. 각 캐릭터의 나이와 성별에 맞는 **자연스러운 말투**를 사용하세요\n';
+  ragSection += '3. 감정적 톤과 격식도를 **일관되게** 유지하세요\n';
+  ragSection += '4. 실제 배우가 연기할 수 있는 **현실적인 대사**를 작성하세요\n\n';
 
   ragSection += '**❗ 중요:** 위 참고 자료는 스타일과 패턴 이해용입니다. 원문을 복사하지 말고, 패턴을 참고하여 완전히 새로운 대본을 창작하세요.\n\n';
 

@@ -488,7 +488,7 @@ function buildRAGReference(chunks) {
   // 대사 스타일 패턴 분석
   const stylePatterns = extractReferencePatterns(chunks);
 
-  let ragSection = '\n\n**📚 [참고 대본] 이 스타일대로 대본을 작성하세요**\n\n';
+  let ragSection = '\n\n**📚 [참고 대본] → 위 대본의 톤·문장 길이·감정 흐름·반복 패턴을 그대로 유지하고, 사건/상황/인물만 바꿔서 새 대본 작성**\n\n';
 
   // 청크에서 직접 대본 추출
   chunks.forEach((chunk, index) => {

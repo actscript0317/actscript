@@ -369,10 +369,6 @@ ${characterDirectives}
  
 
 
-
-**2. 장르 지시사항:**  
- ${genreDirective}
-
  
 
  

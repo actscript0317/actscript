@@ -502,6 +502,19 @@ function buildRAGReference(chunks) {
   ragSection += '**사건/계기 (Scene Trigger)**  \n';
   ragSection += '주인공이 독백을 하게 되는 구체적 상황을 반드시 포함하세요. \n';
   ragSection += '예: 연락이 오지 않음, 약속 파기, 부모와 갈등, 물건 분실 등.\n'; 
+  ragSection += '*. 대본 작성 지침**\n';
+  ragSection += '문어체, 시적 표현, 과장된 멜로 어투 금지. \n';
+  ragSection += '100% 구어체, 실제 대화에서 들을 수 있는 말투 사용.\n';
+  ragSection += '비유·추상 표현 최소화, 생활어 중심.\n';
+  ragSection += '상대방을 직접 지칭하는 2인칭 대사 활용 (“너”, “당신”).\n';
+  ragSection += '감정은 ‘점진적으로’ 쌓이며 후반에 폭발 또는 체념.\n';
+  ragSection += '중간에 감정을 급격히 변화시키는 촉발 장면이나 대사 배치.\n';
+  ragSection += '감정이 무거운 장면에서는 가볍거나 유행어 같은 표현은 피하고, 상황에 맞게 진지하고 일관된 톤을 유지하기.\n';
+  ragSection += '인물이 현실에서 한국어로 말할 때 쓰는 자연스러운 말투만 사용하기.\n';
+  ragSection += '마지막 대사는 감정이 남도록 구성.\n';
+  ragSection += '대본과 상황을 정확하게 일치할 것. 예: 누군가에게 고백하는 장면이라면 그 대상 앞에서 말하는 대사, 지시문, 상황을 일치시킬 것.\n';
+  ragSection += '대사는 자연스럽고 간결하게, 너무 ‘대본틱’하지 않게.\n';
+  ragSection += '짧은 문장과 긴 문장을 섞어 리듬을 만든다 . \n';
 
   ragSection +='2. **감정 흐름 구조 (Emotion Flow)**  \n';
   ragSection += '도입: 사건 제시 + 감정 시작 (서운함, 분노, 혼란 등)  \n';

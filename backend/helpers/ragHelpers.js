@@ -504,17 +504,17 @@ function buildRAGReference(chunks) {
   ragSection += '예: 연락이 오지 않음, 약속 파기, 부모와 갈등, 물건 분실 등.\n'; 
 
   ragSection +='2. **감정 흐름 구조 (Emotion Flow)**  \n';
-  ragSection +=- '도입: 사건 제시 + 감정 시작 (서운함, 분노, 혼란 등)  \n';
-  ragSection +=- '전개/갈등: 감정이 점차 고조되고 반복적으로 강조됨  \n';
-  ragSection +=- '결론/엔딩: 감정이 정리되며 결심 또는 고백으로 끝남  \n';
+  ragSection += '도입: 사건 제시 + 감정 시작 (서운함, 분노, 혼란 등)  \n';
+  ragSection += '전개/갈등: 감정이 점차 고조되고 반복적으로 강조됨  \n';
+  ragSection += '결론/엔딩: 감정이 정리되며 결심 또는 고백으로 끝남  \n';
 
   ragSection +='3. **감정맥락 (Emotional Context)**  \n';
-  ragSection +=- '단순히 “좋아해/싫어”가 아니라, **왜** 이런 감정이 생겼는지 구체적으로 묘사하세요.  \n';
-  ragSection +=- '(예: 무심한 척했는데 오히려 더 다쳤다, 기다리다 상처받았다 등)  \n';
+  ragSection += '단순히 “좋아해/싫어”가 아니라, **왜** 이런 감정이 생겼는지 구체적으로 묘사하세요.  \n';
+  ragSection += '(예: 무심한 척했는데 오히려 더 다쳤다, 기다리다 상처받았다 등)  \n';
 
   ragSection +='4. **반복/라임 멘트 (Repetition / Rhyme)**  \n';
   ragSection += '- 대사의 한 부분은 감정을 강조하기 위해 비슷한 말을 반복하거나 변주하세요.  \n';
-  ragSection +=- '(예: “나만 바보 같았잖아. 나만 멍청하게 서 있었잖아.”)  \n';
+  ragSection += '(예: “나만 바보 같았잖아. 나만 멍청하게 서 있었잖아.”)  \n';
 
   ragSection +='5. **엔딩멘트 (Ending Line)**  \n';
   ragSection +='- 마지막은 담백하지만 여운이 남는 한두 줄로 마무리하세요.  \n';

@@ -489,6 +489,14 @@ function buildRAGReference(chunks) {
   const stylePatterns = extractReferencePatterns(chunks);
 
   let ragSection = '\n\n**📚 [참고 대본] → 아래 참고 대본의 톤·문장 길이·감정 흐름·반복 패턴을 그대로 유지하고, 사건/상황/인물만 바꿔서 새 대본 작성**\n\n';
+  
+  
+  ragSection += '문체는 자연스러운 구어체(한국어), 짧고 호흡감 있게.'
+  ragSection += '감정선(예: 그리움→원망→절망→눈물)을 분명히 유지.'
+  ragSection += '불필요한 고전적 표현(“그대”, “여보시오”) 사용 금지.'
+  ragSection += '원본 문장(직접 인용) 3단어 이상 연속 복붙 금지.'
+  ragSection += '마지막에는 간단한 무대 지시문(괄호 안, 1줄) 추가.'
+
 
   // 청크에서 직접 대본 추출
   chunks.forEach((chunk, index) => {
@@ -496,27 +504,7 @@ function buildRAGReference(chunks) {
     ragSection += `"${chunk.text}"\n\n`;
   });
 
-  ragSection += '1. **사건/계기 (Scene Trigger)**  \n';
-  ragSection += '주인공이 독백을 하게 되는 구체적 상황을 반드시 포함하세요. \n';
-  ragSection += '예: 연락이 오지 않음, 약속 파기, 부모와 갈등, 물건 분실 등.\n'; 
-  
 
-  ragSection +='2. **감정 흐름 구조 (Emotion Flow)**  \n';
-  ragSection += '도입: 사건 제시 + 감정 시작 (서운함, 분노, 혼란 등)  \n';
-  ragSection += '전개/갈등: 감정이 점차 고조되고 반복적으로 강조됨  \n';
-  ragSection += '결론/엔딩: 감정이 정리되며 결심 또는 고백으로 끝남  \n';
-
-  ragSection +='3. **감정맥락 (Emotional Context)**  \n';
-  ragSection += '단순히 “좋아해/싫어”가 아니라, **왜** 이런 감정이 생겼는지 구체적으로 묘사하세요.  \n';
-  ragSection += '(예: 무심한 척했는데 오히려 더 다쳤다, 기다리다 상처받았다 등)  \n';
-
-  ragSection +='4. **반복/라임 멘트 (Repetition / Rhyme)**  \n';
-  ragSection += '- 대사의 한 부분은 감정을 강조하기 위해 비슷한 말을 반복하거나 변주하세요.  \n';
-  ragSection += '(예: “나만 바보 같았잖아. 나만 멍청하게 서 있었잖아.”)  \n';
-
-  ragSection +='5. **엔딩멘트 (Ending Line)**  \n';
-  ragSection +='- 마지막은 담백하지만 여운이 남는 한두 줄로 마무리하세요.  \n';
-  ragSection += '- (예: “나, 너 좋아해. 나는 네가 오기만 하면 돼.”)\n\n';
 
 
 

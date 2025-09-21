@@ -496,42 +496,10 @@ function buildRAGReference(chunks) {
     ragSection += `"${chunk.text}"\n\n`;
   });
 
-  ragSection += '**💡 작성 방법:**\n';
-  ragSection += '위 대본들과 **똑같은 스타일과 말투**로 새로운 대본을 작성하세요.\n';
-  ragSection += '내용만 다르게 하고, 말하는 방식은 위와 비슷하게 해주세요.\n';
-  ragSection += '**사건/계기 (Scene Trigger)**  \n';
-  ragSection += '주인공이 독백을 하게 되는 구체적 상황을 반드시 포함하세요. \n';
-  ragSection += '예: 연락이 오지 않음, 약속 파기, 부모와 갈등, 물건 분실 등.\n'; 
-  ragSection += '*. 대본 작성 지침**\n';
-  ragSection += '문어체, 시적 표현, 과장된 멜로 어투 금지. \n';
-  ragSection += '100% 구어체, 실제 대화에서 들을 수 있는 말투 사용.\n';
-  ragSection += '비유·추상 표현 최소화, 생활어 중심.\n';
-  ragSection += '상대방을 직접 지칭하는 2인칭 대사 활용 (“너”, “당신”).\n';
-  ragSection += '감정은 ‘점진적으로’ 쌓이며 후반에 폭발 또는 체념.\n';
-  ragSection += '중간에 감정을 급격히 변화시키는 촉발 장면이나 대사 배치.\n';
-  ragSection += '감정이 무거운 장면에서는 가볍거나 유행어 같은 표현은 피하고, 상황에 맞게 진지하고 일관된 톤을 유지하기.\n';
-  ragSection += '인물이 현실에서 한국어로 말할 때 쓰는 자연스러운 말투만 사용하기.\n';
-  ragSection += '마지막 대사는 감정이 남도록 구성.\n';
-  ragSection += '대본과 상황을 정확하게 일치할 것. 예: 누군가에게 고백하는 장면이라면 그 대상 앞에서 말하는 대사, 지시문, 상황을 일치시킬 것.\n';
-  ragSection += '대사는 자연스럽고 간결하게, 너무 ‘대본틱’하지 않게.\n';
-  ragSection += '짧은 문장과 긴 문장을 섞어 리듬을 만든다 . \n';
 
-  ragSection +='2. **감정 흐름 구조 (Emotion Flow)**  \n';
-  ragSection += '도입: 사건 제시 + 감정 시작 (서운함, 분노, 혼란 등)  \n';
-  ragSection += '전개/갈등: 감정이 점차 고조되고 반복적으로 강조됨  \n';
-  ragSection += '결론/엔딩: 감정이 정리되며 결심 또는 고백으로 끝남  \n';
 
-  ragSection +='3. **감정맥락 (Emotional Context)**  \n';
-  ragSection += '단순히 “좋아해/싫어”가 아니라, **왜** 이런 감정이 생겼는지 구체적으로 묘사하세요.  \n';
-  ragSection += '(예: 무심한 척했는데 오히려 더 다쳤다, 기다리다 상처받았다 등)  \n';
 
-  ragSection +='4. **반복/라임 멘트 (Repetition / Rhyme)**  \n';
-  ragSection += '- 대사의 한 부분은 감정을 강조하기 위해 비슷한 말을 반복하거나 변주하세요.  \n';
-  ragSection += '(예: “나만 바보 같았잖아. 나만 멍청하게 서 있었잖아.”)  \n';
 
-  ragSection +='5. **엔딩멘트 (Ending Line)**  \n';
-  ragSection +='- 마지막은 담백하지만 여운이 남는 한두 줄로 마무리하세요.  \n';
-  ragSection += '- (예: “나, 너 좋아해. 나는 네가 오기만 하면 돼.”)\n\n';
 
   console.log('✅ RAG 참고 정보 구성 완료 (새 스키마)');
   return ragSection;

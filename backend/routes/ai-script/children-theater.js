@@ -6,6 +6,7 @@ const { authenticateToken } = require('../../middleware/supabaseAuth');
 const { reserveUsage, commitUsage, rollbackUsage } = require('../../helpers/usage');
 const { parseOpenAIError, callOpenAIWithRetry, logRequestData, MODEL_FINAL, TEMPERATURE_FINAL, MAX_COMPLETION_TOKENS } = require('../../helpers/aiHelpers');
 const { extractTitleFromScript, saveScript } = require('../../helpers/scriptHelpers');
+const { enhancePromptWithRAG } = require('../../helpers/ragHelpers');
 
 const router = express.Router();
 

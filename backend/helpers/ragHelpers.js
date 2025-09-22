@@ -123,6 +123,70 @@ async function getRelevantChunks(criteria, limit = 3) {
       console.log(`👥 등장인물 수 필터링 후: ${filteredChunks.length}개 (조건: ${criteria.characterCount}명)`);
     }
 
+    // 맥락 기반 스코어링 및 재정렬
+    if (filteredChunks.length > 0) {
+      console.log('🎯 맥락 기반 스코어링 적용 중...');
+
+      const contextScoredChunks = filteredChunks.map(chunk => {
+        let contextScore = 0;
+        const scriptContext = (chunk.script_context || '').toLowerCase();
+        const genre = (criteria.genre || '').toLowerCase();
+
+        // 장르별 맥락 키워드 매핑
+        const genreContextMap = {
+          '로맨스': ['사랑', '고백', '데이트', '커플', '연인', '설렘', '첫사랑', '이별', '재회'],
+          '비극': ['슬픔', '죽음', '상실', '절망', '고통', '눈물', '헤어짐', '비극', '안타까움'],
+          '코미디': ['웃음', '유머', '장난', '재미', '익살', '코믹', '개그', '우스꽝스러운'],
+          '스릴러': ['긴장', '위험', '추격', '의심', '불안', '공포', '미스터리', '범죄'],
+          '액션': ['싸움', '전투', '액션', '격투', '추격', '모험', '영웅', '결투'],
+          '공포': ['무서움', '공포', '귀신', '괴물', '어둠', '섬뜩', '오싹', '호러'],
+          '판타지': ['마법', '환상', '신비', '모험', '전설', '요정', '마술', '초자연'],
+          'SF': ['미래', '과학', '로봇', '우주', '기술', '실험', '발명', '컴퓨터'],
+          '드라마': ['갈등', '가족', '현실', '인간관계', '성장', '고민', '선택', '변화'],
+          '시대극': ['전통', '역사', '과거', '궁궐', '신분', '의리', '충성', '예의']
+        };
+
+        // 장르별 맥락 키워드 매칭
+        const contextKeywords = genreContextMap[genre] || [];
+        const matchingKeywords = contextKeywords.filter(keyword =>
+          scriptContext.includes(keyword)
+        );
+
+        if (matchingKeywords.length > 0) {
+          contextScore += Math.min(matchingKeywords.length * 5, 15); // 최대 15점
+        }
+
+        // 감정적 상황 유사성 (emotional_context와 script_context 교차 매칭)
+        const emotionalContext = (chunk.emotional_context || '').toLowerCase();
+        if (emotionalContext && scriptContext) {
+          // 감정과 상황이 일치하는 경우 보너스 점수
+          const emotionContextPairs = [
+            ['기쁨', '축하'], ['슬픔', '이별'], ['분노', '갈등'],
+            ['사랑', '고백'], ['두려움', '위험'], ['놀람', '반전']
+          ];
+
+          for (const [emotion, situation] of emotionContextPairs) {
+            if (emotionalContext.includes(emotion) && scriptContext.includes(situation)) {
+              contextScore += 5;
+              break;
+            }
+          }
+        }
+
+        return {
+          chunk,
+          contextScore: Math.min(contextScore, 20) // 최대 20점으로 제한
+        };
+      });
+
+      // 맥락 점수 순으로 정렬
+      filteredChunks = contextScoredChunks
+        .sort((a, b) => b.contextScore - a.contextScore)
+        .map(item => item.chunk);
+
+      console.log('✅ 맥락 기반 스코어링 완료');
+    }
+
     // 필터링 결과가 없으면 스타일 유사성 기반 선택 (폴백)
     if (filteredChunks.length === 0 && allChunks && allChunks.length > 0) {
       console.log('🔄 필터링된 청크가 없어서 스타일 유사성 기반 선택');
@@ -153,7 +217,7 @@ async function getRelevantChunks(criteria, limit = 3) {
 }
 
 /**
- * 청크들을 분석하여 참고 패턴 추출 (새로운 스키마 대응)
+ * 청크들을 분석하여 참고 패턴 추출 (새로운 스키마 대응 - 라임대사, 대본맥락 포함)
  * @param {Array} chunks - 검색된 청크들
  * @returns {Object} 추출된 패턴들
  */
@@ -163,15 +227,27 @@ function extractReferencePatterns(chunks) {
       emotionalPatterns: [],
       dialoguePatterns: [],
       scenePatterns: [],
-      demographicPatterns: []
+      demographicPatterns: [],
+      rhymePatterns: [],
+      contextPatterns: []
     };
   }
 
-  console.log('📊 참고 패턴 추출 중 (새 스키마)...');
+  console.log('📊 참고 패턴 추출 중 (라임대사, 대본맥락 포함)...');
 
   // 감정적 맥락 패턴 추출 (새 스키마: emotional_context 활용)
   const emotionalPatterns = chunks.map(chunk => chunk.emotional_context)
     .filter(context => context)
+    .filter((context, index, arr) => arr.indexOf(context) === index); // 중복 제거
+
+  // 라임대사 패턴 추출 (새로 추가)
+  const rhymePatterns = chunks.map(chunk => chunk.rhyme_dialogue)
+    .filter(rhyme => rhyme && rhyme.trim())
+    .filter((rhyme, index, arr) => arr.indexOf(rhyme) === index); // 중복 제거
+
+  // 대본맥락 패턴 추출 (새로 추가)
+  const contextPatterns = chunks.map(chunk => chunk.script_context)
+    .filter(context => context && context.trim())
     .filter((context, index, arr) => arr.indexOf(context) === index); // 중복 제거
 
   // 대사 톤/스타일 심화 분석 (새 스키마: text 칼럼 활용)
@@ -232,18 +308,22 @@ function extractReferencePatterns(chunks) {
     genre: chunk.genre
   }));
 
-  console.log('✅ 패턴 추출 완료 (새 스키마):', {
+  console.log('✅ 패턴 추출 완료 (라임대사, 대본맥락 포함):', {
     emotional: emotionalPatterns.length,
     dialogueStyle: dialogueStylePatterns.length,
     scene: scenePatterns.length,
-    demographic: demographicPatterns.length
+    demographic: demographicPatterns.length,
+    rhyme: rhymePatterns.length,
+    context: contextPatterns.length
   });
 
   return {
     emotionalPatterns,
     dialogueStylePatterns,
     scenePatterns,
-    demographicPatterns
+    demographicPatterns,
+    rhymePatterns,
+    contextPatterns
   };
 }
 
@@ -483,26 +563,62 @@ function buildRAGReference(chunks) {
     return '';
   }
 
-  console.log('📝 RAG 참고 정보 구성 중 (대사 스타일 중심)...');
+  console.log('📝 RAG 참고 정보 구성 중 (라임대사, 대본맥락 중심)...');
 
   // 대사 스타일 패턴 분석
   const stylePatterns = extractReferencePatterns(chunks);
 
   let ragSection = '\n\n**📚 [참고 대본] → 아래 참고 대본의 톤·문장 길이·감정 흐름·반복 패턴을 그대로 유지하고, 사건/상황/인물만 바꿔서 새 대본 작성**\n\n';
-  
-  ragSection += '대본 작성 규칙'
-  ragSection += '1. 100% 구어체, 실제 대화에서 들을 수 있는 말투 사용.\n'
-  ragSection += '2. 비유·추상 표현 최소화, 생활어 중심.\n'
-  ragSection += '3. 상대방을 직접 지칭하는 2인칭 대사 활용 (“너”, “당신”)\n'
-  ragSection += '4. 원본 문장(직접 인용) 3단어 이상 연속 복붙 금지.\n'
-  ragSection += '5. 대사는 자연스럽고 간결하게, 너무 ‘대본틱’하지 않게.\n' 
-  ragSection += '6. 마지막에는 간단한 무대 지시문(괄호 안, 1줄) 추가.\n\n';
 
+  ragSection += '**🎭 대본 작성 규칙:**\n';
+  ragSection += '1. 100% 구어체, 실제 대화에서 들을 수 있는 말투 사용.\n';
+  ragSection += '2. 비유·추상 표현 최소화, 생활어 중심.\n';
+  ragSection += '3. 상대방을 직접 지칭하는 2인칭 대사 활용 ("너", "당신")\n';
+  ragSection += '4. 원본 문장(직접 인용) 3단어 이상 연속 복붙 금지.\n';
+  ragSection += '5. 대사는 자연스럽고 간결하게, 너무 \'대본틱\'하지 않게.\n';
+  ragSection += '6. 마지막에는 간단한 무대 지시문(괄호 안, 1줄) 추가.\n';
+
+  // 라임대사가 있는 경우 특별 규칙 추가
+  if (stylePatterns.rhymePatterns.length > 0) {
+    ragSection += '7. **🎵 라임대사 필수 포함**: 아래 참고 라임대사를 참고해서 운율감 있는 대사를 반드시 포함해야 함.\n';
+  }
+  ragSection += '\n';
+
+  // 라임대사 섹션 (새로 추가)
+  if (stylePatterns.rhymePatterns.length > 0) {
+    ragSection += '**🎵 참고 라임대사 (반드시 활용):**\n';
+    stylePatterns.rhymePatterns.forEach((rhyme, index) => {
+      ragSection += `- "${rhyme}"\n`;
+    });
+    ragSection += '\n';
+  }
+
+  // 대본맥락 섹션 (새로 추가)
+  if (stylePatterns.contextPatterns.length > 0) {
+    ragSection += '**📖 다양한 대본맥락 학습 (창의적 변형 활용):**\n';
+    stylePatterns.contextPatterns.forEach((context, index) => {
+      ragSection += `- ${context}\n`;
+    });
+    ragSection += '\n';
+  }
 
   // 청크에서 직접 대본 추출
+  ragSection += '**📜 참고 대본 예시:**\n';
   chunks.forEach((chunk, index) => {
     ragSection += `**참고 대본 ${index + 1}** (${chunk.genre} | ${chunk.age} ${chunk.gender}):\n`;
-    ragSection += `"${chunk.text}"\n\n`;
+    ragSection += `"${chunk.text}"\n`;
+
+    // 라임대사가 있으면 표시
+    if (chunk.rhyme_dialogue && chunk.rhyme_dialogue.trim()) {
+      ragSection += `🎵 라임: "${chunk.rhyme_dialogue}"\n`;
+    }
+
+    // 대본맥락이 있으면 표시
+    if (chunk.script_context && chunk.script_context.trim()) {
+      ragSection += `📖 맥락: ${chunk.script_context}\n`;
+    }
+
+    ragSection += '\n';
   });
 
 
@@ -511,7 +627,7 @@ function buildRAGReference(chunks) {
 
 
 
-  console.log('✅ RAG 참고 정보 구성 완료 (새 스키마)');
+  console.log('✅ RAG 참고 정보 구성 완료 (라임대사, 대본맥락 포함)');
   return ragSection;
 }
 

@@ -19,7 +19,20 @@ async function getRelevantChunks(criteria, limit = 3) {
 
     let query = supabaseAdmin
       .from('script_chunks')
-      .select('*');
+      .select(`
+        doc_id,
+        raw_text,
+        genre,
+        age,
+        gender,
+        context,
+        scene_index,
+        chunk_index,
+        rhythm_line,
+        title,
+        type,
+        stage_direction
+      `);
 
     // 모든 청크 조회 후 JavaScript 필터링
     console.log('📊 모든 청크 조회 후 JavaScript 필터링 적용');
@@ -28,8 +41,8 @@ async function getRelevantChunks(criteria, limit = 3) {
       console.log(`👥 요청된 인물 수: ${criteria.characterCount}명`);
     }
 
-    // 생성 순서대로 조회 (id 기준)
-    const { data: allChunks, error } = await query.order('id', { ascending: false });
+    // 생성 순서대로 조회 (doc_id 기준)
+    const { data: allChunks, error } = await query.order('doc_id', { ascending: false });
 
     if (error) {
       console.error('❌ 청크 검색 오류:', error);
@@ -38,16 +51,36 @@ async function getRelevantChunks(criteria, limit = 3) {
 
     console.log(`📋 총 ${allChunks?.length || 0}개 청크 조회됨, 필터링 시작...`);
 
-    // JavaScript로 필터링 수행
-    let filteredChunks = allChunks || [];
+    if (allChunks && allChunks.length > 0) {
+      console.log('📋 첫 번째 청크 원본:', JSON.stringify(allChunks[0], null, 2));
+    }
+
+    // JavaScript로 필터링 수행 - 먼저 필드명 매핑
+    let filteredChunks = (allChunks || []).map(chunk => ({
+      id: chunk.doc_id,
+      text: chunk.raw_text,
+      genre: chunk.genre,
+      age: chunk.age,
+      gender: chunk.gender,
+      num_characters: 1, // 기존 데이터는 단일 캐릭터
+      emotional_context: chunk.context,
+      script_context: chunk.context,
+      scene_content: chunk.raw_text,
+      scene_index: chunk.scene_index,
+      chunk_index: chunk.chunk_index,
+      rhyme_dialogue: chunk.rhythm_line,
+      title: chunk.title,
+      type: chunk.type,
+      stage_direction: chunk.stage_direction
+    }));
 
     // 장르 필터링
     if (criteria.genre) {
       const genreMap = {
-        '로맨스': ['로맨스', '로맨스 코미디', '멜로'],
-        '비극': ['비극', '드라마', '슬픔'],
+        '로맨스': ['로맨스', '로맨스 코미디', '멜로', '로맨스/드라마'],
+        '비극': ['비극', '드라마', '슬픔', '로맨스/드라마'],
         '코미디': ['코미디', '로맨스 코미디', '유머'],
-        '드라마': ['드라마', '감동', '현실'],
+        '드라마': ['드라마', '감동', '현실', '로맨스/드라마'],
         '스릴러': ['스릴러', '서스펜스', '긴장'],
         '액션': ['액션', '격투', '추격'],
         '공포': ['공포', '호러', '무서움'],
@@ -59,7 +92,10 @@ async function getRelevantChunks(criteria, limit = 3) {
       const searchGenres = genreMap[criteria.genre] || [criteria.genre];
       filteredChunks = filteredChunks.filter(chunk => {
         const genre = chunk.genre || '';
-        return searchGenres.some(g => genre.toLowerCase().includes(g.toLowerCase()));
+        return searchGenres.some(g =>
+          genre.toLowerCase().includes(g.toLowerCase()) ||
+          g.toLowerCase().includes(genre.toLowerCase())
+        );
       });
       console.log(`🎭 장르 필터링 후: ${filteredChunks.length}개 (조건: ${searchGenres.join(', ')})`);
     }
@@ -112,15 +148,11 @@ async function getRelevantChunks(criteria, limit = 3) {
       console.log(`👫 성별 필터링 후: ${filteredChunks.length}개 (조건: ${criteria.gender})`);
     }
 
-    // 등장인물 수 필터링 (새 스키마: num_characters 칼럼 사용)
-    if (criteria.characterCount && typeof criteria.characterCount === 'number') {
-      filteredChunks = filteredChunks.filter(chunk => {
-        const numChars = chunk.num_characters;
-        // 정확히 일치하거나 ±1 범위 허용
-        return numChars === criteria.characterCount ||
-               Math.abs(numChars - criteria.characterCount) <= 1;
-      });
-      console.log(`👥 등장인물 수 필터링 후: ${filteredChunks.length}개 (조건: ${criteria.characterCount}명)`);
+    // 등장인물 수 필터링 (기존 데이터는 대부분 단일 캐릭터이므로 생략)
+    // 향후 multi-character 데이터가 추가되면 활성화
+    if (criteria.characterCount && typeof criteria.characterCount === 'number' && criteria.characterCount > 1) {
+      // 현재는 모든 청크가 단일 캐릭터이므로 1명 요청시에만 필터링 적용하지 않음
+      console.log(`👥 등장인물 수 ${criteria.characterCount}명 요청 - 현재 데이터는 주로 단일 캐릭터`);
     }
 
     // 맥락 기반 스코어링 및 재정렬
@@ -235,18 +267,30 @@ function extractReferencePatterns(chunks) {
 
   console.log('📊 참고 패턴 추출 중 (라임대사, 대본맥락 포함)...');
 
-  // 감정적 맥락 패턴 추출 (새 스키마: emotional_context 활용)
-  const emotionalPatterns = chunks.map(chunk => chunk.emotional_context)
+  // 감정적 맥락 패턴 추출 (기존 스키마: context 활용)
+  const emotionalPatterns = chunks.map(chunk => chunk.emotional_context || chunk.context)
     .filter(context => context)
     .filter((context, index, arr) => arr.indexOf(context) === index); // 중복 제거
 
-  // 라임대사 패턴 추출 (새로 추가)
-  const rhymePatterns = chunks.map(chunk => chunk.rhyme_dialogue)
+  // 라임대사 패턴 추출 (기존 스키마: rhythm_line 활용)
+  const rhymePatterns = chunks.map(chunk => {
+    const rhyme = chunk.rhyme_dialogue || chunk.rhythm_line;
+    if (typeof rhyme === 'string' && rhyme.startsWith('[') && rhyme.endsWith(']')) {
+      try {
+        // JSON 형태의 배열 문자열을 파싱
+        const parsed = JSON.parse(rhyme.replace(/'/g, '"'));
+        return Array.isArray(parsed) ? parsed.join(', ') : rhyme;
+      } catch {
+        return rhyme;
+      }
+    }
+    return rhyme;
+  })
     .filter(rhyme => rhyme && rhyme.trim())
     .filter((rhyme, index, arr) => arr.indexOf(rhyme) === index); // 중복 제거
 
-  // 대본맥락 패턴 추출 (새로 추가)
-  const contextPatterns = chunks.map(chunk => chunk.script_context)
+  // 대본맥락 패턴 추출 (기존 스키마: context 활용)
+  const contextPatterns = chunks.map(chunk => chunk.script_context || chunk.context)
     .filter(context => context && context.trim())
     .filter((context, index, arr) => arr.indexOf(context) === index); // 중복 제거
 
@@ -291,20 +335,20 @@ function extractReferencePatterns(chunks) {
     return null;
   }).filter(p => p);
 
-  // 장면 패턴 (새 스키마: scene_content 활용)
+  // 장면 패턴 (기존 스키마: raw_text, context 활용)
   const scenePatterns = chunks.map(chunk => ({
-    sceneContent: chunk.scene_content,
+    sceneContent: chunk.scene_content || chunk.text,
     genre: chunk.genre,
-    emotionalContext: chunk.emotional_context,
+    emotionalContext: chunk.emotional_context || chunk.context,
     sceneIndex: chunk.scene_index,
     chunkIndex: chunk.chunk_index
   }));
 
-  // 인구통계학적 패턴
+  // 인구통계학적 패턴 (기존 스키마에 맞게)
   const demographicPatterns = chunks.map(chunk => ({
     age: chunk.age,
     gender: chunk.gender,
-    numCharacters: chunk.num_characters,
+    numCharacters: 1, // 기존 데이터는 주로 단일 캐릭터
     genre: chunk.genre
   }));
 
@@ -602,20 +646,31 @@ function buildRAGReference(chunks) {
     ragSection += '\n';
   }
 
-  // 청크에서 직접 대본 추출
+  // 청크에서 직접 대본 추출 (기존 스키마에 맞게)
   ragSection += '**📜 참고 대본 예시:**\n';
   chunks.forEach((chunk, index) => {
     ragSection += `**참고 대본 ${index + 1}** (${chunk.genre} | ${chunk.age} ${chunk.gender}):\n`;
     ragSection += `"${chunk.text}"\n`;
 
-    // 라임대사가 있으면 표시
-    if (chunk.rhyme_dialogue && chunk.rhyme_dialogue.trim()) {
-      ragSection += `🎵 라임: "${chunk.rhyme_dialogue}"\n`;
+    // 라임대사가 있으면 표시 (rhythm_line 활용)
+    const rhymeDialogue = chunk.rhyme_dialogue || chunk.rhythm_line;
+    if (rhymeDialogue && rhymeDialogue.trim() && rhymeDialogue !== 'null') {
+      let displayRhyme = rhymeDialogue;
+      if (typeof rhymeDialogue === 'string' && rhymeDialogue.startsWith('[') && rhymeDialogue.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(rhymeDialogue.replace(/'/g, '"'));
+          displayRhyme = Array.isArray(parsed) ? parsed.join(', ') : rhymeDialogue;
+        } catch {
+          // 파싱 실패시 원본 사용
+        }
+      }
+      ragSection += `🎵 라임: "${displayRhyme}"\n`;
     }
 
-    // 대본맥락이 있으면 표시
-    if (chunk.script_context && chunk.script_context.trim()) {
-      ragSection += `📖 맥락: ${chunk.script_context}\n`;
+    // 대본맥락이 있으면 표시 (context 활용)
+    const scriptContext = chunk.script_context || chunk.context;
+    if (scriptContext && scriptContext.trim()) {
+      ragSection += `📖 맥락: ${scriptContext}\n`;
     }
 
     ragSection += '\n';

@@ -244,10 +244,8 @@ async function getRelevantChunks(criteria, limit = 3) {
       console.log(`  └ 시리즈 ${seriesId}: ${docSeriesGroups[seriesId].length}개 청크`);
     });
 
-    // 가장 적합한 시리즈 하나 선택 (가장 많은 청크를 가진 시리즈 우선)
-    let bestSeries = null;
-    let maxChunks = 0;
-    let bestScore = 0;
+    // 시리즈별 점수 계산 및 동점 시 랜덤 선택
+    const seriesScores = [];
 
     Object.keys(docSeriesGroups).forEach(seriesId => {
       const seriesChunks = docSeriesGroups[seriesId];
@@ -264,20 +262,39 @@ async function getRelevantChunks(criteria, limit = 3) {
 
       console.log(`  └ 시리즈 ${seriesId} 점수: ${seriesScore} (청크 ${seriesChunks.length}개)`);
 
-      if (seriesScore > bestScore || (seriesScore === bestScore && seriesChunks.length > maxChunks)) {
-        bestSeries = seriesId;
-        maxChunks = seriesChunks.length;
-        bestScore = seriesScore;
-      }
+      seriesScores.push({
+        seriesId: seriesId,
+        score: seriesScore,
+        chunkCount: seriesChunks.length,
+        chunks: seriesChunks
+      });
     });
 
-    let selectedChunks = [];
-    if (bestSeries && docSeriesGroups[bestSeries]) {
-      selectedChunks = docSeriesGroups[bestSeries].slice(0, limit);
-      console.log(`🎯 선택된 시리즈: ${bestSeries} (${selectedChunks.length}개 청크)`);
+    // 점수별로 정렬
+    seriesScores.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score; // 점수 높은 순
+      return b.chunkCount - a.chunkCount; // 동점시 청크 수 많은 순
+    });
+
+    // 최고 점수를 가진 시리즈들 찾기
+    const maxScore = seriesScores[0]?.score || 0;
+    const topSeries = seriesScores.filter(series => series.score === maxScore);
+
+    // 동점인 시리즈들 중 랜덤 선택
+    let selectedSeries = null;
+    if (topSeries.length > 0) {
+      const randomIndex = Math.floor(Math.random() * topSeries.length);
+      selectedSeries = topSeries[randomIndex];
+      console.log(`🎲 동점 시리즈 ${topSeries.length}개 중 랜덤 선택: ${selectedSeries.seriesId}`);
     }
 
-    console.log(`✅ ${selectedChunks?.length || 0}개의 관련 청크 발견 (시리즈 ${bestSeries})`);
+    let selectedChunks = [];
+    if (selectedSeries && selectedSeries.chunks) {
+      selectedChunks = selectedSeries.chunks.slice(0, limit);
+      console.log(`🎯 선택된 시리즈: ${selectedSeries.seriesId} (${selectedChunks.length}개 청크)`);
+    }
+
+    console.log(`✅ ${selectedChunks?.length || 0}개의 관련 청크 발견 (시리즈 ${selectedSeries?.seriesId || 'none'})`);
     if (selectedChunks && selectedChunks.length > 0) {
       console.log('📋 발견된 청크 정보:');
       selectedChunks.forEach((chunk, index) => {

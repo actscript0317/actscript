@@ -70,7 +70,8 @@
       "Read(/D:\\carcor\\actscript\\backend\\routes\\ai-script/**)",
       "Read(/D:\\carcor\\actscript\\backend\\routes\\ai-script/**)",
       "Read(/D:\\carcor\\actscript\\backend\\routes\\ai-script/**)",
-      "Read(/D:\\carcor\\actscript\\frontend\\src\\pages\\ai-script/**)"
+      "Read(/D:\\carcor\\actscript\\frontend\\src\\pages\\ai-script/**)",
+      "Bash(npm run get-admin-token:*)"
     ],
     "deny": [],
     "additionalDirectories": [

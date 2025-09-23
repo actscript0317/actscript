@@ -16,6 +16,13 @@ const { supabaseAdmin } = require('../config/supabase');
 async function getRelevantChunks(criteria, limit = 3) {
   try {
     console.log('🔍 RAG 청크 검색 시작 (새 스키마):', JSON.stringify(criteria, null, 2));
+    console.log('🔍 [디버깅] 프론트엔드에서 전달된 criteria 상세분석:', {
+      genre: criteria.genre,
+      ageGroup: criteria.ageGroup,
+      gender: criteria.gender,
+      characterCount: criteria.characterCount,
+      mood: criteria.mood
+    });
 
     let query = supabaseAdmin
       .from('script_chunks')
@@ -253,11 +260,22 @@ async function getRelevantChunks(criteria, limit = 3) {
       // 시리즈별 품질 점수 계산 (청크 수 + 조건 매칭도)
       let seriesScore = seriesChunks.length * 10; // 기본 점수
 
-      // 조건 매칭 보너스 점수
+      // 조건 매칭 보너스 점수 (더 유연한 매칭)
       seriesChunks.forEach(chunk => {
-        if (chunk.genre === criteria.genre) seriesScore += 20;
-        if (chunk.age === criteria.ageGroup) seriesScore += 15;
-        if (chunk.gender === criteria.gender) seriesScore += 10;
+        // 장르 매칭 (부분 문자열 포함)
+        const chunkGenre = (chunk.genre || '').toLowerCase();
+        const criteriaGenre = (criteria.genre || '').toLowerCase();
+        if (chunkGenre.includes(criteriaGenre) || criteriaGenre.includes(chunkGenre)) {
+          seriesScore += 20;
+        }
+
+        // 연령대 매칭 (매핑 사용)
+        const ageMatched = checkAgeMatch(chunk.age, criteria.ageGroup);
+        if (ageMatched) seriesScore += 15;
+
+        // 성별 매칭 (매핑 사용)
+        const genderMatched = checkGenderMatch(chunk.gender, criteria.gender);
+        if (genderMatched) seriesScore += 10;
       });
 
       console.log(`  └ 시리즈 ${seriesId} 점수: ${seriesScore} (청크 ${seriesChunks.length}개)`);
@@ -283,9 +301,11 @@ async function getRelevantChunks(criteria, limit = 3) {
     // 동점인 시리즈들 중 랜덤 선택
     let selectedSeries = null;
     if (topSeries.length > 0) {
+      console.log('🎲 [디버깅] 동점 시리즈 상세 정보:', topSeries.map(s => ({ seriesId: s.seriesId, score: s.score, chunkCount: s.chunkCount })));
       const randomIndex = Math.floor(Math.random() * topSeries.length);
       selectedSeries = topSeries[randomIndex];
-      console.log(`🎲 동점 시리즈 ${topSeries.length}개 중 랜덤 선택: ${selectedSeries.seriesId}`);
+      console.log(`🎲 동점 시리즈 ${topSeries.length}개 중 랜덤 선택: ${selectedSeries.seriesId} (인덱스: ${randomIndex})`);
+      console.log('🎲 [디버깅] Math.random() 값:', Math.random(), '-> randomIndex:', randomIndex);
     }
 
     let selectedChunks = [];
@@ -790,9 +810,65 @@ async function enhancePromptWithRAG(originalPrompt, criteria) {
   }
 }
 
+/**
+ * 연령대 매칭 검사 함수
+ * @param {string} chunkAge - 청크의 연령대 (예: "20대")
+ * @param {string} criteriaAge - 요청 조건의 연령대 (예: "20s")
+ * @returns {boolean} 매칭 여부
+ */
+function checkAgeMatch(chunkAge, criteriaAge) {
+  if (!chunkAge || !criteriaAge) return false;
+
+  const ageMap = {
+    'children': ['어린이', '5~9세', '유아'],
+    'kids': ['초등학생', '10~12세', '아동'],
+    'teens': ['10대', '청소년', '고등학생', '학생'],
+    '20s': ['20대', '청년', '대학생', '젊은'],
+    '30s-40s': ['30대', '40대', '중년', '성인'],
+    '50s': ['50대', '장년'],
+    '70s+': ['70대', '노년', '할머니', '할아버지', '고령']
+  };
+
+  const searchAges = ageMap[criteriaAge] || [criteriaAge];
+  const age = chunkAge.toLowerCase();
+
+  return searchAges.some(a =>
+    age.includes(a.toLowerCase()) ||
+    a.toLowerCase().includes(age)
+  );
+}
+
+/**
+ * 성별 매칭 검사 함수
+ * @param {string} chunkGender - 청크의 성별 (예: "여성")
+ * @param {string} criteriaGender - 요청 조건의 성별 (예: "female")
+ * @returns {boolean} 매칭 여부
+ */
+function checkGenderMatch(chunkGender, criteriaGender) {
+  if (!chunkGender || !criteriaGender || criteriaGender === 'random') return true;
+
+  const gender = chunkGender.toLowerCase();
+
+  // "혼합"이나 비어있는 경우는 모든 성별 요청에 매칭
+  if (gender === '혼합' || gender === '' || gender === 'mixed') {
+    return true;
+  }
+
+  // 구체적 성별 매칭
+  if (criteriaGender === 'male') {
+    return gender.includes('남') || gender.includes('male');
+  } else if (criteriaGender === 'female') {
+    return gender.includes('여') || gender.includes('female');
+  }
+
+  return false;
+}
+
 module.exports = {
   getRelevantChunks,
   extractReferencePatterns,
   buildRAGReference,
-  enhancePromptWithRAG
+  enhancePromptWithRAG,
+  checkAgeMatch,
+  checkGenderMatch
 };

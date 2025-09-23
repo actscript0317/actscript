@@ -251,62 +251,20 @@ async function getRelevantChunks(criteria, limit = 3) {
       console.log(`  └ 시리즈 ${seriesId}: ${docSeriesGroups[seriesId].length}개 청크`);
     });
 
-    // 시리즈별 점수 계산 및 동점 시 랜덤 선택
-    const seriesScores = [];
+    // 시리즈 중에서 단순 랜덤 선택 (점수 계산 없음)
+    const seriesIds = Object.keys(docSeriesGroups);
+    console.log(`🎲 발견된 시리즈: [${seriesIds.join(', ')}]`);
 
-    Object.keys(docSeriesGroups).forEach(seriesId => {
-      const seriesChunks = docSeriesGroups[seriesId];
+    // 완전 랜덤 선택
+    const randomIndex = Math.floor(Math.random() * seriesIds.length);
+    const selectedSeriesId = seriesIds[randomIndex];
+    const selectedSeries = {
+      seriesId: selectedSeriesId,
+      chunks: docSeriesGroups[selectedSeriesId]
+    };
 
-      // 시리즈별 품질 점수 계산 (청크 수 + 조건 매칭도)
-      let seriesScore = seriesChunks.length * 10; // 기본 점수
-
-      // 조건 매칭 보너스 점수 (더 유연한 매칭)
-      seriesChunks.forEach(chunk => {
-        // 장르 매칭 (부분 문자열 포함)
-        const chunkGenre = (chunk.genre || '').toLowerCase();
-        const criteriaGenre = (criteria.genre || '').toLowerCase();
-        if (chunkGenre.includes(criteriaGenre) || criteriaGenre.includes(chunkGenre)) {
-          seriesScore += 20;
-        }
-
-        // 연령대 매칭 (매핑 사용)
-        const ageMatched = checkAgeMatch(chunk.age, criteria.ageGroup);
-        if (ageMatched) seriesScore += 15;
-
-        // 성별 매칭 (매핑 사용)
-        const genderMatched = checkGenderMatch(chunk.gender, criteria.gender);
-        if (genderMatched) seriesScore += 10;
-      });
-
-      console.log(`  └ 시리즈 ${seriesId} 점수: ${seriesScore} (청크 ${seriesChunks.length}개)`);
-
-      seriesScores.push({
-        seriesId: seriesId,
-        score: seriesScore,
-        chunkCount: seriesChunks.length,
-        chunks: seriesChunks
-      });
-    });
-
-    // 점수별로 정렬
-    seriesScores.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score; // 점수 높은 순
-      return b.chunkCount - a.chunkCount; // 동점시 청크 수 많은 순
-    });
-
-    // 최고 점수를 가진 시리즈들 찾기
-    const maxScore = seriesScores[0]?.score || 0;
-    const topSeries = seriesScores.filter(series => series.score === maxScore);
-
-    // 동점인 시리즈들 중 랜덤 선택
-    let selectedSeries = null;
-    if (topSeries.length > 0) {
-      console.log('🎲 [디버깅] 동점 시리즈 상세 정보:', topSeries.map(s => ({ seriesId: s.seriesId, score: s.score, chunkCount: s.chunkCount })));
-      const randomIndex = Math.floor(Math.random() * topSeries.length);
-      selectedSeries = topSeries[randomIndex];
-      console.log(`🎲 동점 시리즈 ${topSeries.length}개 중 랜덤 선택: ${selectedSeries.seriesId} (인덱스: ${randomIndex})`);
-      console.log('🎲 [디버깅] Math.random() 값:', Math.random(), '-> randomIndex:', randomIndex);
-    }
+    console.log(`🎲 완전 랜덤 시리즈 선택: ${selectedSeriesId} (인덱스: ${randomIndex}/${seriesIds.length})`);
+    console.log(`🎲 [디버깅] Math.random() 값: ${Math.random()}`)
 
     let selectedChunks = [];
     if (selectedSeries && selectedSeries.chunks) {

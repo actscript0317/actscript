@@ -26,10 +26,8 @@ async function getRelevantChunks(criteria, limit = 3) {
         age,
         gender,
         context,
-        scene_index,
         chunk_index,
         rhythm_line,
-        title,
         type,
         stage_direction
       `);
@@ -66,10 +64,10 @@ async function getRelevantChunks(criteria, limit = 3) {
       emotional_context: chunk.context,
       script_context: chunk.context,
       scene_content: chunk.raw_text,
-      scene_index: chunk.scene_index,
-      chunk_index: chunk.chunk_index,
+      scene_index: 0, // scene_index가 삭제됨, 기본값 0 사용
+      chunk_index: typeof chunk.chunk_index === 'string' ? chunk.chunk_index.trim() : chunk.chunk_index,
       rhyme_dialogue: chunk.rhythm_line,
-      title: chunk.title,
+      title: null, // title 컬럼이 삭제됨
       type: chunk.type,
       stage_direction: chunk.stage_direction
     }));
@@ -340,7 +338,7 @@ function extractReferencePatterns(chunks) {
     sceneContent: chunk.scene_content || chunk.text,
     genre: chunk.genre,
     emotionalContext: chunk.emotional_context || chunk.context,
-    sceneIndex: chunk.scene_index,
+    sceneIndex: chunk.scene_index || 0, // scene_index 삭제됨
     chunkIndex: chunk.chunk_index
   }));
 
@@ -649,6 +647,11 @@ function buildRAGReference(chunks) {
   // 청크에서 직접 대본 추출 (기존 스키마에 맞게)
   ragSection += '**📜 참고 대본 예시:**\n';
   chunks.forEach((chunk, index) => {
+    // text가 null이나 빈 문자열인 경우 스킵
+    if (!chunk.text || chunk.text.trim() === '') {
+      return;
+    }
+
     ragSection += `**참고 대본 ${index + 1}** (${chunk.genre} | ${chunk.age} ${chunk.gender}):\n`;
     ragSection += `"${chunk.text}"\n`;
 

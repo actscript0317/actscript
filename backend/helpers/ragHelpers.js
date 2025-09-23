@@ -226,19 +226,67 @@ async function getRelevantChunks(criteria, limit = 3) {
       filteredChunks = selectSimilarStyleChunks(filteredChunks, criteria);
     }
 
-    // 결과 제한
-    const chunks = filteredChunks.slice(0, limit);
+    // 같은 doc_id 시리즈별로 그룹화 (예: "1-" 시리즈, "2-" 시리즈)
+    const docSeriesGroups = {};
+    filteredChunks.forEach(chunk => {
+      // doc_id에서 시리즈 번호 추출 (예: "1-1" → "1", "2-3" → "2")
+      const seriesMatch = String(chunk.id).match(/^(\d+)-/);
+      const seriesId = seriesMatch ? seriesMatch[1] : String(chunk.id);
 
-    console.log(`✅ ${chunks?.length || 0}개의 관련 청크 발견`);
-    if (chunks && chunks.length > 0) {
+      if (!docSeriesGroups[seriesId]) {
+        docSeriesGroups[seriesId] = [];
+      }
+      docSeriesGroups[seriesId].push(chunk);
+    });
+
+    console.log(`📊 발견된 doc_id 시리즈: ${Object.keys(docSeriesGroups).length}개`);
+    Object.keys(docSeriesGroups).forEach(seriesId => {
+      console.log(`  └ 시리즈 ${seriesId}: ${docSeriesGroups[seriesId].length}개 청크`);
+    });
+
+    // 가장 적합한 시리즈 하나 선택 (가장 많은 청크를 가진 시리즈 우선)
+    let bestSeries = null;
+    let maxChunks = 0;
+    let bestScore = 0;
+
+    Object.keys(docSeriesGroups).forEach(seriesId => {
+      const seriesChunks = docSeriesGroups[seriesId];
+
+      // 시리즈별 품질 점수 계산 (청크 수 + 조건 매칭도)
+      let seriesScore = seriesChunks.length * 10; // 기본 점수
+
+      // 조건 매칭 보너스 점수
+      seriesChunks.forEach(chunk => {
+        if (chunk.genre === criteria.genre) seriesScore += 20;
+        if (chunk.age === criteria.ageGroup) seriesScore += 15;
+        if (chunk.gender === criteria.gender) seriesScore += 10;
+      });
+
+      console.log(`  └ 시리즈 ${seriesId} 점수: ${seriesScore} (청크 ${seriesChunks.length}개)`);
+
+      if (seriesScore > bestScore || (seriesScore === bestScore && seriesChunks.length > maxChunks)) {
+        bestSeries = seriesId;
+        maxChunks = seriesChunks.length;
+        bestScore = seriesScore;
+      }
+    });
+
+    let selectedChunks = [];
+    if (bestSeries && docSeriesGroups[bestSeries]) {
+      selectedChunks = docSeriesGroups[bestSeries].slice(0, limit);
+      console.log(`🎯 선택된 시리즈: ${bestSeries} (${selectedChunks.length}개 청크)`);
+    }
+
+    console.log(`✅ ${selectedChunks?.length || 0}개의 관련 청크 발견 (시리즈 ${bestSeries})`);
+    if (selectedChunks && selectedChunks.length > 0) {
       console.log('📋 발견된 청크 정보:');
-      chunks.forEach((chunk, index) => {
-        console.log(`  ${index + 1}. ${chunk.genre} - ${chunk.age} (${chunk.num_characters}명, ${chunk.gender})`);
+      selectedChunks.forEach((chunk, index) => {
+        console.log(`  ${index + 1}. ${chunk.genre} - ${chunk.age} (${chunk.num_characters}명, ${chunk.gender}) [${chunk.id}]`);
       });
     } else {
       console.log('⚠️ 검색 조건에 맞는 청크를 찾지 못했습니다:', criteria);
     }
-    return chunks || [];
+    return selectedChunks || [];
 
   } catch (error) {
     console.error('❌ RAG 청크 검색 중 오류:', error);

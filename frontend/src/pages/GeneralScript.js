@@ -808,7 +808,97 @@ const GeneralScript = () => {
           {/* 오른쪽 대본 표시 영역 (2/3) */}
           <div className="lg:col-span-2">
             <div className="bg-white border border-gray-200 rounded-2xl p-6 min-h-[600px]">
-              {generatedScript ? (
+              {/* 대본 생성 중 상태 */}
+              {isGenerating ? (
+                <div className="h-full flex items-center justify-center min-h-[500px]">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center"
+                  >
+                    {/* 메인 로딩 아이콘 */}
+                    <motion.div
+                      animate={{
+                        rotate: 360,
+                        scale: [1, 1.1, 1]
+                      }}
+                      transition={{
+                        rotate: { duration: 2, repeat: Infinity, ease: "linear" },
+                        scale: { duration: 1.5, repeat: Infinity, ease: "easeInOut" }
+                      }}
+                      className="w-20 h-20 mx-auto mb-6"
+                    >
+                      <div className="w-full h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
+                        <Wand2 className="w-10 h-10 text-white" />
+                      </div>
+                    </motion.div>
+
+                    {/* 메인 텍스트 */}
+                    <motion.h3
+                      animate={{ opacity: [0.7, 1, 0.7] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      className="text-2xl font-bold text-gray-900 mb-4"
+                    >
+                      AI가 대본을 생성하고 있습니다
+                    </motion.h3>
+
+                    {/* 서브 텍스트들 */}
+                    <div className="space-y-2 mb-8">
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="text-gray-600"
+                      >
+                        설정하신 조건에 맞는 창의적인 대본을 만들어드리고 있어요
+                      </motion.p>
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 1 }}
+                        className="text-sm text-gray-500"
+                      >
+                        잠시만 기다려주세요... 곧 완성됩니다!
+                      </motion.p>
+                    </div>
+
+                    {/* 진행 표시 점들 */}
+                    <div className="flex justify-center space-x-2">
+                      {[0, 1, 2].map((i) => (
+                        <motion.div
+                          key={i}
+                          animate={{
+                            y: [0, -10, 0],
+                            backgroundColor: ['#d1d5db', '#8b5cf6', '#d1d5db']
+                          }}
+                          transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            delay: i * 0.2,
+                            ease: "easeInOut"
+                          }}
+                          className="w-3 h-3 rounded-full bg-gray-300"
+                        />
+                      ))}
+                    </div>
+
+                    {/* 장르별 추가 메시지 */}
+                    {formData.genre && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.5 }}
+                        className="mt-8 p-4 bg-purple-50 rounded-lg border border-purple-100"
+                      >
+                        <p className="text-sm text-purple-700">
+                          <span className="font-medium">{formData.genre}</span> 장르의 특성을 살린 대본을 작성 중이에요
+                        </p>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                </div>
+              ) : generatedScript ? (
+                /* 대본 생성 완료 상태 */
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -897,7 +987,8 @@ const GeneralScript = () => {
                   </div>
                 </motion.div>
               ) : (
-                <div className="h-full flex items-center justify-center">
+                /* 초기 대기 상태 */
+                <div className="h-full flex items-center justify-center min-h-[500px]">
                   <div className="text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <FileText className="w-8 h-8 text-gray-400" />

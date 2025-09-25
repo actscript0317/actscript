@@ -45,7 +45,7 @@ const AIScriptMain = () => {
     }
   }, [user]);
 
-  // 템플릿 데이터 (일반 대본을 첫 번째로, 나머지는 개발 중)
+  // 템플릿 데이터 (일반 대본과 어린이 연극은 활성화, 나머지는 개발 중)
   const templates = [
     {
       value: 'general',
@@ -53,6 +53,14 @@ const AIScriptMain = () => {
       description: '자유로운 설정으로 다양한 상황의 대본',
       icon: '🎭',
       path: '/ai-script/general',
+      available: true
+    },
+    {
+      value: 'children',
+      label: '어린이 연극',
+      description: '5~12세 어린이를 위한 교육적이고 재미있는 연극',
+      icon: '🧒',
+      path: '/ai-script/children',
       available: true
     },
     {

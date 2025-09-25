@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   Users,
-  ArrowRight,
-  Wand2
+  ArrowRight
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -149,7 +148,7 @@ const AIScriptMain = () => {
                 transition={{ delay: 0.2, type: "spring" }}
                 className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-4 shadow-lg"
               >
-                <Wand2 className="w-8 h-8 text-white" />
+                <span className="text-white font-bold text-lg">QueOn</span>
               </motion.div>
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
                 AI 대본 생성기

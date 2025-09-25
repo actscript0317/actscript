@@ -6,7 +6,6 @@ import {
   Sparkles,
   Users,
   Clock,
-  Wand2,
   Copy,
   Save,
   RefreshCw,
@@ -772,7 +771,7 @@ const GeneralScript = () => {
                       </div>
                     ) : (
                       <div className="flex items-center justify-center space-x-2">
-                        <Wand2 className="w-4 h-4" />
+                        <span className="text-xs font-bold">QueOn</span>
                         <span>🎭 대본 생성하기</span>
                       </div>
                     )}
@@ -829,7 +828,7 @@ const GeneralScript = () => {
                       className="w-20 h-20 mx-auto mb-6"
                     >
                       <div className="w-full h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
-                        <Wand2 className="w-10 h-10 text-white" />
+                        <span className="text-white font-bold text-2xl">QueOn</span>
                       </div>
                     </motion.div>
 

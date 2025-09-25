@@ -771,7 +771,7 @@ const GeneralScript = () => {
                       </div>
                     ) : (
                       <div className="flex items-center justify-center space-x-2">
-                        <span className="text-xs font-bold">QueOn</span>
+                        <span className="text-green-400 font-bold text-sm">QueOn</span>
                         <span>🎭 대본 생성하기</span>
                       </div>
                     )}
@@ -818,18 +818,26 @@ const GeneralScript = () => {
                     {/* 메인 로딩 아이콘 */}
                     <motion.div
                       animate={{
-                        rotate: 360,
                         scale: [1, 1.1, 1]
                       }}
                       transition={{
-                        rotate: { duration: 2, repeat: Infinity, ease: "linear" },
                         scale: { duration: 1.5, repeat: Infinity, ease: "easeInOut" }
                       }}
-                      className="w-20 h-20 mx-auto mb-6"
+                      className="mx-auto mb-6"
                     >
-                      <div className="w-full h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
-                        <span className="text-white font-bold text-2xl">QueOn</span>
-                      </div>
+                      <motion.span
+                        animate={{
+                          color: ['#10b981', '#059669', '#10b981']
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                        className="font-bold text-5xl tracking-wider drop-shadow-lg"
+                      >
+                        QueOn
+                      </motion.span>
                     </motion.div>
 
                     {/* 메인 텍스트 */}
@@ -868,7 +876,7 @@ const GeneralScript = () => {
                           key={i}
                           animate={{
                             y: [0, -10, 0],
-                            backgroundColor: ['#d1d5db', '#8b5cf6', '#d1d5db']
+                            backgroundColor: ['#d1d5db', '#10b981', '#d1d5db']
                           }}
                           transition={{
                             duration: 1.5,
@@ -887,9 +895,9 @@ const GeneralScript = () => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 1.5 }}
-                        className="mt-8 p-4 bg-purple-50 rounded-lg border border-purple-100"
+                        className="mt-8 p-4 bg-green-50 rounded-lg border border-green-100"
                       >
-                        <p className="text-sm text-purple-700">
+                        <p className="text-sm text-green-700">
                           <span className="font-medium">{formData.genre}</span> 장르의 특성을 살린 대본을 작성 중이에요
                         </p>
                       </motion.div>

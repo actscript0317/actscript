@@ -439,18 +439,6 @@ const GeneralScript = () => {
               </div>
             </div>
 
-            {/* 헤더 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center mb-6"
-            >
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl mb-3 shadow-lg">
-                <Wand2 className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900 mb-1">일반 대본 생성</h1>
-              <p className="text-gray-600 text-sm">설정을 선택해보세요</p>
-            </motion.div>
 
             {/* 옵션 폼 카드 */}
             <motion.div
@@ -819,15 +807,15 @@ const GeneralScript = () => {
 
           {/* 오른쪽 대본 표시 영역 (2/3) */}
           <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 h-full min-h-[600px] sticky top-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 min-h-[600px]">
               {generatedScript ? (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="h-full flex flex-col"
+                  className="flex flex-col space-y-6"
                 >
                   {/* 대본 헤더 */}
-                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between pb-4 border-b border-gray-200">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">생성된 대본</h3>
                       <div className="flex space-x-2 mt-2">
@@ -851,15 +839,13 @@ const GeneralScript = () => {
                   </div>
 
                   {/* 대본 내용 */}
-                  <div className="flex-1 overflow-y-auto mb-6">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <ScriptRenderer script={generatedScript} />
-                    </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <ScriptRenderer script={generatedScript} />
                   </div>
 
                   {/* 최종 프롬프트 (접이식) */}
                   {finalPrompt && (
-                    <details className="mb-6">
+                    <details>
                       <summary className="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-800">
                         최종 프롬프트 보기
                       </summary>

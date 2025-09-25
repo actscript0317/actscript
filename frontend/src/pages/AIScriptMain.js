@@ -45,41 +45,45 @@ const AIScriptMain = () => {
     }
   }, [user]);
 
-  // 템플릿 데이터
+  // 템플릿 데이터 (일반 대본을 첫 번째로, 나머지는 개발 중)
   const templates = [
     {
-      value: 'children',
-      label: '어린이 연극',
-      description: '5~12세 어린이를 위한 교육적이고 재미있는 연극',
-      icon: '🧒',
-      path: '/ai-script/children'
+      value: 'general',
+      label: '일반 대본',
+      description: '자유로운 설정으로 다양한 상황의 대본',
+      icon: '🎭',
+      path: '/ai-script/general',
+      available: true
     },
     {
       value: 'school',
       label: '학교 연극',
       description: '학교 발표회나 축제에 적합한 연극',
       icon: '🎒',
-      path: '/ai-script/school'
+      path: '/ai-script/school',
+      available: false,
+      comingSoon: true
     },
     {
       value: 'family',
       label: '가족 연극',
       description: '온 가족이 함께 즐길 수 있는 연극',
       icon: '👨‍👩‍👧‍👦',
-      path: '/ai-script/family'
-    },
-    {
-      value: 'general',
-      label: '일반 대본',
-      description: '자유로운 설정으로 다양한 상황의 대본',
-      icon: '🎭',
-      path: '/ai-script/general'
+      path: '/ai-script/family',
+      available: false,
+      comingSoon: true
     }
   ];
 
   // 템플릿 선택 처리
   const handleTemplateSelect = (templateValue) => {
     const template = templates.find(t => t.value === templateValue);
+
+    if (!template.available) {
+      // 개발 중인 템플릿은 클릭 불가
+      return;
+    }
+
     setSelectedTemplate(template);
 
     // 해당 페이지로 이동
@@ -148,43 +152,75 @@ const AIScriptMain = () => {
         </motion.div>
 
         {/* 템플릿 카드들 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="flex justify-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl w-full">
           {templates.map((template, index) => (
             <motion.div
               key={template.value}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + index * 0.1 }}
-              whileHover={{ y: -4 }}
-              className="group"
+              whileHover={template.available ? { y: -4 } : {}}
+              className={`group ${index === 0 ? 'sm:col-span-1' : ''} ${!template.available ? 'opacity-60' : ''}`}
             >
-              <button
-                onClick={() => handleTemplateSelect(template.value)}
-                className="w-full p-6 bg-white border border-gray-200 rounded-2xl hover:border-green-300 hover:shadow-lg transition-all duration-300 text-left"
-              >
-                {/* 아이콘 */}
-                <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
-                  <span className="text-2xl">{template.icon}</span>
-                </div>
+              <div className="relative">
+                <button
+                  onClick={() => handleTemplateSelect(template.value)}
+                  disabled={!template.available}
+                  className={`w-full p-6 bg-white border border-gray-200 rounded-2xl transition-all duration-300 text-left relative overflow-hidden ${
+                    template.available
+                      ? 'hover:border-green-300 hover:shadow-lg cursor-pointer'
+                      : 'cursor-not-allowed border-gray-200 bg-gray-50'
+                  }`}
+                >
+                  {/* 개발 중 오버레이 */}
+                  {!template.available && (
+                    <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-10">
+                      <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                        개발 중
+                      </div>
+                    </div>
+                  )}
 
-                {/* 제목 */}
-                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">
-                  {template.label}
-                </h3>
+                  {/* 아이콘 */}
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-colors ${
+                    template.available
+                      ? 'bg-green-50 group-hover:bg-green-100'
+                      : 'bg-gray-100'
+                  }`}>
+                    <span className="text-2xl">{template.icon}</span>
+                  </div>
 
-                {/* 설명 */}
-                <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                  {template.description}
-                </p>
+                  {/* 제목 */}
+                  <h3 className={`text-xl font-bold mb-2 transition-colors ${
+                    template.available
+                      ? 'text-gray-900 group-hover:text-green-600'
+                      : 'text-gray-500'
+                  }`}>
+                    {template.label}
+                  </h3>
 
-                {/* 액션 */}
-                <div className="flex items-center text-green-600 font-medium text-sm">
-                  <span>시작하기</span>
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </button>
+                  {/* 설명 */}
+                  <p className={`text-sm leading-relaxed mb-4 ${
+                    template.available ? 'text-gray-600' : 'text-gray-400'
+                  }`}>
+                    {template.description}
+                  </p>
+
+                  {/* 액션 */}
+                  <div className={`flex items-center font-medium text-sm ${
+                    template.available ? 'text-green-600' : 'text-gray-400'
+                  }`}>
+                    <span>{template.available ? '시작하기' : '준비 중'}</span>
+                    {template.available && (
+                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    )}
+                  </div>
+                </button>
+              </div>
             </motion.div>
           ))}
+          </div>
         </div>
 
         {/* 하단 안내 문구 */}

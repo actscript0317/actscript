@@ -87,6 +87,9 @@ const AIScript = () => {
   const [textareaRef, setTextareaRef] = useState(null);
   const [cursorPosition, setCursorPosition] = useState(0);
 
+  // 최종 프롬프트 펼침 상태
+  const [isPromptExpanded, setIsPromptExpanded] = useState(false);
+
   // 사용량 정보 가져오기
   const fetchUsageInfo = async () => {
     try {
@@ -395,16 +398,28 @@ const AIScript = () => {
               {/* 최종 프롬프트 표시 섹션 */}
               {finalPrompt && (
                 <div className="bg-blue-50 rounded-xl p-3 sm:p-4 md:p-6 border border-blue-200 mb-4 sm:mb-6">
-                  <div className="flex items-center mb-3">
-                    <FileText className="w-5 h-5 text-blue-600 mr-2" />
-                    <h3 className="text-lg font-semibold text-blue-800">최종 프롬프트</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <FileText className="w-5 h-5 text-blue-600 mr-2" />
+                      <h3 className="text-lg font-semibold text-blue-800">최종 프롬프트</h3>
+                    </div>
+                    <button
+                      onClick={() => setIsPromptExpanded(!isPromptExpanded)}
+                      className="flex items-center px-2 py-1 text-blue-600 hover:text-blue-800 transition-colors text-sm font-medium"
+                    >
+                      <ChevronDown className={`w-4 h-4 mr-1 transform transition-transform ${isPromptExpanded ? 'rotate-180' : ''}`} />
+                      {isPromptExpanded ? '접기' : '펼치기'}
+                    </button>
                   </div>
-                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                  <div className={`bg-white rounded-lg p-4 border border-blue-100 transition-all duration-300 ${isPromptExpanded ? 'max-h-none' : 'max-h-32 overflow-hidden'}`}>
                     <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">
                       {finalPrompt}
                     </pre>
+                    {!isPromptExpanded && finalPrompt.length > 200 && (
+                      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent rounded-b-lg"></div>
+                    )}
                   </div>
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(finalPrompt);

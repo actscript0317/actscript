@@ -117,7 +117,7 @@ const ScriptRenderer = ({ script }) => {
 
   return (
     <div 
-      className="bg-white rounded-lg p-3 sm:p-4 md:p-6 border border-gray-200 max-h-[60vh] sm:max-h-96 overflow-y-auto cursor-text select-text text-sm sm:text-base leading-relaxed"
+      className="bg-white rounded-lg p-3 sm:p-4 md:p-6 border border-gray-200 max-h-[80vh] sm:max-h-[600px] overflow-y-auto cursor-text select-text text-sm sm:text-base leading-relaxed"
     >
       {parseAndRenderScript(script)}
     </div>
